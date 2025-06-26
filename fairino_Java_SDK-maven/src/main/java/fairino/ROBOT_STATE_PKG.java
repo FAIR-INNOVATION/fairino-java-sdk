@@ -74,7 +74,10 @@ public class ROBOT_STATE_PKG
     public  WELDING_BREAKOFF_STATE weldingBreakOffstate=new WELDING_BREAKOFF_STATE();//焊接中断状态
 
     public double[]  jt_tgt_tor=new double[6];    //关节指令力矩
-    int smartToolState;         //SmartTool手柄按钮状态
+    public int smartToolState;         //SmartTool手柄按钮状态
+
+    public float wideVoltageCtrlBoxTemp;        //宽电压控制箱温度
+    public int wideVoltageCtrlBoxFanCurrent;   //宽电压控制箱风扇转速(mA)
 
     public short check_sum = 0;          /* 和校验 */
 

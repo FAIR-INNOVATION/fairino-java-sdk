@@ -1112,6 +1112,53 @@ public class Robot
     }
 
     /**
+     * @brief  关节空间伺服模式运动
+     * @param  joint_pos  目标关节位置,单位deg
+     * @param  axisPos  外部轴位置,单位mm
+     * @param  acc  加速度百分比，范围[0~100],暂不开放，默认为0
+     * @param  vel  速度百分比，范围[0~100]，暂不开放，默认为0
+     * @param  cmdT  指令下发周期，单位s，建议范围[0.001~0.0016]
+     * @param  filterT 滤波时间，单位s，暂不开放，默认为0
+     * @param  gain  目标位置的比例放大器，暂不开放，默认为0
+     * @param  id  servoJ指令ID,默认为0
+     * @return  错误码
+     */
+    public int ServoJ(JointPos joint_pos, ExaxisPos axisPos, double acc, double vel, double cmdT, double filterT, double gain, int id)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+        if(GetSafetyCode()!=0){
+            return GetSafetyCode();
+        }
+        try
+        {
+            Object[] jointPos = {joint_pos.J1, joint_pos.J2, joint_pos.J3, joint_pos.J4, joint_pos.J5, joint_pos.J6};
+            Object[] axis = {axisPos.axis1, axisPos.axis2, axisPos.axis3, axisPos.axis4};
+            Object[] params = new Object[] {jointPos, axis, acc, vel, cmdT, filterT, gain, id};
+            int rtn = (int)client.execute("ServoJ" , params);
+            if (log != null)
+            {
+                log.LogInfo("ServoJ(" + Arrays.toString(jointPos) + "," + Arrays.toString(axis) + "," + acc + "," + vel + "," + cmdT + "," + filterT + "," + gain + "," + id + " ): " + rtn);
+            }
+            return rtn;
+        }
+        catch (Throwable e)
+        {
+            if(e.getMessage().contains("Connection timed out") || e.getMessage().contains("connect timed out"))
+            {
+                ServoJ(joint_pos, axisPos, acc, vel, cmdT, filterT, gain);
+            }
+            else if (log != null)
+            {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
      * @brief  笛卡尔空间伺服模式运动
      * @param  mode  0-绝对运动(基坐标系)，1-增量运动(基坐标系)，2-增量运动(工具坐标系)
      * @param  desc_pose  目标笛卡尔位姿或位姿增量
@@ -12031,6 +12078,47 @@ public class Robot
             }
 
             /**
+             * @brief  力传感器辅助拖动
+             * @param  status 控制状态，0-关闭；1-开启
+             * @param  asaptiveFlag 自适应开启标志，0-关闭；1-开启
+             * @param  interfereDragFlag 干涉区拖动标志，0-关闭；1-开启
+             * @param  ingularityConstraintsFlag 奇异点策略，0-规避；1-穿越
+             * @param  forceCollisionFlag 辅助拖动时机器人碰撞检测标志；0-关闭；1-开启
+             * @param  M 惯性系数
+             * @param  B 阻尼系数
+             * @param  K 刚度系数
+             * @param  F 拖动六维力阈值
+             * @param  Fmax 最大拖动力限制
+             * @param  Vmax 最大关节速度限制
+             * @return  错误码
+             */
+            public int EndForceDragControl(int status, int asaptiveFlag, int interfereDragFlag,int ingularityConstraintsFlag, int forceCollisionFlag, Object[] M, Object[] B, Object[] K, Object[] F, double Fmax, double Vmax)
+            {
+                if (IsSockComError())
+                {
+                    return sockErr;
+                }
+                try
+                {
+                    Object[] params = new Object[] {status, asaptiveFlag, interfereDragFlag,ingularityConstraintsFlag, forceCollisionFlag, M, B, K, F, Fmax, Vmax};
+                    int rtn = (int)client.execute("EndForceDragControl" , params);
+                    if (log != null)
+                    {
+                        log.LogInfo("EndForceDragControl(" + status + ", " + asaptiveFlag + ", " + interfereDragFlag +","+ingularityConstraintsFlag+", "+ forceCollisionFlag+ ","+ Arrays.toString(M) + ", " + Arrays.toString(B) + ", " + Arrays.toString(K) + ", " + Arrays.toString(F) + ", " + Fmax + ", " + Vmax + ") : " + rtn);
+                    }
+                    return rtn;
+                }
+                catch (Throwable e)
+                {
+                    if (log != null)
+                    {
+                        log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
+                    }
+                    return RobotError.ERR_RPC_ERROR;
+                }
+            }
+
+            /**
              * @brief  报错清除后力传感器自动开启
              * @param  status 控制状态，0-关闭；1-开启
              * @return  错误码
@@ -16257,6 +16345,70 @@ public class Robot
             return RobotError.ERR_RPC_ERROR;
         }
     }
+
+    /**
+     * @brief 设置宽电压控制箱温度及风扇转速监控参数
+     * @param enable 0-不使能监测；1-使能监测
+     * @param period 监测周期(s),范围1-100
+     * @return 错误码
+     */
+    public int SetWideBoxTempFanMonitorParam(int enable, int period)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[] {enable, period};
+            int rtn = (int)client.execute("SetWideBoxTempFanMonitorParam" , params);
+            return rtn;
+        }catch (Throwable e){
+            if (log != null)
+            {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+
+    /**
+     * @brief 获取宽电压控制箱温度及风扇转速监控参数
+     * @return List[0]-错误码,List[1]-enable 0-不使能监测；1-使能监测,List[2]-period 监测周期(s),范围1-100
+     */
+    public List<Number> GetWideBoxTempFanMonitorParam()
+    {
+        List<Number> rtnArray = new ArrayList<Number>() {};
+        rtnArray.add(-1);
+        rtnArray.add(-1);
+        rtnArray.add(-1);
+
+        rtnArray.set(0, sockErr);
+        if (IsSockComError())
+        {
+            return rtnArray;
+        }
+
+        try {
+            Object[] params = new Object[] {};
+            Object[] result = (Object[])client.execute("GetWideBoxTempFanMonitorParam" , params);
+            rtnArray.add(0,(int)result[0]);
+            rtnArray.add(1,(double)result[1]);
+            rtnArray.add(2,(double)result[2]);
+            return rtnArray;
+        }catch (Throwable e){
+            if (log != null)
+            {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            rtnArray.set(0,RobotError.ERR_RPC_ERROR);
+            return rtnArray;
+        }
+    }
+
 
     /**
      * 截取byte数组   不改变原数组

@@ -439,7 +439,12 @@ public class RobotStateRoutineThread extends Thread
                 System.arraycopy(pkgBuf, 948, tmp, 0, 2);
                 pkg.smartToolState = byteToShort(tmp)[0];
 
-                System.arraycopy(pkgBuf, 950, tmp, 0, 2);
+                System.arraycopy(pkgBuf, 950, tmp, 0, 4);
+                pkg.wideVoltageCtrlBoxTemp = byte2float(tmp);
+                System.arraycopy(pkgBuf, 954, tmp, 0, 2);
+                pkg.wideVoltageCtrlBoxFanCurrent = byteToShort(tmp)[0];
+
+                System.arraycopy(pkgBuf, 956, tmp, 0, 2);
                 pkg.check_sum = byteToShort(tmp)[0];
 
             }

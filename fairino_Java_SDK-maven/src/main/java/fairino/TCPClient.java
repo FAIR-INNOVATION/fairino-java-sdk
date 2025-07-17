@@ -114,7 +114,7 @@ public class TCPClient
             this.mSocket = new Socket();
             this.mSocket.setKeepAlive(true);
             this.mSocketAddress = new InetSocketAddress(ip, port);
-            this.mSocket.connect( mSocketAddress, reconnPeriod);
+            this.mSocket.connect( mSocketAddress, reconnPeriod * 10);
 
             this.mOutputStream = mSocket.getOutputStream();
             this.mInputStream = mSocket.getInputStream();

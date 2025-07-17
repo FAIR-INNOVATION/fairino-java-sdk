@@ -1,5 +1,6 @@
 package fairino;
 
+import com.sun.scenario.effect.Offset;
 import sun.security.krb5.internal.crypto.Des;
 
 import java.util.Arrays;
@@ -161,9 +162,6 @@ public class Main {
 //        int[] state = {0};
 //        while (true)
 //        {
-//
-//            //int rtn = robot.GetSmarttoolBtnState(ref state);
-//
 //            robot.GetSmarttoolBtnState(state);
 //
 //            String binaryString = String.format("%32s", Integer.toBinaryString(state[0])).replace(' ', '0');
@@ -240,7 +238,7 @@ public class Main {
 //            robot.Sleep(100);
 //        }
 //        TestBlend(robot);
-        TestCircle(robot);//测试圆新增参数
+//        TestCircle(robot);//测试圆新增参数
 //        TestGetVersions(robot);
         //TestJOG(robot);
 //        TestMove(robot);
@@ -328,11 +326,17 @@ public class Main {
 //        TestUpgrade(robot);
 //                TestConveyor(robot);//传送带
 //        TestBlend1(robot);
+//                TestFRT(robot);
+//        TestFocus(robot);
+//        TestFirmWareUpgrade2(robot);
+        TestFirmWareUpgrade3(robot);
+////        TestFirmWareUpgrade1(robot);
+//        TestExtAxisMoveBlend(robot);
         robot.CloseRPC();//关闭连接
-
-//        while (true)
-//        {
-//            ROBOT_STATE_PKG pkg = robot.GetRobotRealTimeState();
+//
+////        while (true)
+////        {
+////            ROBOT_STATE_PKG pkg = robot.GetRobotRealTimeState();
 //            System.out.println(pkg.jt_cur_pos[0]);
 //            robot.Sleep(500);
 //            System.out.println("robot Enable stare is " + pkg.rbtEnableState);
@@ -342,6 +346,293 @@ public class Main {
         //System.out.println("J1: " + Double.toString(pos.J1) + "   J2: " + Double.toString(pos.J2) +"    J3: " + Double.toString(pos.J3) +"J4: "  + Double.toString(pos.J4) + "J5: " + Double.toString(pos.J5) +"J6: " + Double.toString(pos.J6));
     }
 
+    public static void TestFirmWareUpgrade2(Robot robot)
+    {
+        robot.RobotEnable(0);
+        robot.Sleep(200);
+        int rtn = robot.JointAllParamUpgrade("D://zUP/standardQX/jointallparametersFR56.0.db");
+        System.out.println("robot JointAllParamUpgrade rtn is:"+ rtn);
+
+        rtn = robot.SetCtrlFirmwareUpgrade(2, "D://zUP/upgrade/FAIR_Cobot_Cbd_Asix_V2.0.bin");
+        System.out.println("robot SetCtrlFirmwareUpgrade config param rtn is:"+ rtn);
+
+        rtn = robot.SetEndFirmwareUpgrade(2, "D://zUP/upgrade/FAIR_Cobot_Axle_Asix_V2.4.bin");
+        System.out.println("robot SetEndFirmwareUpgrade config param rtn is:"+ rtn);
+
+        robot.SetSysServoBootMode();
+        rtn = robot.SetCtrlFirmwareUpgrade(1, "D://zUP/standardQX/FR_CTRL_PRIMCU_FV201010_MAIN_U4_T01_20240529.bin");
+        System.out.println("robot SetCtrlFirmwareUpgrade rtn is:"+ rtn);
+
+        rtn = robot.SetEndFirmwareUpgrade(1, "D://zUP/standardQX/FR_END_FV201010_MAIN_U01_T01_20250522.bin");
+        System.out.println("robot SetEndFirmwareUpgrade rtn is:"+ rtn);
+
+        rtn = robot.SetJointFirmwareUpgrade(1, "D://zUP/standardQX/FR_SERVO_FV502211_MAIN_U7_T07_20250217.bin");
+        System.out.println("robot SetJointFirmwareUpgrade rtn is:"+ rtn);
+
+        robot.CloseRPC();
+    }
+
+    public static void TestFirmWareUpgrade3(Robot robot)
+    {
+        robot.RobotEnable(0);
+        robot.Sleep(200);
+        int rtn = robot.JointAllParamUpgrade("D://zUP/standardQX/jointallparametersFR56.0.db");
+        System.out.println("robot JointAllParamUpgrade rtn is:"+ rtn);
+
+        rtn = robot.SetCtrlFirmwareUpgrade(2, "D://zUP/upgrade/FAIR_Cobot_Cbd_Asix_V2.0.bin");
+        System.out.println("robot SetCtrlFirmwareUpgrade config param rtn is:"+ rtn);
+
+        rtn = robot.SetEndFirmwareUpgrade(2, "D://zUP/upgrade/FAIR_Cobot_Axle_Asix_V2.4.bin");
+        System.out.println("robot SetEndFirmwareUpgrade config param rtn is:"+ rtn);
+
+        robot.SetSysServoBootMode();
+        rtn = robot.SetCtrlFirmwareUpgrade(1, "D://zUP/standardQX/FR_CTRL_PRIMCU_FV201011_MAIN_U4_T01_20250208.bin");
+        System.out.println("robot SetCtrlFirmwareUpgrade rtn is:"+ rtn);
+
+        rtn = robot.SetEndFirmwareUpgrade(1, "D://zUP/standardQX/FR_END_FV201008_MAIN_U01_T01_20250416.bin");
+        System.out.println("robot SetEndFirmwareUpgrade rtn is:"+ rtn);
+
+        rtn = robot.SetJointFirmwareUpgrade(1, "D://zUP/standardQX/FR_SERVO_FV502211_MAIN_U7_T07_20250217.bin");
+        System.out.println("robot SetJointFirmwareUpgrade rtn is:"+ rtn);
+
+        robot.CloseRPC();
+    }
+
+    public static void TestExtAxisMoveBlend(Robot robot)
+    {
+        JointPos joint_pos1 =new JointPos(-68.732, -99.773, -77.729, -77.167, 100.772, -13.317);
+        JointPos joint_pos2 =new JointPos( -101.678, -102.823, -77.512, -77.185, 88.388, -13.317 );
+        JointPos joint_pos3 =new JointPos( -129.905, -99.715, -71.965, -77.209, 81.678, -13.317 );
+        DescPose desc_pos1 =new DescPose( 103.887, -434.739, 244.938, -162.495, 6.575, -142.948 );
+        DescPose desc_pos2 = new DescPose(-196.883, -418.054, 218.942, -168.196, -4.388, -178.991);
+        DescPose desc_pos3 = new DescPose(-396.665, -265.695, 284.380, -160.913, -12.378, 149.770);
+
+        ExaxisPos epos1 = new ExaxisPos(0.000, 6.996, 0.000, 0.000);
+        ExaxisPos epos2 = new ExaxisPos(0.000, 20.987, 0.000, 0.000);
+        ExaxisPos epos3 =new ExaxisPos(-0.000, 30.982, 0.000, 0.000);
+
+        DescPose offset_pos = new DescPose( 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 );
+        int rtn;
+         rtn= robot.AccSmoothStart(true);
+        System.out.println("AccSmoothStart rtn is:"+ rtn);
+        robot.Sleep(1000);
+        rtn = robot.ExtAxisSyncMoveL(joint_pos1, desc_pos1, 1, 0, 100, 100, 100, 100, epos1, 0, offset_pos);
+        System.out.println("ExtAxisSyncMoveL 1 rtn is: "+ rtn);
+        rtn = robot.ExtAxisSyncMoveL(joint_pos2, desc_pos2, 1, 0, 100, 100, 100, 200, epos2, 0, offset_pos);
+        System.out.println("ExtAxisSyncMoveL 2 rtn is: "+ rtn);
+        rtn = robot.ExtAxisSyncMoveL(joint_pos3, desc_pos3, 1, 0, 100, 100, 100, 300, epos3, 0, offset_pos);
+        System.out.println("ExtAxisSyncMoveL 3 rtn is: "+ rtn);
+        robot.Sleep(8000);
+        rtn = robot.AccSmoothEnd(true);
+        System.out.println("AccSmoothEnd rtn is: "+ rtn);
+
+        robot.CloseRPC();
+    }
+
+    public static int TestFirmWareUpgrade1(Robot robot)
+    {
+        robot.RobotEnable(0);
+        robot.Sleep(200);
+        int rtn=-1;
+        rtn = robot.JointAllParamUpgrade("D://zUP/upgrade/jointallparameters.db");
+        System.out.println("robot JointAllParamUpgrade rtn is: "+ rtn);
+
+        rtn = robot.SetCtrlFirmwareUpgrade(2, "D://zUP/upgrade/FAIR_Cobot_Cbd_Asix_V2.0.bin");
+        System.out.println("robot SetCtrlFirmwareUpgrade config param rtn is: "+ rtn);
+
+        rtn = robot.SetEndFirmwareUpgrade(2, "D://zUP/upgrade/FAIR_Cobot_Axle_Asix_V2.4.bin");
+        System.out.println("robot SetEndFirmwareUpgrade config param rtn is: "+ rtn);
+
+        robot.SetSysServoBootMode();
+        rtn = robot.SetCtrlFirmwareUpgrade(1, "D://zUP/upgrade/FR_CTRL_PRIMCU_FV201212_MAIN_U4_T01_20250428(MT).bin");
+        System.out.println("robot SetCtrlFirmwareUpgrade rtn is: "+ rtn);
+
+        rtn = robot.SetEndFirmwareUpgrade(1, "D://zUP/upgrade/FR_END_FV201009_MAIN_U1_T01_20250428.bin");
+        System.out.println("robot SetEndFirmwareUpgrade rtn is: "+ rtn);
+
+        rtn = robot.SetJointFirmwareUpgrade(1, "D://zUP/upgrade/FR_SERVO_FV504214_MAIN_U7_T07_20250519.bin");
+        System.out.println("robot SetJointFirmwareUpgrade rtn is: "+ rtn);
+
+        return 0;
+    }
+
+    public static int TestFirmWareUpgrade(Robot robot)
+    {
+        robot.SetSysServoBootMode();
+//        robot.RobotEnable(0);
+        robot.Sleep(200);
+        int rtn=-1;
+        rtn = robot.SetCtrlFirmwareUpgrade(2, "D://zUP/2025_07_09_FAIR_Cobot_Axle_Asix_V2.4/FAIR_Cobot_Cbd_Asix_V2.0.bin");
+//        rtn = robot.SetCtrlFirmwareUpgrade(1, "D://zUP/FR_CTRL_PRIMCU_FV201011_MAIN_U4_T01_20250208.bin");
+
+        System.out.println("robot SetCtrlFirmwareUpgrade rtn is:"+ rtn);
+
+        rtn = robot.SetEndFirmwareUpgrade(2, "D://zUP/2025_07_09_FAIR_Cobot_Axle_Asix_V2.4/FAIR_Cobot_Axle_Asix_V2.4.bin");
+        System.out.println("robot SetEndFirmwareUpgrade rtn is :"+ rtn);
+
+//        rtn = robot.SetJointFirmwareUpgrade(1, "D://zUP/FR_SERVO_FV502211_MAIN_U7_T07_20250217.bin");
+//        System.out.println("robot SetJointFirmwareUpgrade rtn is:"+ rtn);
+
+//        rtn = robot.JointAllParamUpgrade("D://zUP/全参数配置文件-V6.0-FR3MT-10010-20250428/jointallparameters.db");
+//        rtn = robot.JointAllParamUpgrade("D://zUP/20250603/jointallparameters.db");
+
+//        System.out.println("robot JointAllParamUpgrade rtn is: "+ rtn);
+
+        robot.CloseRPC();
+        return 0;
+    }
+
+    public static void TestFocus(Robot robot){
+        DescPose p1Desc=new DescPose(186.331, 487.913, 209.850, 149.030, 0.688, -114.347);
+        JointPos p1Joint = new JointPos(-127.876, -75.341, 115.417, -122.741, -59.820, 74.300);
+
+        DescPose p2Desc = new DescPose(69.721, 535.073, 202.882, -144.406, -14.775, -89.012);
+        JointPos p2Joint = new JointPos(-101.780, -69.828, 110.917, -125.740, -127.841, 74.300);
+
+        DescPose p3Desc = new DescPose(146.861, 578.426, 205.598, 175.997, -36.178, -93.437);
+        JointPos p3Joint = new JointPos(-112.851, -60.191, 86.566, -80.676, -97.463, 74.300);
+
+        DescPose p4Desc = new DescPose(136.284, 509.876, 225.613, 178.987, 1.372, -100.696);
+        JointPos p4Joint = new JointPos(-116.397, -76.281, 113.845, -128.611, -88.654, 74.299);
+
+        DescPose p5Desc = new DescPose(138.395, 505.972, 298.016, 179.134, 2.147, -101.110);
+        JointPos p5Joint = new JointPos(-116.814, -82.333, 109.162, -118.662, -88.585, 74.302);
+
+        DescPose p6Desc = new DescPose(105.553, 454.325, 232.017, -179.426, 0.444, -99.952);
+        JointPos p6Joint = new JointPos(-115.649, -84.367, 122.447, -128.663, -90.432, 74.303);
+
+        ExaxisPos exaxisPos = new ExaxisPos(0, 0, 0, 0);
+        DescPose offdese = new DescPose(0, 0, 100, 0, 0, 0);
+
+        robot.GetForwardKin(p1Joint, p1Desc);
+        robot.GetForwardKin(p2Joint,  p2Desc);
+        robot.GetForwardKin(p3Joint,  p3Desc);
+        robot.GetForwardKin(p4Joint,  p4Desc);
+        robot.GetForwardKin(p5Joint,  p5Desc);
+        robot.GetForwardKin(p6Joint,  p6Desc);
+
+        robot.MoveJ(p1Joint, p1Desc, 0, 0, 100, 100, 100, exaxisPos, -1, 0, offdese);
+        robot.SetTcp4RefPoint(1);
+        robot.MoveJ(p2Joint, p2Desc, 0, 0, 100, 100, 100, exaxisPos, -1, 0, offdese);
+        robot.SetTcp4RefPoint(2);
+        robot.MoveJ(p3Joint, p3Desc, 0, 0, 100, 100, 100, exaxisPos, -1, 0, offdese);
+        robot.SetTcp4RefPoint(3);
+        robot.MoveJ(p4Joint, p4Desc, 0, 0, 100, 100, 100, exaxisPos, -1, 0, offdese);
+        robot.SetTcp4RefPoint(4);
+
+        DescPose coordRtn = new DescPose(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        int rtn = robot.ComputeTcp4( coordRtn);
+
+        robot.SetToolCoord(1, coordRtn, 0, 0, 1, 0);
+
+        robot.GetForwardKin(p1Joint, p1Desc);
+        robot.GetForwardKin(p2Joint, p2Desc);
+        robot.GetForwardKin(p3Joint, p3Desc);
+
+        robot.SetFocusCalibPoint(1, p1Desc);
+        robot.SetFocusCalibPoint(2, p2Desc);
+        robot.SetFocusCalibPoint(3, p3Desc);
+
+        DescTran resultPos = new DescTran(0.0, 0.0, 0.0);
+        double[] accuracy = {0.0};
+        rtn = robot.ComputeFocusCalib(3,  resultPos,  accuracy);
+        rtn = robot.SetFocusPosition(resultPos);
+
+        robot.GetForwardKin(p5Joint,  p5Desc);
+        robot.GetForwardKin(p6Joint,  p6Desc);
+
+        robot.MoveL(p5Joint, p5Desc, 1, 0, 10, 100, 100, -1, 0, exaxisPos, 0, 1, offdese,0,100);
+        robot.MoveL(p6Joint, p6Desc, 1, 0, 10, 100, 100, -1, 0, exaxisPos, 0, 1, offdese,0,100);
+
+        robot.FocusStart(50, 19, 710, 90, 0);
+        robot.MoveL(p5Joint, p5Desc, 1, 0, 10, 100, 100, -1, 0, exaxisPos, 0, 1, offdese,0,100);
+        robot.MoveL(p6Joint, p6Desc, 1, 0, 10, 100, 100, -1, 0, exaxisPos, 0, 1, offdese,0,100);
+        robot.FocusEnd();
+    }
+    public static void TestFRT(Robot robot){
+        ExaxisPos exaxisPos = new ExaxisPos(0, 0, 0, 0);
+        DescPose offdese = new DescPose(0, 0, 0, 0, 0, 0);
+        JointPos JP1 = new JointPos(43.849, -71.535, 109.564, -135.187, -89.016, 18.225);
+        DescPose DP1 = new DescPose(-331.581, -462.334, 225.274, -173.501, 3.161, 115.864);
+        JointPos JP2 = new JointPos(67.950, -31.106, 58.618, -135.151, -89.017, 18.226);
+        DescPose DP2 = new DescPose(-219.871, -819.093, 124.722, -163.475, 6.333, 140.797);
+        JointPos JP3 = new JointPos(97.159, -26.141, 53.021, -120.936, -103.329, 18.230);
+        DescPose DP3 = new DescPose(183.319, -826.070, 70.807, -171.844, -11.320, 167.645);
+
+        JointPos JP4 = new JointPos(43.849, -71.535, 109.564, -135.187, -89.016, 18.225);
+        DescPose DP4 = new DescPose(-331.581, -462.334, 225.274, -173.501, 3.161, 115.864);
+
+        JointPos JP5 = new JointPos(67.950, -31.106, 58.618, -135.151, -89.017, 18.226);
+        DescPose DP5 = new DescPose(-219.871, -819.093, 124.722, -163.475, 6.333, 140.797);
+
+        JointPos JP6 = new JointPos(105.694, -125.732, 124.263, -105.860, -90.554, 18.230);
+        DescPose DP6 = new DescPose(171.338, -236.287, 442.053, -163.332, 4.843, 178.090);
+        robot.LinArcFIRPlanningStart(2000, 10000, 720, 1440);
+
+        robot.MoveL(JP1, DP1, 0, 0, 100, 100, 100, 20, -1, exaxisPos, 0, 0, offdese,0,10);
+
+        robot.MoveL(JP2, DP2, 0, 0, 100, 100, 100, 20, 100, exaxisPos, 0, 0, offdese,0,10);
+        robot.MoveL(JP3, DP3, 0, 0, 100, 100, 100, 20, 100, exaxisPos, 0, 0, offdese,0,10);
+
+
+
+        robot.LinArcFIRPlanningEnd();
+
+        robot.PtpFIRPlanningStart(240, 1200);
+
+        robot.MoveJ(JP4, DP4, 0, 0, 100, 100, 100, exaxisPos, -1, 0, offdese);
+        robot.MoveJ(JP5, DP5, 0, 0, 100, 100, 100, exaxisPos, 200, 0, offdese);
+        robot.MoveJ(JP6, DP6, 0, 0, 100, 100, 100, exaxisPos, 200, 0, offdese);
+
+        robot.PtpFIRPlanningEnd();
+
+        JointPos JP7 = new JointPos(138.430, -103.926, 135.390, -120.507, -116.912, 18.198);
+        DescPose DP7 = new DescPose(288.379, -179.924, 267.471, -171.989, -25.794, -151.376);
+
+        JointPos JP8 = new JointPos(122.158, -69.748, 92.480, -120.510, -116.988, 18.175);
+        DescPose DP8 = new DescPose(380.357, -498.600, 323.600, -163.066, -22.643, -171.300);
+        JointPos JP88 = new JointPos(70.960, -53.189, 85.689, -123.253, -116.780, 18.175);
+        DescPose DP88 = new DescPose(-171.581, -671.727, 192.097, -170.274, -25.085, 140.438);
+
+        robot.LinArcFIRPlanningStart(2000, 10000, 720, 1440);
+        robot.MoveL(JP7, DP7, 0, 0, 100, 100, 100, 20, 50, exaxisPos, 0, 0, offdese,0,10);
+        robot.MoveC(JP8, DP8, 0, 0, 100, 100, exaxisPos, 0, offdese, JP88, DP88, 0, 0, 100, 100, exaxisPos, 0, offdese, 100, -1);
+        robot.LinArcFIRPlanningEnd();
+        JointPos JP9 = new JointPos(138.430, -103.926, 135.390, -120.507, -116.912, 18.198);
+        DescPose DP9 = new DescPose(288.379, -179.924, 267.471, -171.989, -25.794, -151.376);
+        JointPos JP10 = new JointPos(122.158, -69.748, 92.480, -120.510, -116.988, 18.175);
+        DescPose DP10 = new DescPose(380.357, -498.600, 323.600, -163.066, -22.643, -171.300);
+
+        JointPos JP10_ = new JointPos(70.960, -53.189, 85.689, -123.253, -116.780, 18.175);
+        DescPose DP10_ = new DescPose(-171.581, -671.727, 192.097, -170.274, -25.085, 140.438);
+
+        JointPos JP11 = new JointPos(38.619, -93.376, 100.695, -79.572, -116.773, 18.172);
+        DescPose DP11 = new DescPose(-305.647, -317.052, 409.820, 169.616, -30.178, 117.509);
+        JointPos JP11_ = new JointPos(110.873, -113.738, 126.180, -79.561, -116.964, 18.173);
+        DescPose DP11_ = new DescPose(150.549, -235.789, 334.164, 163.763, -31.210, -167.182);
+        robot.LinArcFIRPlanningStart(2000, 10000, 720, 1440);
+        robot.MoveL(JP9, DP9, 0, 0, 100, 100, 100, 20, -1, exaxisPos, 0, 0, offdese,0,10);
+        robot.MoveC(JP10, DP10, 0, 0, 100, 100, exaxisPos, 0, offdese, JP10_, DP10_, 0, 0, 100, 100, exaxisPos, 0, offdese, 100, 120);
+        robot.MoveC(JP11, DP11, 0, 0, 100, 100, exaxisPos, 0, offdese, JP11_, DP11_, 0, 0, 100, 100, exaxisPos, 0, offdese, 100, -1);
+
+        robot.LinArcFIRPlanningEnd(); ;
+        JointPos JP12 = new JointPos(138.430, -103.926, 135.390, -120.507, -116.912, 18.198);
+        DescPose DP12 = new DescPose(288.379, -179.924, 267.471, -171.989, -25.794, -151.376);
+        JointPos JP13 = new JointPos(122.158, -69.748, 92.480, -120.510, -116.988, 18.175);
+        DescPose DP13 = new DescPose(380.357, -498.600, 323.600, -163.066, -22.643, -171.300);
+
+        JointPos JP13_ = new JointPos(70.960, -53.189, 85.689, -123.253, -116.780, 18.175);
+        DescPose DP13_ = new DescPose(-171.581, -671.727, 192.097, -170.274, -25.085, 140.438);
+        JointPos JP14 = new JointPos(38.619, -93.376, 100.695, -79.572, -116.773, 18.172);
+        DescPose DP14 = new DescPose(-305.647, -317.052, 409.820, 169.616, -30.178, 117.509);
+        robot.LinArcFIRPlanningStart(2000, 10000, 720, 1440);
+        robot.MoveL(JP12, DP12, 0, 0, 100, 100, 100, 20, -1, exaxisPos, 0, 0, offdese,0,10);
+        robot.MoveC(JP13, DP13, 0, 0, 100, 100, exaxisPos, 0, offdese, JP13_, DP13_, 0, 0, 100, 100, exaxisPos, 0, offdese, 100, -1);
+
+
+        robot.MoveL(JP14, DP14, 0, 0, 100, 100, 100, 20, -1, exaxisPos, 0, 0, offdese,0,10);
+        robot.LinArcFIRPlanningEnd();
+    }
     public static void TestWideVoltageCtrlBoxtemp(Robot robot)
     {
         robot.SetWideBoxTempFanMonitorParam(1, 2);
@@ -891,7 +1182,6 @@ public class Main {
 
     public static int TestNewSpline(Robot robot)
     {
-
         JointPos j1=new JointPos(-11.904, -99.669, 117.473, -108.616, -91.726, 74.256);
         JointPos j2=new JointPos(-45.615, -106.172, 124.296, -107.151, -91.282, 74.255);
         JointPos j3=new JointPos(-61.954, -84.409, 108.153, -116.316, -91.283, 74.260);
@@ -930,7 +1220,6 @@ public class Main {
 
     public static int TestPause(Robot robot)
     {
-
         JointPos j1=new JointPos(-11.904, -99.669, 117.473, -108.616, -91.726, 74.256);
         JointPos j5=new JointPos(-95.228, -54.621, 73.691, -112.245, -91.280, 74.268);
         DescPose desc_pos1=new DescPose(-419.524, -13.000, 351.569, -178.118, 0.314, 3.833);
@@ -1556,7 +1845,7 @@ public class Main {
         DescPose flange = new DescPose(){};
         robot.GetActualToolFlangePose(0, flange);
 
-        int id = 0;
+        int[] id = {0};
         robot.GetActualTCPNum(0, id);
 
         robot.GetActualWObjNum(0, id);
@@ -1573,10 +1862,10 @@ public class Main {
         int motionDone = 0;
         robot.GetRobotMotionDone(motionDone);
 
-        int len = 0;
+        int[] len ={0 };
         robot.GetMotionQueueLength(len);
 
-        int emergState = 0;
+        int[] emergState = {0};
         robot.GetRobotEmergencyStopState(emergState);
 
         int comstate = 0;
@@ -1628,9 +1917,9 @@ public class Main {
             System.out.println("data is: "+ data.get(i+1));
         }
 
-        int que_len = 0;
+        int[] que_len = {0};
         int rtn = robot.GetMotionQueueLength(que_len);
-        System.out.println("GetMotionQueueLength rtn is:"+rtn+", queue length is:"+ que_len);
+        System.out.println("GetMotionQueueLength rtn is:"+rtn+", queue length is:"+ que_len[0]);
 
         Object[] dh = new Object[]{ 0,0,0,0,0,0 };
         int retval = 0;
@@ -2993,7 +3282,6 @@ public class Main {
 
     public static int TestForceAndJointImpedance(Robot robot)//六维力
     {
-
         robot.DragTeachSwitch(1);
         Object[] lamdeDain =new Object[] { 3.0, 2.0, 2.0, 2.0, 2.0, 3.0 };
         Object[] KGain = new Object[]{ 0, 0, 0, 0, 0, 0 };
@@ -3562,7 +3850,8 @@ public class Main {
         robot.WeldingSetVoltageGradualChangeEnd();
     }
 
-    public static void WeldTraceControlWithCtrlBoxAI(Robot robot) {
+    public static void WeldTraceControlWithCtrlBoxAI(Robot robot)
+    {
         DescPose startdescPose = new DescPose(-473.86, 257.879, -20.849, -37.317, -42.021, 2.543);
         JointPos startjointPos = new JointPos(-43.487, -76.526, 95.568, -104.445, -89.356, 3.72);
 
@@ -3784,14 +4073,14 @@ public class Main {
         ExaxisPos exaxisPos = new ExaxisPos(0, 0, 0, 0);
         DescPose offdese = new DescPose(0, 0, 0, 0, 0, 0);
 
-        int error = robot.AccSmoothStart(false);
+//        int error = robot.AccSmoothStart(false);
 
-        System.out.println("AccSmoothStart return:" + error);
+//        System.out.println("AccSmoothStart return:" + error);
         //MoveJ
-//        robot.MoveJ(JP1, DP1, 0, 0, 100, 100, 100, exaxisPos, -1, 0, offdese);
-//        robot.MoveJ(JP2, DP2, 0, 0, 100, 100, 100, exaxisPos, -1, 0, offdese);
-//        robot.MoveJ(JP1, DP1, 0, 0, 100, 100, 100, exaxisPos, -1, 0, offdese);
-//        robot.MoveJ(JP2, DP2, 0, 0, 100, 100, 100, exaxisPos, -1, 0, offdese);
+        robot.MoveJ(JP1, DP1, 0, 0, 100, 100, 100, exaxisPos, -1, 0, offdese);
+        robot.MoveJ(JP2, DP2, 0, 0, 100, 100, 100, exaxisPos, -1, 0, offdese);
+        robot.MoveJ(JP1, DP1, 0, 0, 100, 100, 100, exaxisPos, -1, 0, offdese);
+        robot.MoveJ(JP2, DP2, 0, 0, 100, 100, 100, exaxisPos, -1, 0, offdese);
 
         //MoveL
 //        robot.MoveL(JP1, DP1, 0, 0, 100, 100, 100, -1, exaxisPos, 0, 0, offdese, 0, 10);
@@ -3800,13 +4089,13 @@ public class Main {
 //        robot.MoveL(JP2, DP2, 0, 0, 100, 100, 100, -1, exaxisPos, 0, 0, offdese, 0, 10);
 
         //MoveC
-        robot.MoveC(JP3, DP3, 0, 0, 30, 100, exaxisPos, 0, offdese, JP1, DP1, 0, 0, 100, 100, exaxisPos, 0, offdese, 100, -1);
+//        robot.MoveC(JP3, DP3, 0, 0, 30, 100, exaxisPos, 0, offdese, JP1, DP1, 0, 0, 100, 100, exaxisPos, 0, offdese, 100, -1);
 //        robot.MoveC(JP3, DP3, 0, 0, 30, 100, exaxisPos, 0, offdese, JP2, DP2, 0, 0, 100, 100, exaxisPos, 0, offdese, 100, -1);
 
         //Circle
 //        robot.Circle(JP3, DP3, 0, 0, 100, 100.0, exaxisPos, JP2, DP2, 0, 0, 100.0, 100.0, exaxisPos, 100.0, 0, offdese);
 
-        error = robot.AccSmoothEnd(false);
+//        error = robot.AccSmoothEnd(false);
     }
 
     public static void reconnect_test(Robot robot)//测试重连
@@ -5811,6 +6100,162 @@ public class Main {
 //        robot.ProgramRun();
     }
 
+    public int testSyncMoveJ(Robot robot)
+    {
+        //1.标定并应用机器人工具坐标系，您可以使用四点法或六点法进行工具坐标系的标定和应用，涉及工具坐标系标定的接口如下：
+        //  int SetToolPoint(int point_num); //设置工具参考点-六点法
+        //  int ComputeTool(ref DescPose tcp_pose); //计算工具坐标系
+        //  int SetTcp4RefPoint(int point_num);  //设置工具参考点-四点法
+        //  int ComputeTcp4(ref DescPose tcp_pose);  //计算工具坐标系-四点法
+        //  int SetToolCoord(int id, DescPose coord, int type, int install); //设置应用工具坐标系
+        //  int SetToolList(int id, DescPose coord, int type, int install);  //设置应用工具坐标系列表
+        //2.设置UDP通信参数，并加载UDP通信
+        UDPComParam param=new UDPComParam("192.168.58.88", 2021, 2, 100, 3, 100, 1, 100, 10,0);
+        robot.ExtDevSetUDPComParam(param);
+        robot.ExtDevLoadUDPDriver();
+        //3.设置扩展轴参数，包括扩展轴类型、扩展轴驱动器参数、扩展轴DH参数
+        robot.SetAxisDHParaConfig(4, 200, 200, 0, 0, 0, 0, 0, 0); //单轴变位机及DH参数
+        robot.SetRobotPosToAxis(1); //扩展轴安装位置
+        robot.ExtAxisParamConfig(1, 0, 1, 100, -100, 10, 10, 12, 131072, 0, 1, 0, 0); //伺服驱动器参数，本示例为单轴变位机，因此只需要设置一个驱动器参数，若您选择包含多个轴的扩展轴类型，需要每一个轴设置驱动器参数
+        //4.设置所选的轴使能、回零
+        robot.ExtAxisServoOn(1, 0);
+        robot.ExtAxisSetHoming(1, 0, 20, 3);
+        //5.进行扩展轴坐标系标定及应用
+        DescPose pos = new DescPose(/* 输入您的标定点坐标 */ );
+        robot.SetRefPointInExAxisEnd(pos);
+        robot.PositionorSetRefPoint(1); /*您需要通过四个不同位置的点来标定扩展轴，因此需要调用此接口4次才能完成标定 */
+        DescPose coord = new DescPose();
+        robot.PositionorComputeECoordSys(coord); //计算扩展轴标定结果
+        robot.ExtAxisActiveECoordSys(1, 1, coord, 1); //将标定结果应用到扩展轴坐标系
+        //6.在扩展轴上标定工件坐标系，您需要用到以下接口
+        //int SetWObjCoordPoint(int point_num);
+        //int ComputeWObjCoord(int method, ref DescPose wobj_pose);
+        //int SetWObjCoord(int id, DescPose coord);
+        //int SetWObjList(int id, DescPose coord);
+        //7.记录您的同步关节运动起始点
+        DescPose startdescPose = new DescPose(/*输入您的坐标*/ );
+        JointPos startjointPos = new JointPos(/*输入您的坐标*/ );
+        ExaxisPos startexaxisPos = new ExaxisPos(/* 输入您的扩展轴起始点坐标 */ );
+        //8.记录您的同步关节运动终点坐标
+        DescPose enddescPose = new DescPose(/*输入您的坐标*/ );
+        JointPos endjointPos = new JointPos(/*输入您的坐标*/ );
+        ExaxisPos endexaxisPos =new ExaxisPos(/* 输入您的扩展轴终点坐标 */);
+        //9.编写同步运动程序
+        //运动到起始点，假设应用的工具坐标系、工件坐标系都是1
+        robot.ExtAxisMove(startexaxisPos, 20);
+        DescPose offdese = new DescPose( 0, 0, 0, 0, 0, 0 );
+        robot.MoveJ(startjointPos, startdescPose, 1, 1, 100, 100, 100, startexaxisPos, 0, 0, offdese);
+        //开始同步运动
+        robot.ExtAxisSyncMoveJ(endjointPos, enddescPose, 1, 1, 100, 100, 100, endexaxisPos, -1, 0, offdese);
+        robot.CloseRPC();
+        return 0;
+    }
+
+    public int testSyncMoveL(Robot robot)
+    {
+        //1.标定并应用机器人工具坐标系，您可以使用四点法或六点法进行工具坐标系的标定和应用，涉及工具坐标系标定的接口如下：
+        //  int SetToolPoint(int point_num); //设置工具参考点-六点法
+        //  int ComputeTool(ref DescPose tcp_pose); //计算工具坐标系
+        //  int SetTcp4RefPoint(int point_num);  //设置工具参考点-四点法
+        //  int ComputeTcp4(ref DescPose tcp_pose);  //计算工具坐标系-四点法
+        //  int SetToolCoord(int id, DescPose coord, int type, int install); //设置应用工具坐标系
+        //  int SetToolList(int id, DescPose coord, int type, int install);  //设置应用工具坐标系列表
+        //2.设置UDP通信参数，并加载UDP通信
+        UDPComParam param=new UDPComParam("192.168.58.88", 2021, 2, 100, 3, 100, 1, 100, 10,0);
+        robot.ExtDevSetUDPComParam(param);
+        robot.ExtDevLoadUDPDriver();
+        //3.设置扩展轴参数，包括扩展轴类型、扩展轴驱动器参数、扩展轴DH参数
+        robot.SetAxisDHParaConfig(4, 200, 200, 0, 0, 0, 0, 0, 0); //单轴变位机及DH参数
+        robot.SetRobotPosToAxis(1); //扩展轴安装位置
+        robot.ExtAxisParamConfig(1, 0, 1, 100, -100, 10, 10, 12, 131072, 0, 1, 0, 0); //伺服驱动器参数，本示例为单轴变位机，因此只需要设置一个驱动器参数，若您选择包含多个轴的扩展轴类型，需要每一个轴设置驱动器参数
+        //4.设置所选的轴使能、回零
+        robot.ExtAxisServoOn(1, 0);
+        robot.ExtAxisSetHoming(1, 0, 20, 3);
+        //5.进行扩展轴坐标系标定及应用
+        DescPose pos = new DescPose(/* 输入您的标定点坐标 */ );
+        robot.SetRefPointInExAxisEnd(pos);
+        robot.PositionorSetRefPoint(1); /*您需要通过四个不同位置的点来标定扩展轴，因此需要调用此接口4次才能完成标定 */
+        DescPose coord = new DescPose();
+        robot.PositionorComputeECoordSys(coord); //计算扩展轴标定结果
+        robot.ExtAxisActiveECoordSys(1, 1, coord, 1); //将标定结果应用到扩展轴坐标系
+        //6.在扩展轴上标定工件坐标系，您需要用到以下接口
+        //int SetWObjCoordPoint(int point_num);
+        //int ComputeWObjCoord(int method, ref DescPose wobj_pose);
+        //int SetWObjCoord(int id, DescPose coord);
+        //int SetWObjList(int id, DescPose coord);
+        //7.记录您的同步关节运动起始点
+        DescPose startdescPose = new DescPose(/*输入您的坐标*/ );
+        JointPos startjointPos = new JointPos(/*输入您的坐标*/ );
+        ExaxisPos startexaxisPos = new ExaxisPos(/* 输入您的扩展轴起始点坐标 */ );
+        //8.记录您的同步关节运动终点坐标
+        DescPose enddescPose = new DescPose(/*输入您的坐标*/ );
+        JointPos endjointPos = new JointPos(/*输入您的坐标*/ );
+        ExaxisPos endexaxisPos =new ExaxisPos(/* 输入您的扩展轴终点坐标 */);
+        //9.编写同步运动程序
+        //运动到起始点，假设应用的工具坐标系、工件坐标系都是1
+        robot.ExtAxisMove(startexaxisPos, 20);
+        DescPose offdese = new DescPose( 0, 0, 0, 0, 0, 0 );
+        robot.MoveJ(startjointPos, startdescPose, 1, 1, 100, 100, 100, startexaxisPos, 0, 0, offdese);
+        //开始同步运动
+        robot.ExtAxisSyncMoveL(endjointPos, enddescPose, 1, 1, 100, 100, 100, 0, endexaxisPos, 0, offdese);
+        robot.CloseRPC();
+        return 0;
+    }
+
+    public int testSyncMoveC(Robot robot)
+    {
+        //1.标定并应用机器人工具坐标系，您可以使用四点法或六点法进行工具坐标系的标定和应用，涉及工具坐标系标定的接口如下：
+        //  int SetToolPoint(int point_num); //设置工具参考点-六点法
+        //  int ComputeTool(ref DescPose tcp_pose); //计算工具坐标系
+        //  int SetTcp4RefPoint(int point_num);  //设置工具参考点-四点法
+        //  int ComputeTcp4(ref DescPose tcp_pose);  //计算工具坐标系-四点法
+        //  int SetToolCoord(int id, DescPose coord, int type, int install); //设置应用工具坐标系
+        //  int SetToolList(int id, DescPose coord, int type, int install);  //设置应用工具坐标系列表
+        //2.设置UDP通信参数，并加载UDP通信
+        UDPComParam param=new UDPComParam("192.168.58.88", 2021, 2, 100, 3, 100, 1, 100, 10,0);
+        robot.ExtDevSetUDPComParam(param);
+        robot.ExtDevLoadUDPDriver();
+        //3.设置扩展轴参数，包括扩展轴类型、扩展轴驱动器参数、扩展轴DH参数
+        robot.SetAxisDHParaConfig(4, 200, 200, 0, 0, 0, 0, 0, 0); //单轴变位机及DH参数
+        robot.SetRobotPosToAxis(1); //扩展轴安装位置
+        robot.ExtAxisParamConfig(1, 0, 1, 100, -100, 10, 10, 12, 131072, 0, 1, 0, 0); //伺服驱动器参数，本示例为单轴变位机，因此只需要设置一个驱动器参数，若您选择包含多个轴的扩展轴类型，需要每一个轴设置驱动器参数
+        //4.设置所选的轴使能、回零
+        robot.ExtAxisServoOn(1, 0);
+        robot.ExtAxisSetHoming(1, 0, 20, 3);
+        //5.进行扩展轴坐标系标定及应用
+        DescPose pos = new DescPose(/* 输入您的标定点坐标 */ );
+        robot.SetRefPointInExAxisEnd(pos);
+        robot.PositionorSetRefPoint(1); /*您需要通过四个不同位置的点来标定扩展轴，因此需要调用此接口4次才能完成标定 */
+        DescPose coord = new DescPose();
+        robot.PositionorComputeECoordSys(coord); //计算扩展轴标定结果
+        robot.ExtAxisActiveECoordSys(1, 1, coord, 1); //将标定结果应用到扩展轴坐标系
+        //6.在扩展轴上标定工件坐标系，您需要用到以下接口
+        //int SetWObjCoordPoint(int point_num);
+        //int ComputeWObjCoord(int method, ref DescPose wobj_pose);
+        //int SetWObjCoord(int id, DescPose coord);
+        //int SetWObjList(int id, DescPose coord);
+        //7.记录您的同步圆弧运动起始点
+        DescPose startdescPose = new DescPose(/*输入您的坐标*/ );
+        JointPos startjointPos = new JointPos(/*输入您的坐标*/ );
+        ExaxisPos startexaxisPos = new ExaxisPos(/* 输入您的扩展轴起始点坐标 */ );
+        //8.记录您的同步圆弧运动终点坐标
+        DescPose enddescPose = new DescPose(/*输入您的坐标*/ );
+        JointPos endjointPos = new JointPos(/*输入您的坐标*/ );
+        ExaxisPos endexaxisPos = new ExaxisPos(/* 输入您的扩展轴终点坐标 */ );
+        //9.记录您的同步圆弧运动中间点坐标
+        DescPose middescPose = new DescPose(/*输入您的坐标*/ );
+        JointPos midjointPos =new JointPos(/*输入您的坐标*/ );
+        ExaxisPos midexaxisPos = new ExaxisPos(/* 输入机器人圆弧中间点时的扩展轴坐标 */ );
+        //10.编写同步运动程序
+        //运动到起始点，假设应用的工具坐标系、工件坐标系都是1
+        robot.ExtAxisMove(startexaxisPos, 20);
+        DescPose offdese = new DescPose( 0, 0, 0, 0, 0, 0 );
+        robot.MoveJ(startjointPos, startdescPose, 1, 1, 100, 100, 100, startexaxisPos, 0, 0, offdese);
+        //开始同步运动
+        robot.ExtAxisSyncMoveC(midjointPos, middescPose, 1, 1, 100, 100, midexaxisPos, 0, offdese, endjointPos, enddescPose, 1, 1, 100, 100, endexaxisPos, 0, offdese, 100, 0);
+        robot.CloseRPC();
+        return 0;
+    }
 
     private static void UDPAxisSyncMove(Robot robot) {
 //        robot.Mode(0);
@@ -6082,7 +6527,8 @@ public class Main {
 //        robot.ExtAxisMove(pos, 10);
     }
 
-    private static void TestUDPWireSearch(Robot robot) {
+    private static void TestUDPWireSearch(Robot robot)
+    {
         UDPComParam param = new UDPComParam("192.168.58.88", 2021, 2, 100, 3, 100, 1, 100, 10,0);
         robot.ExtDevSetUDPComParam(param);//udp扩展轴通讯
 

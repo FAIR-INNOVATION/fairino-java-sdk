@@ -14,12 +14,13 @@ import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import javax.xml.bind.DatatypeConverter;
 
+import javafx.scene.effect.BlendMode;
 import org.apache.xmlrpc.client.XmlRpcClient;
 import org.apache.xmlrpc.client.XmlRpcClientConfigImpl;
 
 public class Robot
 {
-    String SDK_VERSION = "JavaSDK V1.0.9  WebApp V3.7.5";
+    String SDK_VERSION = "JavaSDK V1.0.7  WebApp V3.8.4";
     private String robotIp = "192.168.58.2";//机器人ip
 
     int ROBOT_CMD_PORT = 8080;
@@ -549,6 +550,42 @@ public class Robot
     }
 
     /**
+     * @brief  关节空间运动(重载函数 不需要输入笛卡尔位置)
+     * @param  joint_pos  目标关节位置,单位deg
+     * @param  tool  工具坐标号，范围[0~14]
+     * @param  user  工件坐标号，范围[0~14]
+     * @param  vel  速度百分比，范围[0~100]
+     * @param  acc  加速度百分比，范围[0~100],暂不开放
+     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  epos  扩展轴位置，单位mm
+     * @param  blendT [-1.0]-运动到位(阻塞)，[0~500.0]-平滑时间(非阻塞)，单位ms
+     * @param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
+     * @param  offset_pos  位姿偏移量
+     * @return  错误码
+     */
+    public int MoveJ(JointPos joint_pos, int tool, int user, double vel, double acc, double ovl, ExaxisPos epos, double blendT, int offset_flag, DescPose offset_pos)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+        if(GetSafetyCode()!=0){
+            return GetSafetyCode();
+        }
+
+        DescPose desc_pos=new DescPose();
+        int errcode = GetForwardKin(joint_pos,desc_pos);
+        if (errcode != 0)
+        {
+            log.LogError("MoveJ GetForwardKin failed rtn is:"+errcode);
+            return errcode;
+        }
+
+        errcode = MoveJ(joint_pos, desc_pos, tool, user, vel, acc, ovl, epos, blendT, offset_flag, offset_pos);
+        return errcode;
+    }
+
+    /**
      * @brief  笛卡尔空间直线运动
      * @param  joint_pos  目标关节位置,单位deg
      * @param  desc_pos   目标笛卡尔位姿
@@ -730,6 +767,218 @@ public class Robot
     }
 
     /**
+     * @brief  笛卡尔空间直线运动(重载函数2 不需要输入关节位置)
+     * @param  desc_pos   目标笛卡尔位姿
+     * @param  tool  工具坐标号，范围[0~14]
+     * @param  user  工件坐标号，范围[0~14]
+     * @param  vel  速度百分比，范围[0~100]
+     * @param  acc  加速度百分比，范围[0~100],暂不开放
+     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  blendR [-1.0]-运动到位(阻塞)，[0~1000.0]-平滑半径(非阻塞)，单位mm
+     * @param  blendMode 过渡方式；0-内切过渡；1-角点过渡
+     * @param  epos  扩展轴位置，单位mm
+     * @param  search  0-不焊丝寻位，1-焊丝寻位
+     * @param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
+     * @param  offset_pos  位姿偏移量
+     * @param  config 逆解关节空间配置，[-1]-参考当前关节位置解算，[0~7]-依据特定关节空间配置求解
+     * @param  overSpeedStrategy  超速处理策略，1-标准；2-超速时报错停止；3-自适应降速，默认为0
+     * @param  speedPercent  允许降速阈值百分比[0-100]，默认10%
+     * @return  错误码
+     */
+    public int MoveL(DescPose desc_pos, int tool, int user, double vel, double acc, double ovl, double blendR, int blendMode,ExaxisPos epos, int search, int offset_flag, DescPose offset_pos, int config, int overSpeedStrategy, int speedPercent) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        if (GetSafetyCode() != 0) {
+            return GetSafetyCode();
+        }
+        JointPos jPos=new JointPos(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        int errcode = GetInverseKin(0, desc_pos, config, jPos);
+        if (errcode != 0)
+        {
+            log.LogError("MoveL GetInverseKin failed rtn is:"+ errcode);
+            return errcode;
+        }
+
+        errcode = MoveL(jPos, desc_pos, tool, user, vel, acc, ovl, blendR, blendMode, epos, search, offset_flag, offset_pos, overSpeedStrategy, speedPercent);
+        return errcode;
+    }
+
+    /**
+     * @brief  笛卡尔空间直线运动(重载函数1 增加blendMode)
+     * @param  joint_pos  目标关节位置,单位deg
+     * @param  desc_pos   目标笛卡尔位姿
+     * @param  tool  工具坐标号，范围[1~15]
+     * @param  user  工件坐标号，范围[1~15]
+     * @param  vel  速度百分比，范围[0~100]
+     * @param  acc  加速度百分比，范围[0~100],暂不开放
+     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  blendR [-1.0]-运动到位(阻塞)，[0~1000.0]-平滑半径(非阻塞)，单位mm
+     * @param  blendMode 过渡方式；0-内切过渡；1-角点过渡
+     * @param  epos  扩展轴位置，单位mm
+     * @param  search  0-不焊丝寻位，1-焊丝寻位
+     * @param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
+     * @param  offset_pos  位姿偏移量
+     * @param  velAccParamMode 速度加速度参数模式；0-百分比；1-物理速度(mm/s)加速度(mm/s2)
+     * @param  overSpeedStrategy  超速处理策略，1-标准；2-超速时报错停止；3-自适应降速，默认为0
+     * @param  speedPercent  允许降速阈值百分比[0-100]，默认10%
+     * @return  错误码
+     */
+    public int MoveL(JointPos joint_pos, DescPose desc_pos, int tool, int user, double vel, double acc, double ovl, double blendR, int blendMode, ExaxisPos epos, int search, int offset_flag, DescPose offset_pos, int velAccParamMode, int overSpeedStrategy, int speedPercent)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+
+        if (GetSafetyCode() != 0)
+        {
+            return GetSafetyCode();
+        }
+
+        try
+        {
+            int rtn = -1;
+            if (overSpeedStrategy > 1)
+            {
+                Object[] paramProtectStart = new Object[] {overSpeedStrategy, speedPercent};
+                rtn = (int)client.execute("JointOverSpeedProtectStart" , paramProtectStart);
+                if (log != null)
+                {
+                    log.LogInfo("JointOverSpeedProtectStart(" + overSpeedStrategy + "," + speedPercent + ") : " + rtn);
+                }
+                if (rtn != 0)
+                {
+                    return rtn;
+                }
+            }
+
+            Object[] params = new Object[] {joint_pos.J1, joint_pos.J2, joint_pos.J3, joint_pos.J4, joint_pos.J5, joint_pos.J6,
+                    desc_pos.tran.x, desc_pos.tran.y, desc_pos.tran.z, desc_pos.rpy.rx, desc_pos.rpy.ry, desc_pos.rpy.rz,
+                    tool, user, vel, acc, ovl, blendR, blendMode,epos.axis1, epos.axis2, epos.axis3, epos.axis4,
+                    search, offset_flag,offset_pos.tran.x, offset_pos.tran.y, offset_pos.tran.z, offset_pos.rpy.rx, offset_pos.rpy.ry,
+                    offset_pos.rpy.rz,100.0,velAccParamMode};
+
+            Object[] params1 = new Object[]{params};
+
+            rtn = (int)client.execute("MoveL" , params1);
+            System.out.println(rtn);
+            if (log != null)
+            {
+                log.LogInfo("MoveL(" + joint_pos.J1 + "," + joint_pos.J2 + "," + joint_pos.J3 + "," + joint_pos.J4 + "," + joint_pos.J5 + "," + joint_pos.J6 + "," + desc_pos.tran.x + "," + desc_pos.tran.y + "," + desc_pos.tran.z + "," + desc_pos.rpy.rx + "," + desc_pos.rpy.ry + "," + desc_pos.rpy.rz + "," + tool + "," + user + "," + vel + "," + acc + "," + ovl + "," + blendR +
+                        epos.axis1 + "," + epos.axis2 + "," + epos.axis3 + "," + epos.axis4 + "," + search + "," + offset_flag + "," + offset_pos.tran.x + "," + offset_pos.tran.y + "," + offset_pos.tran.z + "," + offset_pos.rpy.rx + "," + offset_pos.rpy.ry + "," + offset_pos.rpy.rz + ") : " + rtn);
+            }
+
+            if (overSpeedStrategy > 1)
+            {
+                Object[] paramProtectStart = new Object[] {};
+                rtn = (int)client.execute("JointOverSpeedProtectEnd" , paramProtectStart);
+                if (log != null)
+                {
+                    log.LogInfo("JointOverSpeedProtectEnd() : " + rtn);
+                }
+                if (rtn != 0)
+                {
+                    return rtn;
+                }
+            }
+
+            if((GetRobotRealTimeState().main_code != 0 || GetRobotRealTimeState().sub_code != 0) && rtn == 0){
+                rtn=14;
+            }
+
+            return rtn;
+        }
+        catch (Throwable e)
+        {
+            if(!IsSockComError())
+            {
+                return MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, blendMode, epos, search, offset_flag, offset_pos, overSpeedStrategy, speedPercent);
+            }
+            if(e.getMessage().contains("Connection timed out") || e.getMessage().contains("connect timed out"))
+            {
+                MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, blendMode, epos, search, offset_flag, offset_pos, overSpeedStrategy, speedPercent);
+            }
+            if (log != null)
+            {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
+            }
+            return (int) RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief  笛卡尔空间直线运动(重载函数2 不需要输入关节位置)
+     * @param  desc_pos   目标笛卡尔位姿
+     * @param  tool  工具坐标号，范围[1~15]
+     * @param  user  工件坐标号，范围[1~15]
+     * @param  vel  速度百分比，范围[0~100]
+     * @param  acc  加速度百分比，范围[0~100],暂不开放
+     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  blendR [-1.0]-运动到位(阻塞)，[0~1000.0]-平滑半径(非阻塞)，单位mm
+     * @param  blendMode 过渡方式；0-内切过渡；1-角点过渡
+     * @param  epos  扩展轴位置，单位mm
+     * @param  search  0-不焊丝寻位，1-焊丝寻位
+     * @param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
+     * @param  offset_pos  位姿偏移量
+     * @param  config 逆解关节空间配置，[-1]-参考当前关节位置解算，[0~7]-依据特定关节空间配置求解
+     * @param  velAccParamMode 速度加速度参数模式；0-百分比；1-物理速度(mm/s)加速度(mm/s2)
+     * @param  overSpeedStrategy  超速处理策略，1-标准；2-超速时报错停止；3-自适应降速，默认为0
+     * @param  speedPercent  允许降速阈值百分比[0-100]，默认10%
+     * @return  错误码
+     */
+    public int MoveL(DescPose desc_pos, int tool, int user, double vel, double acc, double ovl, double blendR, int blendMode, ExaxisPos epos, int search, int offset_flag, DescPose offset_pos, int config, int velAccParamMode, int overSpeedStrategy, int speedPercent)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+
+        if (GetSafetyCode() != 0)
+        {
+            return GetSafetyCode();
+        }
+
+        JointPos jPos=new JointPos(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        int errcode = GetInverseKin(0, desc_pos, config, jPos);
+        if (errcode != 0)
+        {
+            log.LogInfo("MoveL GetInverseKin failed rtn is "+ errcode);
+            return errcode;
+        }
+
+        errcode = MoveL(jPos, desc_pos, tool, user, vel, acc, ovl, blendR, blendMode, epos, search, offset_flag, offset_pos, velAccParamMode, overSpeedStrategy, speedPercent);
+        return errcode;
+    }
+
+    /**
+     * @brief  笛卡尔空间直线运动
+     * @param  joint_pos  目标关节位置,单位deg
+     * @param  desc_pos   目标笛卡尔位姿
+     * @param  tool  工具坐标号，范围[1~15]
+     * @param  user  工件坐标号，范围[1~15]
+     * @param  vel  速度百分比，范围[0~100]
+     * @param  acc  加速度百分比，范围[0~100],暂不开放
+     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  blendR [-1.0]-运动到位(阻塞)，[0~1000.0]-平滑半径(非阻塞)，单位mm
+     * @param  epos  扩展轴位置，单位mm
+     * @param  search  0-不焊丝寻位，1-焊丝寻位
+     * @param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
+     * @param  offset_pos  位姿偏移量
+     * @param  velAccParamMode 速度加速度参数模式；0-百分比；1-物理速度(mm/s)加速度(mm/s2)
+     * @param  overSpeedStrategy  超速处理策略，1-标准；2-超速时报错停止；3-自适应降速，默认为0
+     * @param  speedPercent  允许降速阈值百分比[0-100]，默认10%
+     * @return  错误码
+     */
+    public int MoveL(JointPos joint_pos, DescPose desc_pos, int tool, int user, double vel, double acc, double ovl, double blendR, ExaxisPos epos, int search, int offset_flag, DescPose offset_pos, int velAccParamMode, int overSpeedStrategy, int speedPercent)
+    {
+        int errcode = MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, 0/*blendMode*/, epos, search, offset_flag, offset_pos, 0/*velAccParamMode*/, overSpeedStrategy, speedPercent);
+
+        return errcode;
+    }
+
+    /**
      * @brief  笛卡尔空间圆弧运动
      * @param  joint_pos_p  路径点关节位置,单位deg
      * @param  desc_pos_p   路径点笛卡尔位姿
@@ -798,6 +1047,182 @@ public class Robot
             }
             return RobotError.ERR_RPC_ERROR;
         }
+    }
+
+    /**
+     * @brief  笛卡尔空间圆弧运动(重载函数1 不需要输入关节位置)
+     * @param  desc_pos_p   路径点笛卡尔位姿
+     * @param  ptool  工具坐标号，范围[0~14]
+     * @param  puser  工件坐标号，范围[0~14]
+     * @param  pvel  速度百分比，范围[0~100]
+     * @param  pacc  加速度百分比，范围[0~100],暂不开放
+     * @param  epos_p  扩展轴位置，单位mm
+     * @param  poffset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
+     * @param  offset_pos_p  位姿偏移量
+     * @param  desc_pos_t   目标点笛卡尔位姿
+     * @param  ttool  工具坐标号，范围[0~14]
+     * @param  tuser  工件坐标号，范围[0~14]
+     * @param  tvel  速度百分比，范围[0~100]
+     * @param  tacc  加速度百分比，范围[0~100],暂不开放
+     * @param  epos_t  扩展轴位置，单位mm
+     * @param  toffset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
+     * @param  offset_pos_t  位姿偏移量
+     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  blendR [-1.0]-运动到位(阻塞)，[0~1000.0]-平滑半径(非阻塞)，单位mm
+     * @param  config 逆解关节空间配置，[-1]-参考当前关节位置解算，[0~7]-依据特定关节空间配置求解
+     * @return  错误码
+     */
+    public int MoveC(DescPose desc_pos_p, int ptool, int puser, double pvel, double pacc, ExaxisPos epos_p, int poffset_flag, DescPose offset_pos_p, DescPose desc_pos_t, int ttool, int tuser, double tvel, double tacc, ExaxisPos epos_t, int toffset_flag, DescPose offset_pos_t, double ovl, double blendR, int config) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        if (GetSafetyCode() != 0) {
+            return GetSafetyCode();
+        }
+        JointPos jPosP=new JointPos(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        JointPos jPosT=new JointPos(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        int errcode = GetInverseKin(0, desc_pos_p, config, jPosP);
+        if (errcode != 0)
+        {
+            log.LogError("MoveC  GetInverseKin P failed rtn is: "+ errcode);
+            return errcode;
+        }
+
+        errcode = GetInverseKin(0, desc_pos_t, config, jPosT);
+        if (errcode != 0)
+        {
+            log.LogError("MoveC  GetInverseKin T failed rtn is:"+ errcode);
+            return errcode;
+        }
+
+        errcode = MoveC(jPosP, desc_pos_p, ptool, puser, pvel, pacc, epos_p, poffset_flag, offset_pos_p, jPosT, desc_pos_t, ttool, tuser, tvel, tacc, epos_t, toffset_flag, offset_pos_t, ovl, blendR);
+
+        return errcode;
+    }
+
+    /**
+     * @brief  笛卡尔空间圆弧运动
+     * @param  joint_pos_p  路径点关节位置,单位deg
+     * @param  desc_pos_p   路径点笛卡尔位姿
+     * @param  ptool  工具坐标号，范围[1~15]
+     * @param  puser  工件坐标号，范围[1~15]
+     * @param  pvel  速度百分比，范围[0~100]
+     * @param  pacc  加速度百分比，范围[0~100],暂不开放
+     * @param  epos_p  扩展轴位置，单位mm
+     * @param  poffset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
+     * @param  offset_pos_p  位姿偏移量
+     * @param  joint_pos_t  目标点关节位置,单位deg
+     * @param  desc_pos_t   目标点笛卡尔位姿
+     * @param  ttool  工具坐标号，范围[1~15]
+     * @param  tuser  工件坐标号，范围[1~15]
+     * @param  tvel  速度百分比，范围[0~100]
+     * @param  tacc  加速度百分比，范围[0~100],暂不开放
+     * @param  epos_t  扩展轴位置，单位mm
+     * @param  toffset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
+     * @param  offset_pos_t  位姿偏移量
+     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  blendR [-1.0]-运动到位(阻塞)，[0~1000.0]-平滑半径(非阻塞)，单位mm
+     * @param  velAccParamMode 速度加速度参数模式；0-百分比；1-物理速度(mm/s)加速度(mm/s2)
+     * @return  错误码
+     */
+    public int MoveC(JointPos joint_pos_p, DescPose desc_pos_p, int ptool, int puser, double pvel, double pacc, ExaxisPos epos_p, int poffset_flag, DescPose offset_pos_p, JointPos joint_pos_t, DescPose desc_pos_t, int ttool, int tuser, double tvel, double tacc, ExaxisPos epos_t, int toffset_flag, DescPose offset_pos_t, double ovl, double blendR, int velAccParamMode)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+        if(GetSafetyCode()!=0){
+            return GetSafetyCode();
+        }
+        try
+        {
+            Object[] params = new Object[] {joint_pos_p.J1, joint_pos_p.J2, joint_pos_p.J3, joint_pos_p.J4, joint_pos_p.J5, joint_pos_p.J6,
+                    desc_pos_p.tran.x, desc_pos_p.tran.y, desc_pos_p.tran.z, desc_pos_p.rpy.rx, desc_pos_p.rpy.ry, desc_pos_p.rpy.rz,
+                    ptool, puser, pvel, pacc,epos_p.axis1, epos_p.axis2, epos_p.axis3, epos_p.axis4,poffset_flag,
+                    offset_pos_p.tran.x, offset_pos_p.tran.y, offset_pos_p.tran.z, offset_pos_p.rpy.rx, offset_pos_p.rpy.ry, offset_pos_p.rpy.rz,
+                    joint_pos_t.J1, joint_pos_t.J2, joint_pos_t.J3, joint_pos_t.J4, joint_pos_t.J5, joint_pos_t.J6,
+                    desc_pos_t.tran.x, desc_pos_t.tran.y, desc_pos_t.tran.z, desc_pos_t.rpy.rx, desc_pos_t.rpy.ry, desc_pos_t.rpy.rz,
+                    ttool,tuser,tvel,tacc,epos_t.axis1, epos_t.axis2, epos_t.axis3, epos_t.axis4,toffset_flag,
+                    offset_pos_t.tran.x, offset_pos_t.tran.y, offset_pos_t.tran.z, offset_pos_t.rpy.rx, offset_pos_t.rpy.ry, offset_pos_t.rpy.rz,
+                    ovl, blendR,(double)100.0,velAccParamMode};
+            Object[] params1 = new Object[]{params};
+            int rtn = (int)client.execute("MoveC" , params1);
+            if (log != null)
+            {
+                log.LogInfo("MoveC(" + joint_pos_p.J1 + "," + joint_pos_p.J2 + "," + joint_pos_p.J3 + "," + joint_pos_p.J4 + "," + joint_pos_p.J5 + "," + joint_pos_p.J6 + "," + desc_pos_p.tran.x + "," + desc_pos_p.tran.y + "," + desc_pos_p.tran.z + "," + desc_pos_p.rpy.rx + "," + desc_pos_p.rpy.ry + "," + desc_pos_p.rpy.rz + "," + ptool + "," + puser + "," + pvel + "," + pacc + "," +
+                        epos_p.axis1 + "," + epos_p.axis2 + "," + epos_p.axis3 + "," + epos_p.axis4 + "," + poffset_flag + "," + offset_pos_p.tran.x + "," + offset_pos_p.tran.y + "," + offset_pos_p.tran.z + "," + offset_pos_p.rpy.rx + "," + offset_pos_p.rpy.ry + "," + offset_pos_p.rpy.rz + ",) " +
+                        joint_pos_t.J1 + "," + joint_pos_t.J2 + "," + joint_pos_t.J3 + "," + joint_pos_t.J4 + "," + joint_pos_t.J5 + "," + joint_pos_t.J6 + "," + desc_pos_t.tran.x + "," + desc_pos_t.tran.y + "," + desc_pos_t.tran.z + "," + desc_pos_t.rpy.rx + "," + desc_pos_t.rpy.ry + "," + desc_pos_t.rpy.rz + "," + ttool + "," + tuser + "," + tvel + "," + tacc + "," +
+                        epos_t.axis1 + "," + epos_t.axis2 + "," + epos_t.axis3 + "," + epos_t.axis4 + "," + toffset_flag + "," + offset_pos_t.tran.x + "," + offset_pos_t.tran.y + "," + offset_pos_t.tran.z + "," + offset_pos_t.rpy.rx + "," + offset_pos_t.rpy.ry + "," + offset_pos_t.rpy.rz + "," + ovl + "," + blendR + ", "+ velAccParamMode +" ): " + rtn);
+            }
+            return rtn;
+        }
+        catch (Throwable e)
+        {
+            if(e.getMessage().contains("Connection timed out") || e.getMessage().contains("connect timed out"))
+            {
+                MoveC(joint_pos_p, desc_pos_p, ptool, puser, pvel, pacc, epos_p, poffset_flag, offset_pos_p, joint_pos_t, desc_pos_t, ttool, tuser, tvel, tacc, epos_t, toffset_flag, offset_pos_t, ovl, blendR,velAccParamMode);
+            }
+            else if (log != null)
+            {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief  笛卡尔空间圆弧运动 (重载函数1 不需要输入关节位置)
+     * @param  desc_pos_p   路径点笛卡尔位姿
+     * @param  ptool  工具坐标号，范围[1~15]
+     * @param  puser  工件坐标号，范围[1~15]
+     * @param  pvel  速度百分比，范围[0~100]
+     * @param  pacc  加速度百分比，范围[0~100],暂不开放
+     * @param  epos_p  扩展轴位置，单位mm
+     * @param  poffset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
+     * @param  offset_pos_p  位姿偏移量
+     * @param  desc_pos_t   目标点笛卡尔位姿
+     * @param  ttool  工具坐标号，范围[1~15]
+     * @param  tuser  工件坐标号，范围[1~15]
+     * @param  tvel  速度百分比，范围[0~100]
+     * @param  tacc  加速度百分比，范围[0~100],暂不开放
+     * @param  epos_t  扩展轴位置，单位mm
+     * @param  toffset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
+     * @param  offset_pos_t  位姿偏移量
+     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  blendR [-1.0]-运动到位(阻塞)，[0~1000.0]-平滑半径(非阻塞)，单位mm
+     * @param  config 逆解关节空间配置，[-1]-参考当前关节位置解算，[0~7]-依据特定关节空间配置求解
+     * @param  velAccParamMode 速度加速度参数模式；0-百分比；1-物理速度(mm/s)加速度(mm/s2)
+     * @return  错误码
+     */
+    public int MoveC(DescPose desc_pos_p, int ptool, int puser, double pvel, double pacc, ExaxisPos epos_p, int poffset_flag, DescPose offset_pos_p, DescPose desc_pos_t, int ttool, int tuser, double tvel, double tacc, ExaxisPos epos_t, int toffset_flag, DescPose offset_pos_t, double ovl, double blendR, int config, int velAccParamMode)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+        if(GetSafetyCode()!=0){
+            return GetSafetyCode();
+        }
+
+        JointPos jPosP=new JointPos(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        JointPos jPosT=new JointPos(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        int errcode = GetInverseKin(0, desc_pos_p, config, jPosP);
+        if (errcode != 0)
+        {
+            log.LogInfo("MoveC  GetInverseKin P failed rtn is "+ errcode);
+            return errcode;
+        }
+
+        errcode = GetInverseKin(0, desc_pos_t, config, jPosT);
+        if (errcode != 0)
+        {
+            log.LogInfo("MoveC  GetInverseKin T failed rtn is "+ errcode);
+            return errcode;
+        }
+
+        errcode = MoveC(jPosP, desc_pos_p, ptool, puser, pvel, pacc, epos_p, poffset_flag, offset_pos_p, jPosT, desc_pos_t, ttool, tuser, tvel, tacc, epos_t, toffset_flag, offset_pos_t, ovl, blendR, velAccParamMode);
+
+        return errcode;
     }
 
     /**
@@ -939,6 +1364,187 @@ public class Robot
     }
 
     /**
+     * @brief  笛卡尔空间整圆运动 (重载函数1 不需要输入关节位置)
+     * @param  desc_pos_p   路径点1笛卡尔位姿
+     * @param  ptool  工具坐标号，范围[0~14]
+     * @param  puser  工件坐标号，范围[0~14]
+     * @param  pvel  速度百分比，范围[0~100]
+     * @param  pacc  加速度百分比，范围[0~100],暂不开放
+     * @param  epos_p  扩展轴位置，单位mm
+     * @param  desc_pos_t   路径点2笛卡尔位姿
+     * @param  ttool  工具坐标号，范围[0~14]
+     * @param  tuser  工件坐标号，范围[0~14]
+     * @param  tvel  速度百分比，范围[0~100]
+     * @param  tacc  加速度百分比，范围[0~100],暂不开放
+     * @param  epos_t  扩展轴位置，单位mm
+     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
+     * @param  offset_pos  位姿偏移量
+     * @param  oacc 加速度百分比
+     * @param  blendR -1：阻塞；0~1000：平滑半径
+     * @param  config 逆解关节空间配置，[-1]-参考当前关节位置解算，[0~7]-依据特定关节空间配置求解
+     * @return  错误码
+     */
+    public int Circle(DescPose desc_pos_p, int ptool, int puser, double pvel, double pacc, ExaxisPos epos_p, DescPose desc_pos_t, int ttool, int tuser, double tvel, double tacc, ExaxisPos epos_t, double ovl, int offset_flag, DescPose offset_pos, double oacc, double blendR,int config)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        if (GetSafetyCode() != 0) {
+            return GetSafetyCode();
+        }
+
+        JointPos jPosP=new JointPos(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        JointPos jPosT=new JointPos(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        int errcode = GetInverseKin(0, desc_pos_p, config, jPosP);
+        if (errcode != 0)
+        {
+            log.LogError("Circle GetInverseKin P failed rtn is: "+ errcode);
+            return errcode;
+        }
+
+        errcode = GetInverseKin(0, desc_pos_t, config, jPosT);
+        if (errcode != 0)
+        {
+            log.LogError("Circle GetInverseKin T failed rtn is:"+ errcode);
+            return errcode;
+        }
+
+        errcode = Circle(jPosP, desc_pos_p, ptool, puser, pvel, pacc, epos_p, jPosT, desc_pos_t, ttool, tuser, tvel, tacc, epos_t, ovl, offset_flag, offset_pos, oacc, blendR);
+
+        return errcode;
+    }
+
+    /**
+     *@brief  笛卡尔空间整圆运动
+     *@param  joint_pos_p  路径点1关节位置,单位deg
+     *@param  desc_pos_p   路径点1笛卡尔位姿
+     *@param  ptool  工具坐标号，范围[1~15]
+     *@param  puser  工件坐标号，范围[1~15]
+     *@param  pvel  速度百分比，范围[0~100]
+     *@param  pacc  加速度百分比，范围[0~100],暂不开放
+     *@param  epos_p  扩展轴位置，单位mm
+     *@param  joint_pos_t  路径点2关节位置,单位deg
+     *@param  desc_pos_t   路径点2笛卡尔位姿
+     *@param  ttool  工具坐标号，范围[1~15]
+     *@param  tuser  工件坐标号，范围[1~15]
+     *@param  tvel  速度百分比，范围[0~100]
+     *@param  tacc  加速度百分比，范围[0~100],暂不开放
+     *@param  epos_t  扩展轴位置，单位mm
+     *@param  ovl  速度缩放因子，范围[0~100]
+     *@param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
+     *@param  offset_pos  位姿偏移量
+     *@param  oacc 加速度百分比
+     *@param  blendR -1：阻塞；0~1000：平滑半径
+     *@param  velAccParamMode 速度加速度参数模式；0-百分比；1-物理速度(mm/s)加速度(mm/s2)
+     *@return  错误码
+     */
+    public int Circle(JointPos joint_pos_p, DescPose desc_pos_p, int ptool, int puser, double pvel, double pacc, ExaxisPos epos_p, JointPos joint_pos_t, DescPose desc_pos_t, int ttool, int tuser, double tvel, double tacc, ExaxisPos epos_t, double ovl, int offset_flag, DescPose offset_pos, double oacc, double blendR, int velAccParamMode)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        if (GetSafetyCode() != 0) {
+            return GetSafetyCode();
+        }
+
+        try
+        {
+
+            Object[] params = new Object[] {joint_pos_p.J1, joint_pos_p.J2, joint_pos_p.J3, joint_pos_p.J4, joint_pos_p.J5, joint_pos_p.J6,
+                    desc_pos_p.tran.x, desc_pos_p.tran.y, desc_pos_p.tran.z, desc_pos_p.rpy.rx, desc_pos_p.rpy.ry, desc_pos_p.rpy.rz,
+                    ptool,puser,tvel,pacc,
+                    epos_p.axis1, epos_p.axis2, epos_p.axis3, epos_p.axis4,
+                    joint_pos_t.J1, joint_pos_t.J2, joint_pos_t.J3, joint_pos_t.J4, joint_pos_t.J5, joint_pos_t.J6,
+                    desc_pos_t.tran.x, desc_pos_t.tran.y, desc_pos_t.tran.z, desc_pos_t.rpy.rx, desc_pos_t.rpy.ry, desc_pos_t.rpy.rz,
+                    ttool,tuser,tvel,tacc,
+                    epos_t.axis1, epos_t.axis2, epos_t.axis3, epos_t.axis4,
+                    ovl,offset_flag,
+                    offset_pos.tran.x, offset_pos.tran.y, offset_pos.tran.z, offset_pos.rpy.rx, offset_pos.rpy.ry, offset_pos.rpy.rz,
+                    oacc, blendR,velAccParamMode};
+
+            Object[] params1 = new Object[]{params};
+
+            int rtn = (int)client.execute("Circle" , params1);
+            if (log != null)
+            {
+                log.LogInfo("Circle(" + joint_pos_p.J1 + "," + joint_pos_p.J2 + "," + joint_pos_p.J3 + "," + joint_pos_p.J4 + "," + joint_pos_p.J5 + "," + joint_pos_p.J6 + "," + desc_pos_p.tran.x + "," + desc_pos_p.tran.y + "," + desc_pos_p.tran.z + "," + desc_pos_p.rpy.rx + "," + desc_pos_p.rpy.ry + "," + desc_pos_p.rpy.rz + "," + ptool + "," + puser + "," + pvel + "," + pacc + "," +
+                        epos_p.axis1 + "," + epos_p.axis2 + "," + epos_p.axis3 + "," + epos_p.axis4 + ",) " +
+                        joint_pos_t.J1 + "," + joint_pos_t.J2 + "," + joint_pos_t.J3 + "," + joint_pos_t.J4 + "," + joint_pos_t.J5 + "," + joint_pos_t.J6 + "," + desc_pos_t.tran.x + "," + desc_pos_t.tran.y + "," + desc_pos_t.tran.z + "," + desc_pos_t.rpy.rx + "," + desc_pos_t.rpy.ry + "," + desc_pos_t.rpy.rz + "," + ttool + "," + tuser + "," + tvel + "," + tacc + "," +
+                        epos_t.axis1 + "," + epos_t.axis2 + "," + epos_t.axis3 + "," + epos_t.axis4 + "," + ovl + "," + offset_flag + "," + offset_pos.tran.x + "," + offset_pos.tran.y + "," + offset_pos.tran.z + "," + offset_pos.rpy.rx + "," + offset_pos.rpy.ry + "," + offset_pos.rpy.rz + ","+oacc +","+blendR + ","+velAccParamMode+" : " + rtn);
+            }
+            return rtn;
+        }
+        catch (Throwable e)
+        {
+            if(e.getMessage().contains("Connection timed out") || e.getMessage().contains("connect timed out"))
+            {
+                Circle(joint_pos_p, desc_pos_p, ptool, puser, pvel, pacc, epos_p, joint_pos_t, desc_pos_t, ttool, tuser, tvel, tacc, epos_t, ovl, offset_flag, offset_pos,oacc,blendR,velAccParamMode);
+            }
+            else if (log != null)
+            {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief  笛卡尔空间整圆运动 (重载函数1 不需要输入关节位置)
+     * @param  desc_pos_p   路径点1笛卡尔位姿
+     * @param  ptool  工具坐标号，范围[0~14]
+     * @param  puser  工件坐标号，范围[0~14]
+     * @param  pvel  速度百分比，范围[0~100]
+     * @param  pacc  加速度百分比，范围[0~100],暂不开放
+     * @param  epos_p  扩展轴位置，单位mm
+     * @param  desc_pos_t   路径点2笛卡尔位姿
+     * @param  ttool  工具坐标号，范围[0~14]
+     * @param  tuser  工件坐标号，范围[0~14]
+     * @param  tvel  速度百分比，范围[0~100]
+     * @param  tacc  加速度百分比，范围[0~100],暂不开放
+     * @param  epos_t  扩展轴位置，单位mm
+     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
+     * @param  offset_pos  位姿偏移量
+     * @param  oacc 加速度百分比
+     * @param  blendR -1：阻塞；0~1000：平滑半径
+     * @param  config 逆解关节空间配置，[-1]-参考当前关节位置解算，[0~7]-依据特定关节空间配置求解
+     * @param  velAccParamMode 速度加速度参数模式；0-百分比；1-物理速度(mm/s)加速度(mm/s2)
+     * @return  错误码
+     */
+    public int Circle(DescPose desc_pos_p, int ptool, int puser, double pvel, double pacc, ExaxisPos epos_p, DescPose desc_pos_t, int ttool, int tuser, double tvel, double tacc, ExaxisPos epos_t, double ovl, int offset_flag, DescPose offset_pos, double oacc, double blendR, int config, int velAccParamMode)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        if (GetSafetyCode() != 0) {
+            return GetSafetyCode();
+        }
+
+        JointPos jPosP=new JointPos(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        JointPos jPosT=new JointPos(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        int errcode = GetInverseKin(0, desc_pos_p, config, jPosP);
+        if (errcode != 0)
+        {
+            log.LogInfo("Circle GetInverseKin P failed rtn is "+ errcode);
+            return errcode;
+        }
+        System.out.println("p pos [0] "+ jPosT.J1);
+
+        errcode = GetInverseKin(0, desc_pos_t, config, jPosT);
+        if (errcode != 0)
+        {
+            log.LogInfo("Circle GetInverseKin T failed rtn is "+ errcode);
+            return errcode;
+        }
+        System.out.println("t pos [0] "+ jPosT.J1);
+
+        errcode = Circle(jPosP, desc_pos_p, ptool, puser, pvel, pacc, epos_p, jPosT, desc_pos_t, ttool, tuser, tvel, tacc, epos_t, ovl, offset_flag, offset_pos, oacc, blendR, velAccParamMode);
+
+        return errcode;
+    }
+
+    /**
      * @brief  笛卡尔空间螺旋线运动
      * @param  joint_pos  目标关节位置,单位deg
      * @param  desc_pos   目标笛卡尔位姿
@@ -993,6 +1599,41 @@ public class Robot
         }
     }
 
+    /**
+     * @brief  笛卡尔空间螺旋线运动 (重载函数1 不需要输入关节位置)
+     * @param  desc_pos   目标笛卡尔位姿
+     * @param  tool  工具坐标号，范围[0~14]
+     * @param  user  工件坐标号，范围[0~14]
+     * @param  vel  速度百分比，范围[0~100]
+     * @param  acc  加速度百分比，范围[0~100],暂不开放
+     * @param  epos  扩展轴位置，单位mm
+     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
+     * @param  offset_pos  位姿偏移量
+     * @param  spiral_param  螺旋参数
+     * @param  config 逆解关节空间配置，[-1]-参考当前关节位置解算，[0~7]-依据特定关节空间配置求解
+     * @return  错误码
+     */
+    public int NewSpiral(DescPose desc_pos, int tool, int user, double vel, double acc, ExaxisPos epos, double ovl, int offset_flag, DescPose offset_pos, SpiralParam spiral_param,int config)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        if (GetSafetyCode() != 0) {
+            return GetSafetyCode();
+        }
+
+        JointPos jPos=new JointPos(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        int errcode = GetInverseKin(0, desc_pos, config, jPos);
+        if (errcode != 0)
+        {
+            log.LogError("NewSpiral GetInverseKin failed rtn is: "+ errcode);
+            return errcode;
+        }
+
+        errcode = NewSpiral(jPos, desc_pos, tool, user, vel, acc, epos, ovl, offset_flag, offset_pos, spiral_param);
+        return errcode;
+    }
 
     /**
      * @brief 伺服运动开始，配合ServoJ、ServoCart指令使用
@@ -1335,6 +1976,39 @@ public class Robot
     }
 
     /**
+     * @brief  关节空间样条运动 (重载函数1 不需要输入笛卡尔位置)
+     * @param  joint_pos  目标关节位置,单位deg
+     * @param  tool  工具坐标号，范围[0~14]
+     * @param  user  工件坐标号，范围[0~14]
+     * @param  vel  速度百分比，范围[0~100]
+     * @param  acc  加速度百分比，范围[0~100],暂不开放
+     * @param  ovl  速度缩放因子，范围[0~100]
+     * @return  错误码
+     */
+    public int SplinePTP(JointPos joint_pos, int tool, int user, double vel, double acc, double ovl)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+        if(GetSafetyCode()!=0){
+            return GetSafetyCode();
+        }
+
+        DescPose desc_pos =new DescPose();
+        int errcode = GetForwardKin(joint_pos, desc_pos);
+        if (errcode != 0)
+        {
+            log.LogError("MoveJ GetForwardKin failed rtn is:"+ errcode);
+            return errcode;
+        }
+
+        errcode = SplinePTP(joint_pos, desc_pos, tool, user, vel, acc, ovl);
+
+        return errcode;
+    }
+
+    /**
      * @brief  样条运动结束
      * @return  错误码
      */
@@ -1454,6 +2128,41 @@ public class Robot
             }
             return RobotError.ERR_RPC_ERROR;
         }
+    }
+
+    /**
+     * @brief 新样条指令点(重载函数1 不需要输入关节位置)
+     * @param  desc_pos   目标笛卡尔位姿
+     * @param  tool  工具坐标号，范围[0~14]
+     * @param  user  工件坐标号，范围[0~14]
+     * @param  vel  速度百分比，范围[0~100]
+     * @param  acc  加速度百分比，范围[0~100],暂不开放
+     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  blendR [-1.0]-运动到位(阻塞)，[0~1000.0]-平滑半径(非阻塞)，单位mm
+     * @param  lastFlag 是否为最后一个点，0-否，1-是
+     * @param  config 逆解关节空间配置，[-1]-参考当前关节位置解算，[0~7]-依据特定关节空间配置求解
+     * @return  错误码
+     */
+    public int NewSplinePoint(DescPose desc_pos, int tool, int user, double vel, double acc, double ovl, double blendR, int lastFlag,int config)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        if (GetSafetyCode() != 0)
+        {
+            return GetSafetyCode();
+        }
+
+        JointPos jPos=new JointPos(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        int errcode = GetInverseKin(0, desc_pos, config, jPos);
+        if (errcode != 0)
+        {
+            log.LogError("MoveL GetInverseKin failed rtn is: "+ errcode);
+            return errcode;
+        }
+
+        errcode = NewSplinePoint(jPos, desc_pos, tool, user, vel, acc, ovl, blendR, lastFlag);
+        return errcode;
     }
 
     /**
@@ -5375,6 +6084,46 @@ public class Robot
             return RobotError.ERR_RPC_ERROR;
         }
 
+    }
+
+    /**
+     * @brief  轨迹预处理(轨迹前瞻)
+     * @param  name  轨迹文件名
+     * @param  mode 曲线拟合方式；0-直线连接；1-直线拟合；2-B样条曲线
+     * @param  errorLim 误差限制，使用直线拟合生效
+     * @param  type 平滑方式，0-贝塞尔平滑
+     * @param  precision 平滑精度，使用贝塞尔平滑时生效
+     * @param  vamx 设定的最大速度，mm/s
+     * @param  amax 设定的最大加速度，mm/s2
+     * @param  jmax 设定的最大加加速度，mm/s3
+     * @param  flag 匀速前瞻开启开关 0-不开启；1-开启
+     * @return  错误码
+     */
+    public int LoadTrajectoryLA(String name, int mode, double errorLim, int type, double precision, double vamx, double amax, double jmax, int flag)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+
+        try
+        {
+            Object[] params = new Object[] {name, mode, errorLim, type, precision, vamx, amax, jmax, flag};
+            int rtn = (int)client.execute("LoadTrajectoryLA" , params);
+            if (log != null)
+            {
+                log.LogInfo("LoadTrajectoryLA(" + name + ", " + mode + "," + errorLim+ ","+type+ ","+precision+ "," +vamx+ amax+","+jmax+","+flag+") : " + rtn);
+            }
+            return rtn;
+        }
+        catch (Throwable e)
+        {
+            if (log != null)
+            {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
     }
 
     /**
@@ -10886,10 +11635,10 @@ public class Robot
         {
             Object[] params = new Object[] {0, pos.axis1, pos.axis2, pos.axis3, pos.axis4, ovl, blend};
             //单独调用时，默认异步运动
-            int rtn = (int)client.execute("ExtAxisMove" , params);
+            int rtn = (int)client.execute("ExtAxisMoveJ" , params);
             if (log != null)
             {
-                log.LogInfo("ExtAxisMove(" + pos.axis1 + ", " + pos.axis2 + ", " + pos.axis3 + ", " + pos.axis4 + ") : " + rtn);
+                log.LogInfo("ExtAxisMoveJ(" + pos.axis1 + ", " + pos.axis2 + ", " + pos.axis3 + ", " + pos.axis4 + ") : " + rtn);
             }
             return rtn;
         }
@@ -11694,6 +12443,42 @@ public class Robot
         }
     }
 
+
+    /**
+     * @brief  UDP扩展轴与机器人关节运动同步运动 (重载函数 不需要输入笛卡尔位置)
+     * @param  joint_pos  目标关节位置,单位deg
+     * @param  tool  工具坐标号，范围[0~14]
+     * @param  user  工件坐标号，范围[0~14]
+     * @param  vel  速度百分比，范围[0~100]
+     * @param  acc  加速度百分比，范围[0~100],暂不开放
+     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  epos  扩展轴位置，单位mm
+     * @param  blendT [-1.0]-运动到位(阻塞)，[0~500.0]-平滑时间(非阻塞)，单位ms
+     * @param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
+     * @param  offset_pos  位姿偏移量
+     * @return  错误码
+     */
+    public int ExtAxisSyncMoveJ(JointPos joint_pos, int tool, int user, double vel, double acc, double ovl, ExaxisPos epos, double blendT, int offset_flag, DescPose offset_pos)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        if (GetSafetyCode() != 0) {
+            return GetSafetyCode();
+        }
+        DescPose desc_pos =new DescPose();
+        int errcode = GetForwardKin(joint_pos, desc_pos);
+        if (errcode != 0)
+        {
+            log.LogError("ExtAxisSyncMoveJ GetForwardKin failed rtn is: "+ errcode);
+            return errcode;
+        }
+
+        errcode = ExtAxisSyncMoveJ(joint_pos, desc_pos, tool, user, vel, acc, ovl, epos, blendT, offset_flag, offset_pos);
+
+        return errcode;
+    }
+
     /**
      * @brief  UDP扩展轴与机器人直线运动同步运动
      * @param  joint_pos  目标关节位置,单位deg
@@ -11744,6 +12529,41 @@ public class Robot
             }
             return RobotError.ERR_RPC_ERROR;
         }
+    }
+
+    /**
+     * @brief  UDP扩展轴与机器人直线运动同步运动 (重载函数 不需要输入关节位置)
+     * @param  desc_pos   目标笛卡尔位姿
+     * @param  tool  工具坐标号，范围[0~14]
+     * @param  user  工件坐标号，范围[0~14]
+     * @param  vel  速度百分比，范围[0~100]
+     * @param  acc  加速度百分比，范围[0~100],暂不开放
+     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  blendR [-1.0]-运动到位(阻塞)，[0~1000.0]-平滑半径(非阻塞)，单位mm
+     * @param  epos  扩展轴位置，单位mm
+     * @param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
+     * @param  offset_pos  位姿偏移量
+     * @param  config 逆解关节空间配置，[-1]-参考当前关节位置解算，[0~7]-依据特定关节空间配置求解
+     * @return  错误码
+     */
+    public int ExtAxisSyncMoveL(DescPose desc_pos, int tool, int user, double vel, double acc, double ovl, double blendR, ExaxisPos epos, int offset_flag, DescPose offset_pos,int config)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        if (GetSafetyCode() != 0) {
+            return GetSafetyCode();
+        }
+        JointPos jPos=new JointPos(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        int errcode = GetInverseKin(0, desc_pos, config, jPos);
+        if (errcode != 0)
+        {
+            log.LogError("ExtAxisSyncMoveL GetInverseKin failed rtn is: "+ errcode);
+            return errcode;
+        }
+
+        errcode = ExtAxisSyncMoveL(jPos, desc_pos, tool, user, vel, acc, ovl, blendR, epos, offset_flag, offset_pos);
+        return errcode;
     }
 
     /**
@@ -11806,6 +12626,59 @@ public class Robot
             }
             return RobotError.ERR_RPC_ERROR;
         }
+    }
+
+    /**
+     * @brief  UDP扩展轴与机器人圆弧运动同步运动 (重载函数 不需要输入关节位置)
+     * @param  desc_pos_p   路径点笛卡尔位姿
+     * @param  ptool  工具坐标号，范围[0~14]
+     * @param  puser  工件坐标号，范围[0~14]
+     * @param  pvel  速度百分比，范围[0~100]
+     * @param  pacc  加速度百分比，范围[0~100],暂不开放
+     * @param  epos_p  中间点扩展轴位置，单位mm
+     * @param  poffset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
+     * @param  offset_pos_p  位姿偏移量
+     * @param  desc_pos_t   目标点笛卡尔位姿
+     * @param  ttool  工具坐标号，范围[0~14]
+     * @param  tuser  工件坐标号，范围[0~14]
+     * @param  tvel  速度百分比，范围[0~100]
+     * @param  tacc  加速度百分比，范围[0~100],暂不开放
+     * @param  epos_t  扩展轴位置，单位mm
+     * @param  toffset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
+     * @param  offset_pos_t  位姿偏移量
+     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  blendR [-1.0]-运动到位(阻塞)，[0~1000.0]-平滑半径(非阻塞)，单位mm
+     * @param  config 逆解关节空间配置，[-1]-参考当前关节位置解算，[0~7]-依据特定关节空间配置求解
+     * @return  错误码
+     */
+    public int ExtAxisSyncMoveC(DescPose desc_pos_p, int ptool, int puser, double pvel, double pacc, ExaxisPos epos_p, int poffset_flag, DescPose offset_pos_p, DescPose desc_pos_t, int ttool, int tuser, double tvel, double tacc, ExaxisPos epos_t, int toffset_flag, DescPose offset_pos_t, double ovl, double blendR,int config)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        if (GetSafetyCode() != 0) {
+            return GetSafetyCode();
+        }
+
+        JointPos jPosP=new JointPos(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        JointPos jPosT=new JointPos(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        int errcode = GetInverseKin(0, desc_pos_p, config, jPosP);
+        if (errcode != 0)
+        {
+            log.LogError("ExtAxisSyncMoveC  GetInverseKin P failed rtn is:"+ errcode);
+            return errcode;
+        }
+
+        errcode = GetInverseKin(0, desc_pos_t, config, jPosT);
+        if (errcode != 0)
+        {
+            log.LogError("ExtAxisSyncMoveC  GetInverseKin T failed rtn is:"+ errcode);
+            return errcode;
+        }
+
+        errcode = ExtAxisSyncMoveC(jPosP, desc_pos_p, ptool, puser, pvel, pacc, epos_p, poffset_flag, offset_pos_p, jPosT, desc_pos_t, ttool, tuser, tvel, tacc, epos_t, toffset_flag, offset_pos_t, ovl, blendR);
+
+        return errcode;
     }
 
     /**
@@ -16447,12 +17320,13 @@ public class Robot
     }
 
     /**
+     * @brief 设置焦点标定点
      * @param pointNum 焦点标定点编号 1-8
      * @param point    标定点坐标
      * @return 错误码
-     * @brief 设置焦点标定点
      */
-    public int SetFocusCalibPoint(int pointNum, DescPose point) {
+    public int SetFocusCalibPoint(int pointNum, DescPose point)
+    {
         if (IsSockComError()) {
             return sockErr;
         }
@@ -16472,11 +17346,11 @@ public class Robot
 
 
     /**
+     * @brief 计算焦点标定结果
      * @param pointNum  标定点个数
      * @param resultPos 标定结果XYZ
      * @param accuracy  标定精度误差
      * @return 错误码
-     * @brief 计算焦点标定结果
      */
     public int ComputeFocusCalib(int pointNum, DescTran resultPos, double[] accuracy) {
         if (IsSockComError()) {
@@ -16701,7 +17575,8 @@ public class Robot
      * @param path 本地升级包全路径(D://zUP/XXXXX.bin)
      * @return 错误码
      */
-    public int JointAllParamUpgrade(String path) {
+    public int JointAllParamUpgrade(String path)
+    {
         if (IsSockComError()) {
             return sockErr;
         }
@@ -16712,6 +17587,486 @@ public class Robot
                 Object[] params = new Object[]{};
                 errcode = (int) client.execute("JointAllParamUpgrade", params);
             }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 激光传感器记录点
+     * @param  coordID 激光传感器坐标系
+     * @param  desc 激光传感器识别点笛卡尔位置
+     * @param  joint 激光传感器识别点关节位置
+     * @param  exaxis 激光传感器识别点扩展轴位置
+     * @return 错误码
+     */
+    public int LaserRecordPoint(int coordID, DescPose desc, JointPos joint, ExaxisPos exaxis)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{coordID, 0 ,100};
+
+            Object[] result = (Object[]) client.execute("LaserRecordPoint", params);
+            int rtn = (int) result[0];
+            if (rtn == 0) {
+                String paramStr = (String) result[1];
+                String[] parS = paramStr.split(",");
+
+                joint.J1  = Double.parseDouble(parS[0]);
+                joint.J2  = Double.parseDouble(parS[1]);
+                joint.J3  = Double.parseDouble(parS[2]);
+                joint.J4  = Double.parseDouble(parS[3]);
+                joint.J5  = Double.parseDouble(parS[4]);
+                joint.J6  = Double.parseDouble(parS[5]);
+
+
+                desc.tran.x= Double.parseDouble(parS[6]);
+                desc.tran.y= Double.parseDouble(parS[7]);
+                desc.tran.z= Double.parseDouble(parS[8]);
+                desc.rpy.rx= Double.parseDouble(parS[9]);
+                desc.rpy.ry= Double.parseDouble(parS[10]);
+                desc.rpy.rz= Double.parseDouble(parS[11]);
+
+
+                exaxis.axis1 = Double.parseDouble(parS[12]);
+                exaxis.axis2 = Double.parseDouble(parS[13]);
+                exaxis.axis3 = Double.parseDouble(parS[14]);
+                exaxis.axis4 = Double.parseDouble(parS[15]);
+
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 设置扩展轴与机器人同步运动策略
+     * @param strategy 策略；0-以机器人为主；1-扩展轴与机器人同步
+     * @return 错误码
+     */
+    public int SetExAxisRobotPlan(int strategy)
+    {
+
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{strategy};
+            int rtn = (int) client.execute("SetExAxisRobotPlan", params);
+            if (log != null)
+            {
+                log.LogInfo("SetExAxisRobotPlan:"+rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+
+    }
+
+    /**
+     * @brief  获取从站板卡参数
+     * @param  type  0-Ethercat，1-CClink, 3-Ethercat, 4-EIP
+     * @param  version  协议版本
+     * @param  connState  0-未连接 1-已连接
+     * @return  错误码
+     */
+    public int GetFieldBusConfig(int[] type, int[] version, int[] connState)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{};
+            Object[] result = (Object[]) client.execute("GetFieldBusConfig", params);
+            int rtn = (int) result[0];
+            if (rtn == 0) {
+                type[0] = (int)result[2];
+                version[0] = (int)result[3];
+                connState[0] = (int)result[4];
+            }
+            if (log != null)
+            {
+                log.LogInfo("GetFieldBusConfig:"+rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief  写入从站DO
+     * @param   DOIndex  DO编号
+     * @param   wirteNum  写入的数量
+     * @param   status 写入的数值，最多写8个
+     * @return  错误码
+     */
+    public int FieldBusSlaveWriteDO(int DOIndex, int wirteNum, int[] status)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] cur_status={status[0],status[1],status[2],status[3],status[4],status[5],status[6],status[7]};
+            Object[] params = new Object[]{DOIndex,wirteNum,cur_status};
+
+            int rtn = (int) client.execute("FieldBusSlaveWriteDO", params);
+
+            if (log != null)
+            {
+                log.LogInfo("FieldBusSlaveWriteDO:"+rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief  写入从站AO
+     * @param  AOIndex  AO编号
+     * @param  wirteNum  写入的数量
+     * @param  status 写入的数值，最多写8个
+     * @return  错误码
+     */
+    public int FieldBusSlaveWriteAO(int AOIndex, int wirteNum, int[] status)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] cur_status={status[0],status[1],status[2],status[3],status[4],status[5],status[6],status[7]};
+            Object[] params = new Object[]{AOIndex,wirteNum,cur_status};
+
+            int rtn = (int) client.execute("FieldBusSlaveWriteAO", params);
+
+            if (log != null)
+            {
+                log.LogInfo("FieldBusSlaveWriteAO:"+rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief  读取从站DI
+     * @param  DOIndex  DI编号
+     * @param  readNum  读取的数量
+     * @param  status 读取到的数值，最多读8个
+     * @return  错误码
+     */
+    public int FieldBusSlaveReadDI(int DOIndex, int readNum, int[] status)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{DOIndex,readNum};
+
+            Object[] result = (Object[]) client.execute("FieldBusSlaveReadDI", params);
+            int rtn=(int)result[0];
+            if(rtn==0){
+                for (int i = 0; i < readNum; i++)
+                {
+                    status[i] = (int)result[i+1];
+                }
+            }
+            if (log != null)
+            {
+                log.LogInfo("FieldBusSlaveReadDI:"+rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief  读取从站AI
+     * @param  AIIndex  AI编号
+     * @param  readNum  读取的数量
+     * @param  status 读取到的数值，最多读8个
+     * @return  错误码
+     */
+    public int FieldBusSlaveReadAI(int AIIndex, int readNum, double[] status)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{AIIndex,readNum};
+
+            Object[] result = (Object[]) client.execute("FieldBusSlaveReadAI", params);
+            int rtn=(int)result[0];
+            if(rtn==0){
+                for (int i = 0; i < readNum; i++)
+                {
+                    status[i] = (double)result[i + 1];
+                }
+            }
+            if (log != null)
+            {
+                log.LogInfo("FieldBusSlaveReadAI:"+rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 等待扩展DI输入
+     * @param  DIIndex DI编号
+     * @param  status 0-低电平；1-高电平
+     * @param  waitMs 最大等待时间(ms)
+     * @return 错误码
+     */
+    public int FieldBusSlaveWaitDI(int DIIndex, int status, int waitMs)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{DIIndex,status,waitMs};
+
+            int rtn = (int) client.execute("FieldBusSlaveWaitDI", params);
+
+            if (log != null)
+            {
+                log.LogInfo("FieldBusSlaveWaitDI:"+rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 等待扩展AI输入
+     * @param  AIIndex AI编号
+     * @param  waitType 0-大于；1-小于
+     * @param  value AI值
+     * @param  waitMs 最大等待时间(ms)
+     * @return 错误码
+     */
+    public int FieldBusSlaveWaitAI(int AIIndex, int waitType, double value, int waitMs)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{AIIndex,waitType,value,waitMs};
+
+            int rtn = (int) client.execute("FieldBusSlaveWaitAI", params);
+
+            if (log != null)
+            {
+                log.LogInfo("FieldBusSlaveWaitAI:"+rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 控制阵列式吸盘
+     * @param  slaveID 从站号
+     * @param  len 长度
+     * @param  ctrlValue 控制值 1-按最大真空度吸取 2-按设定真空度吸取 3-停止吸取
+     * @return 错误码
+     */
+    public int SetSuckerCtrl(int slaveID, int len, int[] ctrlValue)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] cur =new Object[len];
+            for (int i = 0; i < len; i++)
+            {
+                cur[i] = ctrlValue[i];
+            }
+            Object[] params = new Object[]{slaveID,len,cur};
+
+            int rtn = (int) client.execute("SetSuckerCtrl", params);
+
+            if (log != null)
+            {
+                log.LogInfo("SetSuckerCtrl:"+rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取阵列式吸盘状态
+     * @param  slaveID 从站号
+     * @param  state 吸附状态 0-释放物体 1-检测到工件吸附成功 2-没有吸附到物体 3-物体脱离
+     * @param  pressValue 当前真空度 单位kpa
+     * @param  error 吸盘当前的错误码
+     * @return 错误码
+     */
+    public int GetSuckerState(int slaveID, int[] state, int[] pressValue, int[] error)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{slaveID};
+
+            Object[] result = (Object[])client.execute("GetSuckerState", params);
+            int rtn=(int)result[0];
+            if(rtn==0){
+                state[0] = (int)result[1];
+                pressValue[0] = (int)result[2];
+                error[0] = (int)result[3];
+            }
+            if (log != null)
+            {
+                log.LogInfo("GetSuckerState:"+rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 等待吸盘状态
+     * @param  slaveID 从站号
+     * @param  state 吸附状态 0-释放物体 1-检测到工件吸附成功 2-没有吸附到物体 3-物体脱离
+     * @param  ms 等待最大时间
+     * @return 错误码
+     */
+    public int WaitSuckerState(int slaveID, int state, int ms)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{slaveID,state,ms};
+
+            int rtn = (int)client.execute("WaitSuckerState", params);
+
+            if (log != null)
+            {
+                log.LogInfo("WaitSuckerState:"+rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 上传开放协议的Lua文件
+     * @param  filePath 本地开放协议lua文件路径名
+     * @return 错误码
+     */
+    public int OpenLuaUpload(String filePath)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+
+            /* 上传 */
+            int errcode = FileUpLoad(11, filePath);
+            if (0 == errcode)
+            {
+                /* 提取文件名称 */
+                int pos = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'));
+                if (pos == -1) {
+                    log.LogInfo("format of path is wrong, should be like /home/fd/xxx.lua");
+                    return RobotError.ERR_FILE_NAME;
+                }
+                String filename = filePath.substring(pos + 1);
+
+                Object[] params = new Object[]{filename};
+                Object[] result = (Object[])client.execute("CtrlOpenLuaUpLoadCheck", params);
+                errcode=(int)result[0];
+
+                if (errcode==0)
+                {
+                    String res_str = (String)result[1];
+                    log.LogInfo("lua format, error code is:"+errcode+" ,"+ res_str);
+                }
+            }
+
             return errcode;
         } catch (Throwable e) {
             if (log != null) {

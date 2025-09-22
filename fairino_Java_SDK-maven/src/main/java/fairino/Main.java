@@ -25,9 +25,9 @@ public class Main {
 
 
 //*********************************日志功能 begin *******************************
-        String[] ip={""};
-        robot.GetControllerIP(ip);
-        System.out.println("ip: "+ip[0]);
+//        String[] ip={""};
+//        robot.GetControllerIP(ip);
+//        System.out.println("ip: "+ip[0]);
 //
 //
 //        for (int i=0;i<50;i++){
@@ -352,6 +352,21 @@ public class Main {
 //        testFieldBusBoard(robot);
 //        testSuckerMove(robot);
 //        TestMovePhy(robot);
+
+//        TestDragSwitchDetect(robot);
+
+//                testLaserConfig(robot);
+//        testGetLaserPoint(robot);
+//        testMoveToLaserRecordStart(robot);
+//        testMoveToLaserRecordEnd(robot);
+//                testLasertrack_xyz(robot);
+//        testLasertrack_point(robot);
+//        testLaserRecordAndReplay(robot);
+//        testLasertrack(robot);
+//        testLasertrackandExitAxis(robot);
+//        TestImpedanceControl(robot);
+//        TestCoord(robot);
+        TestCustomWeaveSetPara(robot);
         robot.CloseRPC();//关闭连接
 //
 ////        while (true)
@@ -364,6 +379,724 @@ public class Main {
 //        JointPos pos = new JointPos();
 //        robot.GetActualJointPosDegree(1, pos);
         //System.out.println("J1: " + Double.toString(pos.J1) + "   J2: " + Double.toString(pos.J2) +"    J3: " + Double.toString(pos.J3) +"J4: "  + Double.toString(pos.J4) + "J5: " + Double.toString(pos.J5) +"J6: " + Double.toString(pos.J6));
+    }
+
+
+    public static void TestCustomWeaveSetPara(Robot robot)
+    {
+        DescTran[] point = new DescTran[10];
+        point[0]=new DescTran();
+        point[0].x = -3;
+        point[0].y = -3;
+        point[0].z = 0;
+
+        point[1]=new DescTran();
+        point[1].x = -6;
+        point[1].y = 0;
+        point[1].z = 0;
+
+        point[2]=new DescTran();
+        point[2].x = -3;
+        point[2].y = 3;
+        point[2].z = 0;
+
+        point[3]=new DescTran();
+        point[3].x = 0;
+        point[3].y = 0;
+        point[3].z = 0;
+        point[4]=new DescTran(0,0,0);
+        point[5]=new DescTran(0,0,0);
+        point[6]=new DescTran(0,0,0);
+        point[7]=new DescTran(0,0,0);
+        point[8]=new DescTran(0,0,0);
+        point[9]=new DescTran(0,0,0);
+
+        double[] stayTime =new double[] { 0,0,0,0,0,0,0,0,0,0 };
+        int rtn = robot.CustomWeaveSetPara(2, 4, point, stayTime, 1.000, 0, 0);
+        System.out.println("CustomWeaveSetPara rtn is :"+ rtn);
+        robot.Sleep(1000);
+
+        int[] pointNum = new int[1];
+        double[] frequency=new double[1];
+        int[] incStayType=new int[1];
+        int[] stationary=new int[1];
+        robot.CustomWeaveGetPara(2, pointNum, point, stayTime, frequency, incStayType, stationary);
+        System.out.println("pointNum is :"+ pointNum[0]);
+        for (int i = 0; i < pointNum[0]; i++)
+        {
+            System.out.println("point:"+i+", "+ point[i].x+", "+ point[i].y+", "+ point[i].z);
+        }
+        System.out.println("fre is :"+ frequency[0]+", stay is:"+ incStayType[0]+", "+ stationary[0]);
+
+        robot.WeaveSetPara(0, 9, 1.000000, 1, 5.000000,
+                6.000000, 5.000000, 50, 100, 100,
+                0, 1, 0.000000, 0.000000);
+
+        DescPose desc_p1 =new DescPose(-288.650, 367.807, 288.404, 0.000, -0.001, 0.001 );
+        DescPose desc_p2 = new DescPose( -431.714, 367.815, 288.415, 0.001, 0.001, 0.000 );
+        DescPose desc_p3 = new DescPose( -348.666, 427.798, 288.404, -0.000, -0.000, 0.001 );
+        JointPos j1 = new JointPos( 140.656, -84.560, -91.707, -93.734, 90.000, 50.655 );
+        JointPos j2 = new JointPos( 149.873, -98.298, -77.599, -94.103, 90.000, 59.873 );
+        JointPos j3 = new JointPos( 139.773, -96.173, -80.014, -93.814, 90.000, 49.772 );
+
+        ExaxisPos epos = new ExaxisPos();
+        DescPose offset_pos = new DescPose();
+
+        robot.MoveJ(j1, desc_p1, 3, 0, 100, 100,100, epos, -1, 0, offset_pos);
+        robot.WeaveStart(0);
+        robot.Circle(j3, desc_p3, 3, 0, 100, 100, epos, j2, desc_p2, 3, 0, 100, 100, epos, 10, -1, offset_pos,0,-1,0);
+        robot.WeaveEnd(0);
+        robot.MoveJ(j1, desc_p1, 3, 0, 100, 100, 100, epos, -1, 0, offset_pos);
+        robot.WeaveStart(0);
+        robot.MoveC(j3, desc_p3, 3, 0, 100, 100, epos, 0, offset_pos, j2, desc_p2, 3, 0, 100, 100, epos, 0, offset_pos, 10, -1,0);
+        robot.WeaveEnd(0);
+        robot.MoveJ(j1, desc_p1, 3, 0, 100, 100, 100, epos, -1, 0, offset_pos);
+        robot.WeaveStart(0);
+        robot.MoveL(j2, desc_p2, 3, 0, 100, 100, 10, -1,epos, 0, 0, offset_pos, 0,0, 100);
+        robot.WeaveEnd(0);
+
+        robot.CloseRPC();
+    }
+
+    public static void TestCoord(Robot robot)
+    {
+        int id = 1;
+        int rtn = 0;
+        DescPose toolCoord = new DescPose();
+        DescPose extoolCoord = new DescPose();
+        DescPose wobjCoord = new DescPose();
+        DescPose exAxisCoord = new DescPose();
+
+//        for(int i=0;i<100;++i){
+//            DescPose pos=new DescPose(0.1*i,0.2*i,0.3*i,0.4*i,0.5*i,0.6*i);
+//            rtn=robot.SetToolCoord(3,pos,0,0,1,0);
+//            rtn=robot.SetWObjCoord(1,pos,0);
+
+//            System.out.println("SetWObjCoord is "+i+",rtn is:"+rtn);
+
+
+//            DescPose etcp=new DescPose(0.1*i,0.2*i,0.3 *i,0.4*i,0.5 *i,0.6 *i);
+//            DescPose etool=new DescPose(0.01*i,0.02*i,0.03 *i,0.04*i,0.05 * i,0.06 * i);
+//            rtn = robot.SetExToolCoord(1,etcp,etool);
+//            System.out.println("SetExToolCoord "+i+","+rtn);
+//            robot.Sleep(200);
+
+//            DescPose pos=new DescPose(0.1*i,0.2*i,0.3*i,0.4*i,0.5*i,0.6*i);
+//            rtn=robot.ExtAxisActiveECoordSys(1, 1, pos, 1);
+//            System.out.println("ExtAxisActiveECoordSys "+i+","+rtn);
+
+//            DescTran cog = new DescTran();
+//            rtn = robot.SetLoadWeight(1, 0.01*i);
+//            cog.x=(double) i;
+//            cog.y=(double) i*2;
+//            cog.z=(double) i*3;
+//            rtn = robot.SetLoadCoord(1, cog);
+//            System.out.println("SetLoadCoord "+i+","+rtn);
+//            robot.Sleep(300);
+//        }
+
+
+
+
+//        for (int i = 0; i < 100; i++) {
+            DescPose coordSet0 = new DescPose(0, 0, 0, 0, 0, 0);
+            DescPose coordSet = new DescPose(1, 2, 3, 4, 5, 6);
+            DescPose etcp = new DescPose(10, 20, 30, 40, 50, 60);
+            DescPose etool = new DescPose(0.1, 0.2, 0.3, 0.4, 0.5, 0.6);
+            DescTran cog = new DescTran(1, 2, 3);
+//
+//            if (i % 2 == 0) {
+                robot.SetToolCoord(id, coordSet, 0, 0, 1, 0);
+                robot.Sleep(100);
+                robot.SetWObjCoord(id, coordSet, 0);
+                robot.Sleep(100);
+                robot.ExtAxisActiveECoordSys(id, 1, coordSet, 1); //将标定结果应用到扩展轴坐标系
+                robot.Sleep(100);
+                rtn = robot.SetExToolCoord(id, etcp, etool);
+                robot.Sleep(100);
+                rtn = robot.SetLoadWeight(id, 1.5);
+                robot.Sleep(500);
+                rtn = robot.SetLoadCoord(id, cog);
+                robot.Sleep(100);
+//            } else {
+//                robot.SetToolCoord(id, coordSet0, 0, 0, 1, 0);
+//                robot.Sleep(100);
+//                robot.SetWObjCoord(id, coordSet0, 0);
+//                robot.Sleep(100);
+//                robot.ExtAxisActiveECoordSys(id, 1, coordSet0, 1); //将标定结果应用到扩展轴坐标系
+//                robot.Sleep(100);
+//                rtn = robot.SetExToolCoord(id, coordSet0, coordSet0);
+//                robot.Sleep(500);
+//                rtn = robot.SetLoadWeight(id, 0);
+//                robot.Sleep(500);
+//                rtn = robot.SetLoadCoord(id, coordSet0.tran);
+//                robot.Sleep(100);
+//            }
+//
+            robot.GetCurToolCoord(toolCoord);//工具
+            System.out.println("GetToolCoord:"+id+","+
+                    toolCoord.tran.x+","+ toolCoord.tran.y+","+ toolCoord.tran.z+","+
+                    toolCoord.rpy.rx+","+ toolCoord.rpy.ry+","+ toolCoord.rpy.rz);
+
+
+            robot.GetCurWObjCoord(toolCoord);//工件
+            System.out.println("GetCurWObjCoord:"+id+","+
+                    toolCoord.tran.x+","+ toolCoord.tran.y+","+ toolCoord.tran.z+","+
+                    toolCoord.rpy.rx+","+ toolCoord.rpy.ry+","+ toolCoord.rpy.rz);
+
+            robot.GetCurExToolCoord(toolCoord);//外部工具
+            System.out.println("GetCurExToolCoord:"+id+","+
+                    toolCoord.tran.x+","+ toolCoord.tran.y+","+ toolCoord.tran.z+","+
+                    toolCoord.rpy.rx+","+ toolCoord.rpy.ry+","+ toolCoord.rpy.rz);
+
+
+            robot.GetCurExAxisCoord(toolCoord);//扩展轴
+            System.out.println("GetCurExToolCoord:"+id+","+
+                    toolCoord.tran.x+","+ toolCoord.tran.y+","+ toolCoord.tran.z+","+
+                    toolCoord.rpy.rx+","+ toolCoord.rpy.ry+","+ toolCoord.rpy.rz);
+
+
+            List<Number> weightT = new ArrayList<>();//质心
+            DescTran cogT=new DescTran();
+            weightT=robot.GetTargetPayload(0);
+            robot.GetTargetPayloadCog(0,cogT);
+            System.out.println("GetTargetPayload :"+weightT.get(1).doubleValue()+", "+
+                    cogT.x+", "+cogT.y+", "+cogT.z);
+
+
+            id=1;//工具
+            robot.GetToolCoordWithID(id, toolCoord);
+            System.out.println("GetToolCoordWithID:"+id+","+
+                    toolCoord.tran.x+","+ toolCoord.tran.y+","+ toolCoord.tran.z+","+
+                    toolCoord.rpy.rx+","+ toolCoord.rpy.ry+","+ toolCoord.rpy.rz);
+            id=2;
+            robot.GetToolCoordWithID(id, toolCoord);
+            System.out.println("GetToolCoordWithID:"+id+","+
+                    toolCoord.tran.x+","+ toolCoord.tran.y+","+ toolCoord.tran.z+","+
+                    toolCoord.rpy.rx+","+ toolCoord.rpy.ry+","+ toolCoord.rpy.rz);
+
+
+            id=1;//工件
+            robot.GetWObjCoordWithID(id, wobjCoord);
+            System.out.println("GetWObjCoordWithID "+id+", "+
+                    wobjCoord.tran.x+","+ wobjCoord.tran.y+","+ wobjCoord.tran.z+","+
+                    wobjCoord.rpy.rx+","+ wobjCoord.rpy.ry+","+ wobjCoord.rpy.rz);
+            id=2;
+            robot.GetWObjCoordWithID(id, wobjCoord);
+            System.out.println("GetWObjCoordWithID "+id+","+
+                    wobjCoord.tran.x+","+ wobjCoord.tran.y+","+ wobjCoord.tran.z+","+
+                    wobjCoord.rpy.rx+","+ wobjCoord.rpy.ry+","+ wobjCoord.rpy.rz);
+
+
+
+
+            robot.GetExToolCoordWithID(id, extoolCoord);//外部工具
+            System.out.println("GetExToolCoordWithID :"+ id+","+
+                    extoolCoord.tran.x+","+ extoolCoord.tran.y+","+ extoolCoord.tran.z+","+
+                    extoolCoord.rpy.rx+","+ extoolCoord.rpy.ry+","+ extoolCoord.rpy.rz);
+
+            ++id;
+            if(id>14){
+                id=1;
+            }
+
+
+            robot.GetExAxisCoordWithID(id, exAxisCoord);//扩展轴
+            System.out.println("GetExAxisCoordWithID "+id+","+
+                    exAxisCoord.tran.x+","+ exAxisCoord.tran.y+","+ exAxisCoord.tran.z+","+
+                    exAxisCoord.rpy.rx+","+ exAxisCoord.rpy.ry+","+ exAxisCoord.rpy.rz);
+
+            ++id;
+            if(id>4){
+                id=1;
+            }
+
+
+
+            double[] weight = new double[1];//负载质心
+            DescTran getCog = new DescTran();
+            robot.GetTargetPayloadWithID(id, weight, getCog);
+            System.out.println("GetTargetPayloadWithID :"+ id+","+ weight[0]+","+
+                    getCog.x+","+ getCog.y+","+ getCog.z);
+//            ++id;
+//            if(id>19){
+//                id=1;
+//            }
+
+//            robot.Sleep(500);
+//            System.out.println("times "+ i);
+//
+//        }
+    }
+
+    public static void TestCoord11(Robot robot)
+    {
+        int id = 1;
+        int rtn = 0;
+        DescPose toolCoord = new DescPose();
+        DescPose extoolCoord = new DescPose();
+        DescPose wobjCoord = new DescPose();
+        DescPose exAxisCoord = new DescPose();
+
+
+        robot.GetCurToolCoord(toolCoord);//工具
+        System.out.println("GetToolCoord:"+id+","+
+                toolCoord.tran.x+","+ toolCoord.tran.y+","+ toolCoord.tran.z+","+
+                toolCoord.rpy.rx+","+ toolCoord.rpy.ry+","+ toolCoord.rpy.rz);
+
+
+        robot.GetCurWObjCoord(toolCoord);//工件
+        System.out.println("GetCurWObjCoord:"+id+","+
+                toolCoord.tran.x+","+ toolCoord.tran.y+","+ toolCoord.tran.z+","+
+                toolCoord.rpy.rx+","+ toolCoord.rpy.ry+","+ toolCoord.rpy.rz);
+
+        robot.GetCurExToolCoord(toolCoord);//外部工具
+        System.out.println("GetCurExToolCoord:"+id+","+
+                toolCoord.tran.x+","+ toolCoord.tran.y+","+ toolCoord.tran.z+","+
+                toolCoord.rpy.rx+","+ toolCoord.rpy.ry+","+ toolCoord.rpy.rz);
+
+
+        robot.GetCurExAxisCoord(toolCoord);//扩展轴
+        System.out.println("GetCurExToolCoord:"+id+","+
+                toolCoord.tran.x+","+ toolCoord.tran.y+","+ toolCoord.tran.z+","+
+                toolCoord.rpy.rx+","+ toolCoord.rpy.ry+","+ toolCoord.rpy.rz);
+
+
+        List<Number> weightT = new ArrayList<>();//质心
+        DescTran cogT=new DescTran();
+        weightT=robot.GetTargetPayload(0);
+        robot.GetTargetPayloadCog(0,cogT);
+        System.out.println("GetTargetPayload :"+weightT.get(1).doubleValue()+", "+
+                cogT.x+", "+cogT.y+", "+cogT.z);
+
+
+        robot.GetToolCoordWithID(id, toolCoord);
+        System.out.println("GetToolCoordWithID:"+id+","+
+                toolCoord.tran.x+","+ toolCoord.tran.y+","+ toolCoord.tran.z+","+
+                toolCoord.rpy.rx+","+ toolCoord.rpy.ry+","+ toolCoord.rpy.rz);
+
+        robot.GetWObjCoordWithID(id, wobjCoord);
+        System.out.println("GetWObjCoordWithID "+id+", "+
+                wobjCoord.tran.x+","+ wobjCoord.tran.y+","+ wobjCoord.tran.z+","+
+                wobjCoord.rpy.rx+","+ wobjCoord.rpy.ry+","+ wobjCoord.rpy.rz);
+
+
+        robot.GetExToolCoordWithID(id, extoolCoord);//外部工具
+        System.out.println("GetExToolCoordWithID :"+ id+","+
+                extoolCoord.tran.x+","+ extoolCoord.tran.y+","+ extoolCoord.tran.z+","+
+                extoolCoord.rpy.rx+","+ extoolCoord.rpy.ry+","+ extoolCoord.rpy.rz);
+
+        robot.GetExAxisCoordWithID(id, exAxisCoord);//扩展轴
+        System.out.println("GetExAxisCoordWithID "+id+","+
+                exAxisCoord.tran.x+","+ exAxisCoord.tran.y+","+ exAxisCoord.tran.z+","+
+                exAxisCoord.rpy.rx+","+ exAxisCoord.rpy.ry+","+ exAxisCoord.rpy.rz);
+
+
+        double[] weight = new double[1];//负载质心
+        DescTran getCog = new DescTran();
+        robot.GetTargetPayloadWithID(id, weight, getCog);
+        System.out.println("GetTargetPayloadWithID :"+ id+","+ weight[0]+","+
+                getCog.x+","+ getCog.y+","+ getCog.z);
+
+        DescPose coordSet0 = new DescPose(0, 0, 0, 0, 0, 0);
+        DescPose coordSet = new DescPose(1, 2, 3, 4, 5, 6);
+        DescPose etcp = new DescPose(10, 20, 30, 40, 50, 60);
+        DescPose etool = new DescPose(0.1, 0.2, 0.3, 0.4, 0.5, 0.6);
+        DescTran cog = new DescTran(1, 2, 3);
+
+        robot.SetToolCoord(id, coordSet, 0, 0, 1, 0);
+        robot.Sleep(100);
+        robot.SetWObjCoord(id, coordSet, 0);
+        robot.Sleep(100);
+        robot.ExtAxisActiveECoordSys(id, 1, coordSet, 1); //将标定结果应用到扩展轴坐标系
+        robot.Sleep(100);
+        rtn = robot.SetExToolCoord(id, etcp, etool);
+        robot.Sleep(100);
+        rtn = robot.SetLoadWeight(id, 1.5);
+        robot.Sleep(500);
+        rtn = robot.SetLoadCoord(id, cog);
+        robot.Sleep(100);
+    }
+
+    public static int TestImpedanceControl(Robot robot)
+    {
+        JointPos j1=new JointPos(102.622, -135.990, 120.769, -73.950, -90.848, 35.507);
+        JointPos j2=new JointPos(93.674, -80.062, 82.947, -92.199, -90.967, 26.559);
+
+        DescPose desc_pos1=new DescPose(136.552, -149.799, 449.532, 179.817, -1.172, 157.123);
+        DescPose desc_pos2=new DescPose(136.540, -561.048, 449.542, 179.819, -1.172, 157.122);
+
+        DescPose offset_pos=new DescPose(0, 0, 0, 0, 0, 0);
+        ExaxisPos epos=new ExaxisPos(0, 0, 0, 0);
+
+        int tool = 0;
+        int user = 0;
+        double vel = 100.0;
+        double acc = 200.0;
+        double ovl = 100.0;
+        double blendT = -1.0;
+        double blendR = -1.0;
+        int flag = 0;
+        int search = 0;
+
+        robot.SetSpeed(20);
+
+        int company = 17;
+        int device = 0;
+        int softversion = 0;
+        int bus = 1;
+
+        DeviceConfig con=new DeviceConfig(company, device, softversion, bus);
+        robot.FT_SetConfig(con);
+        robot.Sleep(1000);
+        robot.FT_GetConfig(con);
+        System.out.println("FT config:"+con.company+","+con.device+","+con.softwareVersion+"con"+ con.bus);
+        robot.Sleep(1000);
+
+        robot.FT_Activate(0);
+        robot.Sleep(1000);
+        robot.FT_Activate(1);
+        robot.Sleep(1000);
+
+        robot.Sleep(1000);
+        robot.FT_SetZero(0);
+        robot.Sleep(1000);
+        robot.FT_SetZero(1);
+        robot.Sleep(1000);
+
+        double[] forceThreshold = { 30,30,30,5,5,5 };
+        double[] m= { 0.1,0.1,0.1,0.02,0.02,0.02 };
+        double[] b = { 1,1,1,0.08,0.08,0.08 };
+        double[] k = { 0,0,0,0,0,0 };
+
+        int rtn = robot.ImpedanceControlStartStop(1, 1, forceThreshold, m, b, k, 1000, 500, 100, 100);
+        System.out.println("ImpedanceControlStartStop errcode:"+ rtn);
+        rtn = robot.MoveL(desc_pos1, tool, user, vel, acc, ovl, blendR, 0, epos, search, flag, offset_pos, -1,0,-1, 1);
+        rtn = robot.MoveL(desc_pos2, tool, user, vel, acc, ovl, blendR, 0, epos, search, flag, offset_pos, -1,0,-1, 1);
+        rtn = robot.MoveL(desc_pos1, tool, user, vel, acc, ovl, blendR, 0, epos, search, flag, offset_pos, -1,0,-1, 1);
+        rtn = robot.MoveL(desc_pos2, tool, user, vel, acc, ovl, blendR, 0, epos, search, flag, offset_pos, -1,0,-1, 1);
+        rtn = robot.MoveL(desc_pos1, tool, user, vel, acc, ovl, blendR, 0, epos, search, flag, offset_pos, -1,0,-1, 1);
+        rtn = robot.MoveL(desc_pos2, tool, user, vel, acc, ovl, blendR, 0, epos, search, flag, offset_pos, -1,0,-1, 1);
+
+        System.out.println("movel errcode:"+ rtn);
+
+        robot.ImpedanceControlStartStop(0, 1, forceThreshold, m, b, k, 1000, 500, 100, 100);
+
+
+        robot.CloseRPC();
+        return 0;
+    }
+
+    public static void testLasertrackandExitAxis(Robot robot)
+    {
+        ExaxisPos startexaxisPos =new ExaxisPos( 0,0,0,0 );
+        ExaxisPos seamexaxisPos = new ExaxisPos(-10,0,0,0 );
+        ExaxisPos endexaxisPos = new ExaxisPos(-30, 0, 0, 0);
+        DescPose offdese = new DescPose(0, 0, 0, 0, 0, 0 );
+        JointPos seamjointPos=new JointPos(0, 0, 0, 0, 0, 0);
+        DescPose seamdescPose=new DescPose(0, 0, 0, 0, 0, 0);
+
+        for(int i =0;i<10;++i) {
+            //运动到需要寻位的起始点
+            JointPos startjointPos = new JointPos(58.337, -119.628, 146.037, -116.358, -92.224, -117.654);
+            DescPose startdescPose = new DescPose(-53.375, -255.363, 0.919, 178.054, 1.077, -94.026);
+            robot.ExtAxisSyncMoveJ(startjointPos, startdescPose, 1, 0, 100, 100, 100, startexaxisPos, -1, 0, offdese);
+
+            System.out.println("11111");
+            //沿着-y方向开始寻位
+            int ret = robot.LaserTrackingSearchStart_xyz(3, 100, 300, 1000, 2);
+            robot.LaserTrackingSearchStop();
+            System.out.println("2222");
+            int[] tool = new int[1];
+            int[] user = new int[1];
+            robot.GetLaserSeamPos(0, offdese, seamjointPos, seamdescPose, tool, user, startexaxisPos);
+            System.out.println(seamjointPos.J1 + ", " + seamjointPos.J2 + ", " +
+                    seamjointPos.J3 + ", " + seamjointPos.J4 + ", " +
+                    seamjointPos.J5 + ", " + seamjointPos.J6 + ", " +
+                    seamdescPose.tran.x + ", " + seamdescPose.tran.y + ", " +
+                    seamdescPose.tran.z + ", " + seamdescPose.rpy.rx + ", " +
+                    seamdescPose.rpy.ry + ", " + seamdescPose.rpy.rz);
+            //如果寻位成功
+            if (ret == 0) {
+                //机器人和扩展轴同步运动到寻位点
+                robot.ExtAxisSyncMoveJ(seamjointPos, seamdescPose, 1, 0, 100, 100, 100, seamexaxisPos, -1, 0, offdese);
+
+                //开始沿着寻位点进行激光跟踪并与扩展轴同步运动
+                System.out.println("3333");
+                robot.LaserTrackingTrackOnOff(1, 2);
+                JointPos endjointPos = new JointPos(70.580, -90.918, 126.593, -125.154, -92.162, -105.403);
+                DescPose enddescPose = new DescPose(-53.375, -419.020, 0.920, 178.054, 1.076, -94.026);
+                robot.ExtAxisSyncMoveL(endjointPos, enddescPose, 1, 0, 20, 100, 100, -1, endexaxisPos, 0, offdese);
+                ;
+                //停止跟踪
+                robot.LaserTrackingTrackOnOff(0, 2);
+                System.out.println("44444");
+            }
+            System.out.println("当前运行次数为:"+i);
+        }
+        robot.CloseRPC();
+    }
+
+    public static void testLaserConfig(Robot robot)
+    {
+        robot.LaserTrackingSensorConfig("192.168.58.20", 5020);
+
+        robot.LaserTrackingSensorSamplePeriod(20);
+
+        robot.LoadPosSensorDriver(101);
+        robot.LaserTrackingLaserOnOff(0,0);
+
+        robot.Sleep(3000);
+
+        robot.LaserTrackingLaserOnOff(1, 0);
+
+        robot.CloseRPC();
+    }
+
+    public static void  testGetLaserPoint(Robot robot)
+    {
+        String name = "laserPoint";
+        List<Number> data;
+
+        data=robot.GetRobotTeachingPoint(name);
+        System.out.println(data.get(1).doubleValue()+","+data.get(2).doubleValue()+","+data.get(3).doubleValue()+","+ data.get(4).doubleValue()+","+ data.get(5).doubleValue()+","+data.get(6).doubleValue()+","+data.get(7).doubleValue()+","+data.get(8).doubleValue()+","+data.get(9).doubleValue()+","+data.get(10).doubleValue()+","+data.get(11).doubleValue()+","+data.get(12).doubleValue());
+        JointPos startjointPos=new JointPos(data.get(7).doubleValue(), data.get(8).doubleValue(),data.get(9).doubleValue(),data.get(10).doubleValue(), data.get(11).doubleValue(),data.get(12).doubleValue());
+        DescPose startdescPose=new DescPose(data.get(1).doubleValue(), data.get(2).doubleValue(),data.get(3).doubleValue(),data.get(4).doubleValue(),data.get(5).doubleValue(),data.get(6).doubleValue());
+//        JointPos startjointPos=new JointPos(87.516,-130.505,116.883,-72.711,-87.278,4.4);
+//        DescPose startdescPose=new DescPose(107.882,-195.329,262.601,176.131,2.427,172.947);
+        ExaxisPos exaxisPos=new ExaxisPos(0, 0, 0, 0);
+        DescPose offdese=new DescPose(0, 0, 0, 0, 0, 0);
+        robot.MoveL(startjointPos, startdescPose, 1, 0, 10, 100, 100, -1,0, exaxisPos, 0, 0,offdese, 0,1, 1);
+
+        //robot.LaserSensorRecord1(2, 10);
+
+        //JointPos endjointPos(68.809, -87.100, 121.120, -127.233, -95.038, -109.555);
+        //DescPose enddescPose(-103.555, -464.234, 13.076, 174.179, -1.344, -91.709);
+        //robot.MoveL(&endjointPos, &enddescPose, 1, 0, 100, 100, 100, -1, &exaxisPos, 0, 0, &offdese, 1, 1);
+
+        //robot.LaserSensorRecord1(0, 10);
+
+        //robot.MoveToLaserRecordStart(1, 30);
+
+//        robot.CloseRPC();
+    }
+
+    public static void testMoveToLaserRecordStart(Robot robot)
+    {
+
+        JointPos startjointPos=new JointPos(56.205, -117.951, 141.872, -118.149, -94.217, -122.176);
+        DescPose startdescPose=new DescPose(-97.552, -282.855, 26.675, 174.182, -1.338, -91.707);
+        ExaxisPos exaxisPos=new ExaxisPos(0, 0, 0, 0);
+        DescPose offdese=new DescPose(0, 0, 0, 0, 0, 0);
+        robot.MoveL(startjointPos, startdescPose, 1, 0, 100, 100, 100, -1, 0,exaxisPos, 0, 0, offdese, 0,1, 1);
+
+        robot.LaserSensorRecord1(2, 10);
+
+        JointPos endjointPos=new JointPos(68.809, -87.100, 121.120, -127.233, -95.038, -109.555);
+        DescPose enddescPose=new DescPose(-103.555, -464.234, 13.076, 174.179, -1.344, -91.709);
+        robot.MoveL(endjointPos, enddescPose, 1, 0, 50, 100, 100, -1, 0,exaxisPos, 0, 0, offdese, 0,1, 1);
+
+        robot.LaserSensorRecord1(0, 10);
+
+        robot.MoveToLaserRecordStart(1, 30);
+
+        robot.CloseRPC();
+    }
+
+    public static void testMoveToLaserRecordEnd(Robot robot)
+    {
+
+        JointPos startjointPos=new JointPos(56.205, -117.951, 141.872, -118.149, -94.217, -122.176);
+        DescPose startdescPose=new DescPose(-97.552, -282.855, 26.675, 174.182, -1.338, -91.707);
+        ExaxisPos exaxisPos=new ExaxisPos(0, 0, 0, 0);
+        DescPose offdese=new DescPose(0, 0, 0, 0, 0, 0);
+        robot.MoveL(startjointPos, startdescPose, 1, 0, 100, 100, 100, -1,0, exaxisPos, 0, 0, offdese, 0,1, 1);
+
+        robot.LaserSensorRecord1(2, 10);
+
+        JointPos endjointPos=new JointPos(68.809, -87.100, 121.120, -127.233, -95.038, -109.555);
+        DescPose enddescPose=new DescPose(-103.555, -464.234, 13.076, 174.179, -1.344, -91.709);
+        robot.MoveL(endjointPos, enddescPose, 1, 0, 50, 100, 100, -1, 0,exaxisPos, 0, 0, offdese, 0,1, 1);
+
+        robot.LaserSensorRecord1(0, 10);
+
+        robot.MoveToLaserRecordEnd(1, 30);
+
+        robot.CloseRPC();
+    }
+
+    public static void testLasertrack_point(Robot robot)
+    {
+        String name = "laserEnd";
+        List<Number> data;
+        JointPos startjointPos=new JointPos(56.205, -117.951, 141.872, -118.149, -94.217, -122.176);
+        DescPose startdescPose=new DescPose(-97.552, -282.855, 26.675, 174.182, -1.338, -91.707);
+        ExaxisPos exaxisPos=new ExaxisPos(0, 0, 0, 0);
+        DescPose offdese=new DescPose(0, 0, 0, 0, 0, 0);
+        DescTran directionPoint=new DescTran();
+
+        robot.MoveL(startjointPos,startdescPose, 1, 0, 100, 100, 100, -1,0, exaxisPos, 0, 0, offdese, 0,1, 1);
+
+        data=robot.GetRobotTeachingPoint(name);
+        System.out.println(data.get(1).doubleValue()+","+data.get(2).doubleValue()+","+data.get(3).doubleValue()+","+data.get(4).doubleValue()+","+data.get(5).doubleValue()+","+data.get(6).doubleValue()+","+data.get(7).doubleValue()+","+data.get(8).doubleValue()+","+data.get(9).doubleValue()+","+data.get(10).doubleValue()+","+data.get(11).doubleValue()+","+data.get(12).doubleValue());
+        directionPoint.x = data.get(1).doubleValue();
+        directionPoint.y = data.get(2).doubleValue();
+        directionPoint.z = data.get(3).doubleValue();
+        System.out.println( directionPoint.x+","+ directionPoint.y+","+ directionPoint.z);
+
+        robot.LaserTrackingSearchStart_point(directionPoint, 100, 500, 1000, 3);
+
+        robot.LaserTrackingSearchStop();
+
+        robot.MoveToLaserSeamPos(1, 30, 0, 0, 0, offdese);
+
+
+        robot.CloseRPC();
+    }
+
+    public static void testLaserRecordAndReplay(Robot robot)
+    {
+        //上传并加载开放协议文件
+        robot.OpenLuaUpload("D://zUP/CtrlDev_laser_ruiniu-0117.lua");
+        robot.Sleep(2000);
+        robot.SetCtrlOpenLUAName(0, "CtrlDev_laser_ruiniu-0117.lua");
+        robot.UnloadCtrlOpenLUA(0);
+        robot.LoadCtrlOpenLUA(0);
+        robot.Sleep(8000);
+
+        for (int i=0;i<10;++i){
+            JointPos startjointPos=new JointPos(56.205, -117.951, 141.872, -118.149, -94.217, -122.176);
+            DescPose startdescPose=new DescPose(-97.552, -282.855, 26.675, 174.182, -1.338, -91.707);
+            ExaxisPos exaxisPos=new ExaxisPos(0, 0, 0, 0);
+            DescPose offdese=new DescPose(0, 0, 0, 0, 0, 0);
+            robot.MoveL(startjointPos, startdescPose, 1, 0, 100, 100, 100, -1, 0,exaxisPos, 0, 0, offdese, 0,1, 1);
+
+            robot.LaserSensorRecord1(2, 10);
+
+            JointPos endjointPos=new JointPos(68.809, -87.100, 121.120, -127.233, -95.038, -109.555);
+            DescPose enddescPose=new DescPose(-103.555, -464.234, 13.076, 174.179, -1.344, -91.709);
+            robot.MoveL(endjointPos, enddescPose, 1, 0, 50, 100, 100, -1,0, exaxisPos, 0, 0, offdese, 0,1, 1);
+
+            robot.LaserSensorRecord1(0, 10);
+
+            robot.MoveToLaserRecordStart(1, 30);
+
+            robot.LaserSensorReplay(10, 100);
+
+            robot.MoveLTR();
+
+            robot.LaserSensorRecord1(0, 10);
+        }
+
+        robot.CloseRPC();
+    }
+
+
+    public static void testLasertrack(Robot robot)
+    {
+        //上传并加载开放协议文件
+        robot.OpenLuaUpload("D://zUP/CtrlDev_laser_ruiniu-0117.lua");
+        robot.Sleep(2000);
+        robot.SetCtrlOpenLUAName(0, "CtrlDev_laser_ruiniu-0117.lua");
+        robot.UnloadCtrlOpenLUA(0);
+        robot.LoadCtrlOpenLUA(0);
+        robot.Sleep(8000);
+        for(int i=0;i<10;++i){
+            JointPos startjointPos=new JointPos(56.205, -117.951, 141.872, -118.149, -94.217, -122.176);
+            DescPose startdescPose=new DescPose(-97.552, -282.855, 26.675, 174.182, -1.338, -91.707);
+            ExaxisPos exaxisPos=new ExaxisPos(0, 0, 0, 0);
+            DescPose offdese=new DescPose(0, 0, 0, 0, 0, 0);
+            DescTran directionPoint=new DescTran();
+            robot.MoveL(startjointPos, startdescPose, 1, 0, 100, 100, 100, -1, 0,exaxisPos, 0, 0, offdese, 0,1, 1);
+
+            robot.LaserTrackingSearchStart_xyz(3, 100, 300, 1000, 3);
+            robot.LaserTrackingSearchStop();
+
+            //robot.GetRobotTeachingPoint(name, data);
+            robot.MoveToLaserSeamPos(1, 30, 0, 0, 0, offdese);
+            //printf("%f, %f, %f,%f, %f, %f,%f, %f, %f,%f, %f, %f\n", data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11]);
+
+            robot.LaserTrackingTrackOnOff(1, 3);
+            //robot.LaserTrackingTrackOn(3);
+            JointPos endjointPos=new JointPos(68.809,-87.100,121.120,-127.233,-95.038,-109.555);
+            DescPose enddescPose=new DescPose(-103.555,-464.234,13.076,174.179,-1.344,-91.709);
+            robot.MoveL(endjointPos, enddescPose, 1, 0, 20, 100, 100, -1, 0,exaxisPos, 0, 0, offdese, 0,1, 1);
+
+            robot.LaserTrackingTrackOnOff(0, 3);
+            System.out.println("当前是第"+(i+1)+"次");
+        }
+        robot.CloseRPC();
+    }
+
+    public static void testLasertrack_xyz(Robot robot)
+    {
+        JointPos startjointPos=new JointPos(56.205, -117.951, 141.872, -118.149, -94.217, -122.176);
+        DescPose startdescPose=new DescPose(-97.552, -282.855, 26.675, 174.182, -1.338, -91.707);
+        ExaxisPos exaxisPos=new ExaxisPos(0, 0, 0, 0);
+        DescPose offdese=new DescPose(0, 0, 0, 0, 0, 0);
+        DescTran directionPoint;
+        robot.MoveL(startjointPos, startdescPose, 1, 0, 100, 100, 100, -1, 0,exaxisPos, 0, 0, offdese, 0,1, 1);
+
+        robot.LaserTrackingSearchStart_xyz(3, 100, 300, 1000, 3);
+
+        robot.LaserTrackingSearchStop();
+
+        robot.MoveToLaserSeamPos(1, 30, 0, 0, 0, offdese);
+
+
+        robot.CloseRPC();
+    }
+
+    public static void TestDragSwitchDetect(Robot robot)
+    {
+        int rtn = robot.SetTorqueDetectionSwitch(1);
+        System.out.println("SetTorqueDetectionSwitch rtn : "+ rtn);
+        rtn = robot.DragTeachSwitch(1);
+        System.out.println("DragTeachSwitch in rtn : "+ rtn);
+
+        robot.Sleep(1000);
+
+        rtn = robot.DragTeachSwitch(0);
+        System.out.println("DragTeachSwitch out rtn : "+ rtn);
+
+        int[] maincode=new int[1];
+        int[] subcode=new int[1];
+
+        while (true)
+        {
+            robot.GetRobotErrorCode(maincode, subcode);
+            System.out.println("robot maincode is "+maincode[0]+";  subcode is "+ subcode[0]);
+            robot.Sleep(1000);
+        }
+
+//        robot.CloseRPC();
+    }
+
+    public static void TestExtAxisStrategy(Robot robot)
+    {
+        JointPos joint_pos1 =new JointPos( -22.016, -49.217, 124.714, -161.100, -85.108, -0.333);
+        JointPos joint_pos2 = new JointPos( -21.083, -46.613, 110.079, -147.796, -80.757, -0.330 );
+        JointPos joint_pos3 = new JointPos(-25.572, -60.090, 135.397, -163.889, -82.489, -0.345);
+        DescPose desc_pos1 = new DescPose( 2.637, -0.001, 30.673, 178.786, -4.134, 68.326);
+        DescPose desc_pos2 =new DescPose( 213.812, -1.440, 47.311, 177.410, 0.166, 68.946);
+        DescPose desc_pos3 = new DescPose( 444.342, -12.723, 82.470, -177.701, -1.325, 65.151);
+
+        ExaxisPos epos1 = new ExaxisPos( 0.001, 0.000, 0.000, 0.000 );
+        ExaxisPos epos2 = new ExaxisPos( 299.977, 0.000, 0.000, 0.000 );
+        ExaxisPos epos3 = new ExaxisPos(399.969, 0.000, 0.000, 0.000 );
+        DescPose offset_pos = new DescPose( 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 );
+
+        int rtn = robot.SetExAxisRobotPlan(0);
+        System.out.println("SetExAxisRobotPlan rtn is "+ rtn);
+        robot.Sleep(1000);
+        rtn = robot.ExtAxisSyncMoveL(joint_pos1, desc_pos1, 1, 0, 100, 100, 100, -1, epos1, 0, offset_pos);
+        System.out.println("ExtAxisSyncMoveL 1 rtn is "+ rtn);
+        rtn = robot.ExtAxisSyncMoveL(joint_pos2, desc_pos2, 1, 0, 100, 100, 100, -1, epos2, 0, offset_pos);
+        System.out.println("ExtAxisSyncMoveL 2 rtn is "+ rtn);
+        rtn = robot.ExtAxisSyncMoveL(joint_pos3, desc_pos3, 1, 0, 100, 100, 100, -1, epos3, 0, offset_pos);
+        System.out.println("ExtAxisSyncMoveL 3 rtn is "+ rtn);
+        robot.Sleep(8000);
+        robot.CloseRPC();
     }
 
     public static void TestMovePhy(Robot robot)

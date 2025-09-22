@@ -183,7 +183,7 @@ public class TCPClient
     {
         int totalRecvSize = 0;
         int tmpRecvSize = 0;
-        byte[] tmpBuf = new byte[1024];
+        byte[] tmpBuf = new byte[2048];
         try
         {
             if (TCPClient.this.mInputStream == null)
@@ -267,6 +267,8 @@ public class TCPClient
                                 checksum += tmp1;
                             }
 
+
+//                            System.out.println("error check sum" + checkdata + "    " + checksum  + "   " + Integer.toBinaryString(checkdata) + "  " + Integer.toBinaryString(checksum));
                             if (checksum == checkdata)
                             {
                                 //System.out.println("error check sum" + checkdata + "    " + checksum  + "   " + Integer.toBinaryString(checkdata) + "  " + Integer.toBinaryString(checksum));

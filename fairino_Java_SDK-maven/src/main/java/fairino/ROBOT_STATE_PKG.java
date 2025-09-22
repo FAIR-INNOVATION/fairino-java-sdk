@@ -79,6 +79,13 @@ public class ROBOT_STATE_PKG
     public float wideVoltageCtrlBoxTemp;        //宽电压控制箱温度
     public int wideVoltageCtrlBoxFanCurrent;   //宽电压控制箱风扇转速(mA)
 
+    public double[] toolCoord=new double[6];           //工具坐标系
+    public double[] wobjCoord=new double[6];		   //工件坐标系
+    public double[] extoolCoord=new double[6];		   //外部工具坐标系
+    public double[] exAxisCoord=new double[6];		   //扩展轴坐标系
+    public double load;                   //负载质量
+    public double[] loadCog=new double[3];             //负载质心
+
     public short check_sum = 0;          /* 和校验 */
 
     public ROBOT_STATE_PKG()

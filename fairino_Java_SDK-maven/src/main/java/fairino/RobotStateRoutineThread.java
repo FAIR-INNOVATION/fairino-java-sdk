@@ -3,7 +3,7 @@ package fairino;
 
 public class RobotStateRoutineThread extends Thread
 {
-    final int STRUCTSIZE = 888;
+    final int STRUCTSIZE = 1184;
     int ROBOT_REALTIME_PORT = 20004;
     String robotIp = "";
     ROBOT_STATE_PKG pkg = new ROBOT_STATE_PKG();
@@ -436,15 +436,78 @@ public class RobotStateRoutineThread extends Thread
                 System.arraycopy(pkgBuf, 940, tmp, 0, 8);
                 pkg.jt_tgt_tor[5] = bytes2Double(tmp);
 
-                System.arraycopy(pkgBuf, 948, tmp, 0, 2);
-                pkg.smartToolState = byteToShort(tmp)[0];
+                System.arraycopy(pkgBuf, 948, tmp, 0, 4);
+//                pkg.smartToolState = byteToInt(tmp)[0];
+                pkg.smartToolState = bytesToInt(tmp);
 
-                System.arraycopy(pkgBuf, 950, tmp, 0, 4);
+                System.arraycopy(pkgBuf, 952, tmp, 0, 4);
                 pkg.wideVoltageCtrlBoxTemp = byte2float(tmp);
-                System.arraycopy(pkgBuf, 954, tmp, 0, 2);
+                System.arraycopy(pkgBuf, 956, tmp, 0, 2);
                 pkg.wideVoltageCtrlBoxFanCurrent = byteToShort(tmp)[0];
 
-                System.arraycopy(pkgBuf, 956, tmp, 0, 2);
+                System.arraycopy(pkgBuf, 958, tmp, 0, 8);
+                pkg.toolCoord[0] = bytes2Double(tmp);
+                System.arraycopy(pkgBuf, 966, tmp, 0, 8);
+                pkg.toolCoord[1] = bytes2Double(tmp);
+                System.arraycopy(pkgBuf, 974, tmp, 0, 8);
+                pkg.toolCoord[2] = bytes2Double(tmp);
+                System.arraycopy(pkgBuf, 982, tmp, 0, 8);
+                pkg.toolCoord[3] = bytes2Double(tmp);
+                System.arraycopy(pkgBuf, 990, tmp, 0, 8);
+                pkg.toolCoord[4] = bytes2Double(tmp);
+                System.arraycopy(pkgBuf, 998, tmp, 0, 8);
+                pkg.toolCoord[5] = bytes2Double(tmp);
+
+                System.arraycopy(pkgBuf, 1006, tmp, 0, 8);
+                pkg.wobjCoord[0] = bytes2Double(tmp);
+                System.arraycopy(pkgBuf, 1014, tmp, 0, 8);
+                pkg.wobjCoord[1] = bytes2Double(tmp);
+                System.arraycopy(pkgBuf, 1022, tmp, 0, 8);
+                pkg.wobjCoord[2] = bytes2Double(tmp);
+                System.arraycopy(pkgBuf, 1030, tmp, 0, 8);
+                pkg.wobjCoord[3] = bytes2Double(tmp);
+                System.arraycopy(pkgBuf, 1038, tmp, 0, 8);
+                pkg.wobjCoord[4] = bytes2Double(tmp);
+                System.arraycopy(pkgBuf, 1046, tmp, 0, 8);
+                pkg.wobjCoord[5] = bytes2Double(tmp);
+
+                System.arraycopy(pkgBuf, 1054, tmp, 0, 8);
+                pkg.extoolCoord[0] = bytes2Double(tmp);
+                System.arraycopy(pkgBuf, 1062, tmp, 0, 8);
+                pkg.extoolCoord[1] = bytes2Double(tmp);
+                System.arraycopy(pkgBuf, 1070, tmp, 0, 8);
+                pkg.extoolCoord[2] = bytes2Double(tmp);
+                System.arraycopy(pkgBuf, 1078, tmp, 0, 8);
+                pkg.extoolCoord[3] = bytes2Double(tmp);
+                System.arraycopy(pkgBuf, 1086, tmp, 0, 8);
+                pkg.extoolCoord[4] = bytes2Double(tmp);
+                System.arraycopy(pkgBuf, 1094, tmp, 0, 8);
+                pkg.extoolCoord[5] = bytes2Double(tmp);
+
+                System.arraycopy(pkgBuf, 1102, tmp, 0, 8);
+                pkg.exAxisCoord[0] = bytes2Double(tmp);
+                System.arraycopy(pkgBuf, 1110, tmp, 0, 8);
+                pkg.exAxisCoord[1] = bytes2Double(tmp);
+                System.arraycopy(pkgBuf, 1118, tmp, 0, 8);
+                pkg.exAxisCoord[2] = bytes2Double(tmp);
+                System.arraycopy(pkgBuf, 1126, tmp, 0, 8);
+                pkg.exAxisCoord[3] = bytes2Double(tmp);
+                System.arraycopy(pkgBuf, 1134, tmp, 0, 8);
+                pkg.exAxisCoord[4] = bytes2Double(tmp);
+                System.arraycopy(pkgBuf, 1142, tmp, 0, 8);
+                pkg.exAxisCoord[5] = bytes2Double(tmp);
+
+                System.arraycopy(pkgBuf, 1150, tmp, 0, 8);
+                pkg.load = bytes2Double(tmp);
+
+                System.arraycopy(pkgBuf, 1158, tmp, 0, 8);
+                pkg.loadCog[0] = bytes2Double(tmp);
+                System.arraycopy(pkgBuf, 1166, tmp, 0, 8);
+                pkg.loadCog[1] = bytes2Double(tmp);
+                System.arraycopy(pkgBuf, 1174, tmp, 0, 8);
+                pkg.loadCog[2] = bytes2Double(tmp);
+
+                System.arraycopy(pkgBuf, 1182, tmp, 0, 2);
                 pkg.check_sum = byteToShort(tmp)[0];
 
             }

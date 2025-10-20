@@ -86,6 +86,9 @@ public class ROBOT_STATE_PKG
     public double load;                   //负载质量
     public double[] loadCog=new double[3];             //负载质心
 
+    public double[] lastServoTarget=new double[6];      //队列中最后一个servo]目标位置
+    public int servoJCmdNum;                            //servo]指令计数
+
     public short check_sum = 0;          /* 和校验 */
 
     public ROBOT_STATE_PKG()

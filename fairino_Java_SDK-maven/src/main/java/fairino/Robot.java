@@ -20,7 +20,7 @@ import org.apache.xmlrpc.client.XmlRpcClientConfigImpl;
 
 public class Robot
 {
-    String SDK_VERSION = "JavaSDK V1.0.7  WebApp V3.8.4";
+    String SDK_VERSION = "JavaSDK V1.0.9  WebApp V3.8.6";
     private String robotIp = "192.168.58.2";//机器人ip
 
     int ROBOT_CMD_PORT = 8080;
@@ -31,7 +31,7 @@ public class Robot
     private String sendBuf = "";
 
     private boolean reconnEnable = true;  //重连使能
-    private int reconnTimes = 20;          //重连次数
+    private int reconnTimes = 100;          //重连次数
     private int reconnPeriod = 2000;       //重连时间间隔
 
     XmlRpcClientConfigImpl config;
@@ -115,7 +115,8 @@ public class Robot
 
             if(robotStateRoutineThread != null)
             {
-                robotStateRoutineThread.SetReconnectParam(reconnEnable, reconnTimes, reconnPeriod);//设置默认重连
+                //设置默认重连
+                robotStateRoutineThread.SetReconnectParam(reconnEnable, reconnTimes, reconnPeriod);
                 robotStateRoutineThread.clientRobotState.SetLog(log);
             }
 
@@ -894,11 +895,11 @@ public class Robot
         {
             if(!IsSockComError())
             {
-                return MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, blendMode, epos, search, offset_flag, offset_pos, overSpeedStrategy, speedPercent);
+                return MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, blendMode, epos, search, offset_flag, offset_pos,velAccParamMode, overSpeedStrategy, speedPercent);
             }
             if(e.getMessage().contains("Connection timed out") || e.getMessage().contains("connect timed out"))
             {
-                MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, blendMode, epos, search, offset_flag, offset_pos, overSpeedStrategy, speedPercent);
+                MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, blendMode, epos, search, offset_flag, offset_pos, velAccParamMode,overSpeedStrategy, speedPercent);
             }
             if (log != null)
             {
@@ -1559,45 +1560,45 @@ public class Robot
      * @param  spiral_param  螺旋参数
      * @return  错误码
      */
-    public int NewSpiral(JointPos joint_pos, DescPose desc_pos, int tool, int user, double vel, double acc, ExaxisPos epos, double ovl, int offset_flag, DescPose offset_pos, SpiralParam spiral_param)
-    {
-        if (IsSockComError())
-        {
-            return sockErr;
-        }
-        if(GetSafetyCode()!=0){
-            return GetSafetyCode();
-        }
-        try
-        {
-            Object[] jointPos = {joint_pos.J1, joint_pos.J2, joint_pos.J3, joint_pos.J4, joint_pos.J5, joint_pos.J6};
-            Object[] descPos = { desc_pos.tran.x, desc_pos.tran.y, desc_pos.tran.z, desc_pos.rpy.rx, desc_pos.rpy.ry, desc_pos.rpy.rz };
-            Object[] exteraxisPos = {epos.axis1, epos.axis2, epos.axis3, epos.axis4};
-            Object[] offectPos = { offset_pos.tran.x, offset_pos.tran.y, offset_pos.tran.z, offset_pos.rpy.rx, offset_pos.rpy.ry, offset_pos.rpy.rz };
-            Object[] spiralParam = { spiral_param.circle_num * 1.0, spiral_param.circle_angle, spiral_param.rad_init, spiral_param.rad_add, spiral_param.rotaxis_add, spiral_param.rot_direction * 1.0 };
-            Object[] params = new Object[] {jointPos, descPos, tool, user, vel, acc, exteraxisPos, ovl, offset_flag , offectPos, spiralParam};
-            int rtn = (int)client.execute("NewSpiral" , params);
-            if (log != null)
-            {
-                log.LogInfo("NewSpiral(" + jointPos[0] + "," + jointPos[1] + "," + jointPos[2] + "," + jointPos[3] + "," + jointPos[4] + "," + jointPos[5] + "," + descPos[0] + "," + descPos[1] + "," + descPos[2] + "," + descPos[3] + "," + descPos[4] + "," + descPos[5] + "," + tool + "," + user + "," + vel + "," + acc + "," +
-                        epos.axis1 + "," + epos.axis2 + "," + epos.axis3 + "," + epos.axis4 + "," + ovl + "," + offset_flag + ",) " +
-                        offectPos[0] + "," + offectPos[1] + "," + offectPos[2] + "," + offectPos[3] + "," + offectPos[4] + "," + offectPos[5] + "," + spiralParam[0] + "," + spiralParam[1] + "," + spiralParam[2] + "," + spiralParam[3] + "," + spiralParam[4] + "," + spiralParam[5] + " : " + rtn);
-            }
-            return rtn;
-        }
-        catch (Throwable e)
-        {
-            if(e.getMessage().contains("Connection timed out") || e.getMessage().contains("connect timed out"))
-            {
-                NewSpiral(joint_pos, desc_pos, tool, user, vel, acc, epos, ovl, offset_flag, offset_pos, spiral_param);
-            }
-            else if (log != null)
-            {
-                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
-            }
-            return RobotError.ERR_RPC_ERROR;
-        }
-    }
+//    public int NewSpiral(JointPos joint_pos, DescPose desc_pos, int tool, int user, double vel, double acc, ExaxisPos epos, double ovl, int offset_flag, DescPose offset_pos, SpiralParam spiral_param)
+//    {
+//        if (IsSockComError())
+//        {
+//            return sockErr;
+//        }
+//        if(GetSafetyCode()!=0){
+//            return GetSafetyCode();
+//        }
+//        try
+//        {
+//            Object[] jointPos = {joint_pos.J1, joint_pos.J2, joint_pos.J3, joint_pos.J4, joint_pos.J5, joint_pos.J6};
+//            Object[] descPos = { desc_pos.tran.x, desc_pos.tran.y, desc_pos.tran.z, desc_pos.rpy.rx, desc_pos.rpy.ry, desc_pos.rpy.rz };
+//            Object[] exteraxisPos = {epos.axis1, epos.axis2, epos.axis3, epos.axis4};
+//            Object[] offectPos = { offset_pos.tran.x, offset_pos.tran.y, offset_pos.tran.z, offset_pos.rpy.rx, offset_pos.rpy.ry, offset_pos.rpy.rz };
+//            Object[] spiralParam = { spiral_param.circle_num * 1.0, spiral_param.circle_angle, spiral_param.rad_init, spiral_param.rad_add, spiral_param.rotaxis_add, spiral_param.rot_direction * 1.0 };
+//            Object[] params = new Object[] {jointPos, descPos, tool, user, vel, acc, exteraxisPos, ovl, offset_flag , offectPos, spiralParam};
+//            int rtn = (int)client.execute("NewSpiral" , params);
+//            if (log != null)
+//            {
+//                log.LogInfo("NewSpiral(" + jointPos[0] + "," + jointPos[1] + "," + jointPos[2] + "," + jointPos[3] + "," + jointPos[4] + "," + jointPos[5] + "," + descPos[0] + "," + descPos[1] + "," + descPos[2] + "," + descPos[3] + "," + descPos[4] + "," + descPos[5] + "," + tool + "," + user + "," + vel + "," + acc + "," +
+//                        epos.axis1 + "," + epos.axis2 + "," + epos.axis3 + "," + epos.axis4 + "," + ovl + "," + offset_flag + ",) " +
+//                        offectPos[0] + "," + offectPos[1] + "," + offectPos[2] + "," + offectPos[3] + "," + offectPos[4] + "," + offectPos[5] + "," + spiralParam[0] + "," + spiralParam[1] + "," + spiralParam[2] + "," + spiralParam[3] + "," + spiralParam[4] + "," + spiralParam[5] + " : " + rtn);
+//            }
+//            return rtn;
+//        }
+//        catch (Throwable e)
+//        {
+//            if(e.getMessage().contains("Connection timed out") || e.getMessage().contains("connect timed out"))
+//            {
+//                NewSpiral(joint_pos, desc_pos, tool, user, vel, acc, epos, ovl, offset_flag, offset_pos, spiral_param);
+//            }
+//            else if (log != null)
+//            {
+//                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
+//            }
+//            return RobotError.ERR_RPC_ERROR;
+//        }
+//    }
 
     /**
      * @brief  笛卡尔空间螺旋线运动 (重载函数1 不需要输入关节位置)
@@ -1634,6 +1635,60 @@ public class Robot
         errcode = NewSpiral(jPos, desc_pos, tool, user, vel, acc, epos, ovl, offset_flag, offset_pos, spiral_param);
         return errcode;
     }
+
+    /**
+     *@brief  笛卡尔空间螺旋线运动
+     *@param   joint_pos  目标关节位置,单位deg
+     *@param   desc_pos   目标笛卡尔位姿
+     *@param   tool  工具坐标号，范围[1~15]
+     *@param   user  工件坐标号，范围[1~15]
+     *@param   vel  速度百分比，范围[0~100]
+     *@param   acc  加速度百分比，范围[0~100],暂不开放
+     *@param   epos  扩展轴位置，单位mm
+     *@param   ovl  速度缩放因子，范围[0~100]
+     *@param   offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
+     *@param   offset_pos  位姿偏移量
+     *@param   spiral_param  螺旋参数
+     * @return  错误码
+     */
+    public int NewSpiral(JointPos joint_pos, DescPose desc_pos, int tool, int user, double vel, double acc, ExaxisPos epos, double ovl, int offset_flag, DescPose offset_pos, SpiralParam spiral_param)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+        if(GetSafetyCode()!=0){
+            return GetSafetyCode();
+        }
+        try
+        {
+            Object[] param = new Object[] {joint_pos.J1, joint_pos.J2, joint_pos.J3, joint_pos.J4, joint_pos.J5, joint_pos.J6,
+                    desc_pos.tran.x, desc_pos.tran.y, desc_pos.tran.z, desc_pos.rpy.rx, desc_pos.rpy.ry, desc_pos.rpy.rz,
+                    tool,user,vel,acc,epos.axis1, epos.axis2, epos.axis3, epos.axis4,ovl,offset_flag,
+                    offset_pos.tran.x, offset_pos.tran.y, offset_pos.tran.z, offset_pos.rpy.rx, offset_pos.rpy.ry, offset_pos.rpy.rz ,
+                    spiral_param.circle_num * 1.0, spiral_param.circle_angle, spiral_param.rad_init, spiral_param.rad_add, spiral_param.rotaxis_add, spiral_param.rot_direction,spiral_param.velAccMode};
+            Object[] params = new Object[] {param};
+            int rtn = (int)client.execute("NewSpiral" , params);
+            if (log != null)
+            {
+                log.LogInfo("NewSpiral :" + rtn);
+            }
+            return rtn;
+        }
+        catch (Throwable e)
+        {
+            if(e.getMessage().contains("Connection timed out") || e.getMessage().contains("connect timed out"))
+            {
+                NewSpiral(joint_pos, desc_pos, tool, user, vel, acc, epos, ovl, offset_flag, offset_pos, spiral_param);
+            }
+            else if (log != null)
+            {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
 
     /**
      * @brief 伺服运动开始，配合ServoJ、ServoCart指令使用
@@ -7717,34 +7772,105 @@ public class Robot
      * @param  isNoBlock 阻塞标志，0-阻塞；1-非阻塞
      * @return  错误码
      */
-    public int FT_Control(int flag, int sensor_id, Object[] select, ForceTorque ft, Object[] ft_pid, int adj_sign, int ILC_sign, double max_dis, double max_ang, int filter_Sign, int posAdapt_sign, int isNoBlock)
+//    public int FT_Control(int flag, int sensor_id, Object[] select, ForceTorque ft, Object[] ft_pid, int adj_sign, int ILC_sign, double max_dis, double max_ang, int filter_Sign, int posAdapt_sign, int isNoBlock)
+//    {
+//        if (IsSockComError())
+//        {
+//            return sockErr;
+//        }
+//
+//        try
+//        {
+//
+//            Object[] ftData = { ft.fx, ft.fy, ft.fz, ft.tx, ft.ty, ft.tz };
+//            Object[] params = new Object[] {flag, sensor_id, select, ftData, ft_pid, adj_sign, ILC_sign, max_dis, max_ang, filter_Sign, posAdapt_sign, isNoBlock};
+//            int rtn = (int)client.execute("FT_Control" , params);
+//            if (log != null)
+//            {
+//                log.LogInfo("FT_Control(" + flag + "," + sensor_id + "," + flag + "," + select[0] + "," + select[1] + "," + select[2] + "," + select[3] + "," + select[4] + "," + select[5] + "," + ft.fx + "," + ft.fy + "," + ft.fz + "," + ft.tx + "," + ft.ty + "," + ft.tz + "," +
+//                        ft_pid[0] + "," + ft_pid[1] + "," + ft_pid[2] + "," + ft_pid[3] + "," + ft_pid[4] + "," + ft_pid[5] + "," + adj_sign + "," + ILC_sign + "," + max_dis + "," + max_ang + "," + filter_Sign + "," + posAdapt_sign + "," + isNoBlock + ") : " + rtn);
+//            }
+//            return rtn;
+//        }
+//        catch (Throwable e)
+//        {
+//            if (log != null)
+//            {
+//                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
+//            }
+//            return RobotError.ERR_RPC_ERROR;
+//        }
+//    }
+
+    /**
+     * @brief  恒力控制
+     * @param  flag 0-关闭恒力控制，1-开启恒力控制
+     * @param  sensor_id 力传感器编号
+     * @param  select  选择六个自由度是否检测碰撞，0-不检测，1-检测
+     * @param  ft  碰撞力/扭矩，fx,fy,fz,tx,ty,tz
+     * @param  ft_pid 力pid参数，力矩pid参数
+     * @param  adj_sign 自适应启停控制，0-关闭，1-开启
+     * @param  ILC_sign ILC启停控制， 0-停止，1-训练，2-实操
+     * @param  max_dis 最大调整距离，单位mm
+     * @param  max_ang 最大调整角度，单位deg
+     * @param  M 质量参数
+     * @param  B 阻尼参数
+     * @param  polishRadio 打磨半径，单位mm
+     * @param  filter_Sign 滤波开启标志 0-关；1-开，默认关闭
+     * @param  posAdapt_sign 姿态顺应开启标志 0-关；1-开，默认关闭
+     * @param  isNoBlock 阻塞标志，0-阻塞；1-非阻塞
+     * @return  错误码
+     */
+    public int FT_Control(int flag, int sensor_id, int[] select, ForceTorque ft, double[] ft_pid, int adj_sign, int ILC_sign, double max_dis, double max_ang,double[] M,double[] B, double polishRadio,int filter_Sign, int posAdapt_sign, int isNoBlock)
     {
-        if (IsSockComError())
-        {
+        if (IsSockComError()) {
             return sockErr;
         }
-
-        try
-        {
-
-            Object[] ftData = { ft.fx, ft.fy, ft.fz, ft.tx, ft.ty, ft.tz };
-            Object[] params = new Object[] {flag, sensor_id, select, ftData, ft_pid, adj_sign, ILC_sign, max_dis, max_ang, filter_Sign, posAdapt_sign, isNoBlock};
-            int rtn = (int)client.execute("FT_Control" , params);
-            if (log != null)
-            {
+        if (GetSafetyCode() != 0) {
+            return GetSafetyCode();
+        }
+        try {
+            Object[] selectData={select[0],select[1],select[2],select[3],select[4],select[5]};
+            Object[] ft_pidData={ft_pid[0],ft_pid[1],ft_pid[2],ft_pid[3],ft_pid[4],ft_pid[5]};
+            Object[] ftData = {ft.fx, ft.fy, ft.fz, ft.tx, ft.ty, ft.tz};
+            Object[] MB={M[0],M[1],B[0],B[1]};
+            Object[] params = new Object[]{flag, sensor_id, selectData, ftData, ft_pidData, adj_sign, ILC_sign, max_dis, max_ang,polishRadio, filter_Sign, posAdapt_sign,MB, isNoBlock};
+            int rtn = (int) client.execute("FT_Control", params);
+            if (log != null) {
                 log.LogInfo("FT_Control(" + flag + "," + sensor_id + "," + flag + "," + select[0] + "," + select[1] + "," + select[2] + "," + select[3] + "," + select[4] + "," + select[5] + "," + ft.fx + "," + ft.fy + "," + ft.fz + "," + ft.tx + "," + ft.ty + "," + ft.tz + "," +
                         ft_pid[0] + "," + ft_pid[1] + "," + ft_pid[2] + "," + ft_pid[3] + "," + ft_pid[4] + "," + ft_pid[5] + "," + adj_sign + "," + ILC_sign + "," + max_dis + "," + max_ang + "," + filter_Sign + "," + posAdapt_sign + "," + isNoBlock + ") : " + rtn);
             }
             return rtn;
-        }
-        catch (Throwable e)
-        {
-            if (log != null)
-            {
+        } catch (Throwable e) {
+            if (log != null) {
                 log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
             }
             return RobotError.ERR_RPC_ERROR;
         }
+    }
+
+
+    /**
+     * @brief  恒力控制
+     * @param  flag 0-关闭恒力控制，1-开启恒力控制
+     * @param  sensor_id 力传感器编号
+     * @param  select  选择六个自由度是否检测碰撞，0-不检测，1-检测
+     * @param  ft  碰撞力/扭矩，fx,fy,fz,tx,ty,tz
+     * @param  ft_pid 力pid参数，力矩pid参数
+     * @param  adj_sign 自适应启停控制，0-关闭，1-开启
+     * @param  ILC_sign ILC启停控制， 0-停止，1-训练，2-实操
+     * @param  max_dis 最大调整距离，单位mm
+     * @param  max_ang 最大调整角度，单位deg
+     * @param  filter_Sign 滤波开启标志 0-关；1-开，默认关闭
+     * @param  posAdapt_sign 姿态顺应开启标志 0-关；1-开，默认关闭
+     * @param  isNoBlock 阻塞标志，0-阻塞；1-非阻塞
+     * @return  错误码
+     */
+    public int FT_Control(int flag, int sensor_id, int[] select, ForceTorque ft, double[] ft_pid, int adj_sign, int ILC_sign, double max_dis, double max_ang,int filter_Sign, int posAdapt_sign, int isNoBlock)
+    {
+        double[] M = { 0.0 };
+        double[] B = { 0.0 };
+        return FT_Control(flag, sensor_id, select, ft, ft_pid, adj_sign, ILC_sign, max_dis, max_ang, M, B, 0.0, filter_Sign, posAdapt_sign, isNoBlock);
     }
 
     /**
@@ -19381,6 +19507,349 @@ public class Robot
         } catch (Throwable e) {
             if (log != null) {
                 log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+
+    /**
+     * @brief 关节扭矩传感器灵敏度标定功能开启
+     * @param status 0-关闭；1-开启
+     * @return 错误码
+     */
+    public int JointSensitivityEnable(int status)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{status};
+            Object[] params1 = new Object[]{params};
+            int results = (int)client.execute("JointSensitivityEnable", params1);
+            int rtn = results;
+
+            if (rtn != 0) {
+                if (log != null) {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "execute JointSensitivityEnable fail: " + rtn);
+                }
+            }
+
+            if (log != null) {
+                log.LogInfo("JointSensitivityEnable:" + rtn);
+            }
+
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取关节扭矩传感器灵敏度标定结果
+     * @param calibResult j1~j6关节灵敏度[0-1]
+     * @return 错误码
+     */
+    public int JointSensitivityCalibration(double[] calibResult)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{};
+            Object[] results = (Object[])client.execute("JointSensitivityCalibration", params);
+            int rtn = (int)results[0];
+
+            if (rtn == 0) {
+                calibResult[0] = (double)results[1];
+                calibResult[1] = (double)results[2];
+                calibResult[2] = (double)results[3];
+                calibResult[3] = (double)results[4];
+                calibResult[4] = (double)results[5];
+                calibResult[5] = (double)results[6];
+            } else {
+                if (log != null) {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "execute JointSensitivityCalibration fail: " + rtn);
+                }
+            }
+
+            if (log != null) {
+                log.LogInfo("JointSensitivityCalibration:" + rtn);
+            }
+
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 关节扭矩传感器灵敏度数据采集
+     * @return 错误码
+     */
+    public int JointSensitivityCollect()
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{};
+            int results = (int)client.execute("JointSensitivityCollect", params);
+            int rtn = results;
+
+            if (rtn != 0) {
+                if (log != null) {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "execute JointSensitivityCollect fail: " + rtn);
+                }
+            }
+
+            if (log != null) {
+                log.LogInfo("JointSensitivityCollect:" + rtn);
+            }
+
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 清空运动指令队列
+     * @return 错误码
+     */
+    public int MotionQueueClear()
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{};
+            int rtn = (int)client.execute("MotionQueueClear", params);
+
+            if (log != null) {
+                log.LogInfo("MotionQueueClear:" + rtn);
+            }
+
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取机器人8个从站端口错误帧数
+     * @param  inRecvErr 输入接收错误帧数
+     * @param  inCRCErr 输入CRC错误帧数
+     * @param  inTransmitErr 输入转发错误帧数
+     * @param  inLinkErr 输入链接错误帧数
+     * @param  outRecvErr 输出接收错误帧数
+     * @param  outCRCErr 输出CRC错误帧数
+     * @param  outTransmitErr 输出转发错误帧数
+     * @param  outLinkErr 输出链接错误帧数
+     * @return 错误码
+     */
+    public int GetSlavePortErrCounter(int[] inRecvErr, int[] inCRCErr, int[] inTransmitErr, int[] inLinkErr, int[] outRecvErr, int[] outCRCErr, int[] outTransmitErr, int[] outLinkErr)
+    {
+
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+
+        try
+        {
+            Object[] params = new Object[] {};
+            Object[] result = (Object[])client.execute("GetSlavePortErrCounter" , params);
+            int errcode=(int)result[0];
+
+            if (errcode == 0) {
+                String paramStr = (String) result[1];
+                String[] parS = paramStr.split(",");
+                if (parS.length != 64) {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "GetSlavePortErrCounter size fail");
+                    return -1;
+                }
+                for (int i = 0; i < 8; i++) {
+                    inRecvErr[i] = Integer.parseInt(parS[i * 4]);
+                    inCRCErr[i] = Integer.parseInt(parS[i * 4 + 1]);
+                    inTransmitErr[i] = Integer.parseInt(parS[i * 4 + 2]);
+                    inLinkErr[i] = Integer.parseInt(parS[i * 4 + 3]);
+
+                    outRecvErr[i] = Integer.parseInt(parS[i * 4 + 32]);
+                    outCRCErr[i] = Integer.parseInt(parS[i * 4 + 32 + 1]);
+                    outTransmitErr[i] = Integer.parseInt(parS[i * 4 + 32 + 2]);
+                    outLinkErr[i] = Integer.parseInt(parS[i * 4 + 32 + 3]);
+                }
+
+            }
+            if (log != null)
+            {
+                log.LogInfo("GetSlavePortErrCounter( : " +errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 从站端口错误帧清零
+     * @param slaveID 从站编号0~7
+     * @return 错误码
+     */
+    public int SlavePortErrCounterClear(int slaveID)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{slaveID};
+            int rtn = (int)client.execute("SlavePortErrCounterClear", params);
+
+            if (log != null) {
+                log.LogInfo("SlavePortErrCounterClear:" + rtn);
+            }
+
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 设置各轴速度前馈系数
+     * @param  radio 各轴速度前馈系数
+     * @return 错误码
+     */
+    public int SetVelFeedForwardRatio(double[] radio)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] param = new Object[]{radio[0],radio[1],radio[2],radio[3],radio[4],radio[5]};
+            Object[] params = new Object[]{param};
+            int rtn = (int)client.execute("SetVelFeedForwardRatio", params);
+
+            if (log != null) {
+                log.LogInfo("SetVelFeedForwardRatio:" + rtn);
+            }
+
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取各轴速度前馈系数
+     * @param  radio 各轴速度前馈系数
+     * @return 错误码
+     */
+    public int GetVelFeedForwardRatio(double[] radio)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[] {};
+            Object[] result = (Object[])client.execute("GetVelFeedForwardRatio" , params);
+            int errcode=(int)result[0];
+
+            if (errcode == 0) {
+                radio[0]=(double)result[1];
+                radio[1]=(double)result[2];
+                radio[2]=(double)result[3];
+                radio[3]=(double)result[4];
+                radio[4]=(double)result[5];
+                radio[5]=(double)result[6];
+            }
+            if (log != null)
+            {
+                log.LogInfo("GetVelFeedForwardRatio( : " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 机器人MCU日志生成
+     * @return 错误码
+     */
+    public int RobotMCULogCollect()
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[] {};
+            int errcode = (int)client.execute("RobotMCULogCollect" , params);
+            if (log != null)
+            {
+                log.LogInfo("RobotMCULogCollect( : " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
                         "RPC exception " + e.getMessage());
             }
             return RobotError.ERR_RPC_ERROR;

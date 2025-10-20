@@ -7,7 +7,8 @@ public class SpiralParam
     public double rad_add;              /* 半径增量  */
     public double rotaxis_add;          /* 转轴方向增量  */
     public int rot_direction;  /* 旋转方向，0-顺时针，1-逆时针  */
-    public SpiralParam(int circleNum, double circleAngle, double radInit, double radAdd, double rotaxisAdd, int rotDirection)
+    public int velAccMode;     /* 速度加速度参数模式：0-角速度恒定；1-线速度恒定 */
+    public SpiralParam(int circleNum, double circleAngle, double radInit, double radAdd, double rotaxisAdd, int rotDirection,int vel_AccMode)
     {
         circle_num = circleNum;
         circle_angle = circleAngle;
@@ -15,6 +16,7 @@ public class SpiralParam
         rad_add = radAdd;
         rotaxis_add = rotaxisAdd;
         rot_direction = rotDirection;
+        velAccMode=vel_AccMode;
     }
     public SpiralParam(){
 

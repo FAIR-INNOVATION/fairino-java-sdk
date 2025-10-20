@@ -507,7 +507,23 @@ public class RobotStateRoutineThread extends Thread
                 System.arraycopy(pkgBuf, 1174, tmp, 0, 8);
                 pkg.loadCog[2] = bytes2Double(tmp);
 
-                System.arraycopy(pkgBuf, 1182, tmp, 0, 2);
+                System.arraycopy(pkgBuf, 1182, tmp, 0, 8);
+                pkg.lastServoTarget[0] = bytes2Double(tmp);
+                System.arraycopy(pkgBuf, 1190, tmp, 0, 8);
+                pkg.lastServoTarget[1] = bytes2Double(tmp);
+                System.arraycopy(pkgBuf, 1198, tmp, 0, 8);
+                pkg.lastServoTarget[2] = bytes2Double(tmp);
+                System.arraycopy(pkgBuf, 1206, tmp, 0, 8);
+                pkg.lastServoTarget[3] = bytes2Double(tmp);
+                System.arraycopy(pkgBuf, 1214, tmp, 0, 8);
+                pkg.lastServoTarget[4] = bytes2Double(tmp);
+                System.arraycopy(pkgBuf, 1222, tmp, 0, 8);
+                pkg.lastServoTarget[5] = bytes2Double(tmp);
+
+                System.arraycopy(pkgBuf, 1230, tmp, 0, 2);
+                pkg.servoJCmdNum = byteToShort(tmp)[0];
+
+                System.arraycopy(pkgBuf, 1232, tmp, 0, 2);
                 pkg.check_sum = byteToShort(tmp)[0];
 
             }

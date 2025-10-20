@@ -20,7 +20,7 @@ import org.apache.xmlrpc.client.XmlRpcClientConfigImpl;
 
 public class Robot
 {
-    String SDK_VERSION = "JavaSDK V1.0.9  WebApp V3.8.6";
+    String SDK_VERSION = "JavaSDK V1.0.10  WebApp V3.8.7";
     private String robotIp = "192.168.58.2";//机器人ip
 
     int ROBOT_CMD_PORT = 8080;

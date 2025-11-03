@@ -47,6 +47,7 @@ public class RobotStateRoutineThread extends Thread
             {
                 byte[] tmp = new byte[32];
                 rtn = clientRobotState.GetPkg(pkgBuf, STRUCTSIZE);
+                System.out.println("GetPkg():"+rtn);
                 if(rtn != 0)
                 {
                     sockErr = RobotError.ERR_SOCKET_COM_FAILED;

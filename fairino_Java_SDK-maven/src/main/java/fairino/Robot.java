@@ -107,6 +107,7 @@ public class Robot
             config.setConnectionTimeout(1000000);
             client = new XmlRpcClient();
             client.setConfig(config);
+
             sockErr = RobotError.ERR_SUCCESS;
             robotStateRoutineThread = new RobotStateRoutineThread(robotIp);//状态获取线程
             robotStateRoutineThread.start();
@@ -5261,11 +5262,11 @@ public class Robot
         List<Number> torques=new ArrayList<>();
         torques.add(0);
         torques.add(0.0);
-        torques.add(0);
-        torques.add(0);
-        torques.add(0);
-        torques.add(0);
-        torques.add(0);
+        torques.add(0.0);
+        torques.add(0.0);
+        torques.add(0.0);
+        torques.add(0.0);
+        torques.add(0.0);
         int i;
 
         if (sockErr == RobotError.ERR_SUCCESS)
@@ -14716,6 +14717,74 @@ public class Robot
     }
 
     /**
+     * @brief 关节扭矩控制
+     * @param  torque j1~j6关节扭矩，单位Nm
+     * @param  interval 指令周期，单位s，范围[0.001~0.008]
+     * @return  错误码
+     */
+     public int ServoJT(double[] torque, double interval)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+        if (GetSafetyCode() != 0)
+        {
+            return GetSafetyCode();
+        }
+        int checkFlag = 0;
+        double[] jPowerLimit =new double[] { 0.0,0.0,0.0,0.0,0.0,0.0 };
+        double[] jVelLimit = new double[] { 0.0,0.0,0.0,0.0,0.0,0.0 };
+        int errcode = ServoJT(torque, interval, checkFlag, jPowerLimit, jVelLimit);
+        return errcode;
+    }
+
+    /**
+     * @brief 关节扭矩控制
+     * @param  torque j1~j6关节扭矩，单位Nm
+     * @param  interval 指令周期，单位s，范围[0.001~0.008]
+     * @param  checkFlag 检测策略 0-不限制；1-限制功率；2-限制速度；3-功率和速度同时限制
+     * @param  jPowerLimit 关节最大功率限制(W)
+     * @param  jVelLimit 关节最大速度(°/s)
+     * @return  错误码
+     */
+    public int ServoJT(double[] torque, double interval, int checkFlag, double[] jPowerLimit, double[] jVelLimit)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+        if (GetSafetyCode() != 0)
+        {
+            return GetSafetyCode();
+        }
+
+        try
+        {
+            Object[] tor=new Object[]{torque[0],torque[1],torque[2],torque[3],torque[4],torque[5]};
+            Object[] jpow=new Object[]{jPowerLimit[0],jPowerLimit[1],jPowerLimit[2],jPowerLimit[3],jPowerLimit[4],jPowerLimit[5]};
+            Object[] jvel=new Object[]{jVelLimit[0],jVelLimit[1],jVelLimit[2],jVelLimit[3],jVelLimit[4],jVelLimit[5]};
+
+            Object[] params = new Object[] {tor, interval,checkFlag,jpow,jvel};
+            int rtn = (int)client.execute("ServoJT" , params);
+            if (log != null)
+            {
+                log.LogInfo("ServoJT() : " + rtn);
+            }
+            return rtn;
+        }
+        catch (Throwable e)
+        {
+            if (log != null)
+            {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+
+    }
+
+    /**
      * @brief 关节扭矩控制结束
      * @return  错误码
      */
@@ -15069,15 +15138,12 @@ public class Robot
             {
                 return (int)RobotError.ERR_UPLOAD_FILE_NOT_FOUND;
             }
-            System.out.println("1");
 
             int rtn = FileUpLoad(1, filePath);
             if (rtn == 0)
             {
                 Object[] params = new Object[] {};
-                System.out.println("2");
                 rtn = (int)client.execute("SoftwareUpgrade" , params);
-                System.out.println("2"+rtn);
 
                 if (rtn != 0)
                 {
@@ -15626,7 +15692,6 @@ public class Robot
             if ((int)result[0] == 0)
             {
                 paramStr = (String)result[1];
-                System.out.println("result str is " + paramStr);
                 String[] parS = paramStr.split(",");
                 if (parS.length != 24)
                 {

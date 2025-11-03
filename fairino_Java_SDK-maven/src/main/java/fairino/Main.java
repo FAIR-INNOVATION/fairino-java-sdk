@@ -7,7 +7,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Scanner;
-
+import java.time.LocalTime;
 
 public class Main {
     public static void main(String[] args) throws InterruptedException {
@@ -23,6 +23,17 @@ public class Main {
             return;
         }
 
+        int num=0;
+        while (true){
+            robot.Mode(num%2);
+            ROBOT_STATE_PKG pkg = robot.GetRobotRealTimeState();
+            System.out.println("机器人状态: "+pkg.robot_state+", 主错误码: "+pkg.main_code+", 子错误码: "+pkg.sub_code+", 模式: "+pkg.robot_mode);
+
+            LocalTime time = LocalTime.now();
+            System.out.println("当前时间: " + time+", 当前次数: "+num);
+            ++num;
+            robot.Sleep(1000);
+        }
 
 //*********************************日志功能 begin *******************************
 //        String[] ip={""};
@@ -49,7 +60,7 @@ public class Main {
         //IOTest(robot);//3、设置控制箱DO、AO停止/暂停后输出是否复位
 //        CommonSets(robot);//4、机器人常用设置、标定
         //RobotSafety(robot);//5、机器人安全设置
-        //RobotState(robot);//6、机器人状态查询
+//        RobotState(robot);//6、机器人状态查询
 //        TPD(robot);//7、轨迹复现
 //        TrajectoryJ(robot);//7、轨迹文件
 //        Program(robot);//8、下载Lua文件
@@ -374,8 +385,9 @@ public class Main {
 //        TestServoJ_1015(robot);
 //                TestSlavePortErr(robot);
 //        TestSpiral(robot);
-        TestFTControlWithDamping(robot);
-        robot.CloseRPC();//关闭连接
+//        TestFTControlWithDamping(robot);
+//                ServoJTWithSafety(robot);
+//        robot.CloseRPC();//关闭连接
 //
 ////        while (true)
 ////        {
@@ -388,6 +400,38 @@ public class Main {
 //        robot.GetActualJointPosDegree(1, pos);
         //System.out.println("J1: " + Double.toString(pos.J1) + "   J2: " + Double.toString(pos.J2) +"    J3: " + Double.toString(pos.J3) +"J4: "  + Double.toString(pos.J4) + "J5: " + Double.toString(pos.J5) +"J6: " + Double.toString(pos.J6));
     }
+
+    public static void ServoJTWithSafety(Robot robot)
+    {
+        robot.ResetAllError();
+        robot.Sleep(500);
+        List<Number> torques;
+        torques=robot.GetJointTorques(1);
+        robot.ServoJTStart(); //   #servoJT开始
+        ROBOT_STATE_PKG pkg=new ROBOT_STATE_PKG();
+        robot.DragTeachSwitch(1);
+        int checkFlag = 3;//-1,3
+        //double[] jPowerLimit = {1.0,1.0,1.0,1.0,1.0,1.0};//5001
+        double[] jPowerLimit = { 10.0, 10.0, 10.0, 10.0, 10.0, 10.0 };
+        double[] jVelLimit = { 50, 50, 50, 50, 50, 50};//180.1,-1
+        int count = 800000;
+        int error = 0;
+        double[] tor=new double[]{(double)torques.get(1),(double)torques.get(2),(double)torques.get(3),(double)torques.get(4),(double)torques.get(5),(double)torques.get(6)};
+        while (count > 0)
+        {
+            tor[2] = tor[2]+0.01;//  #每次1轴增加0.01NM，运动100次
+            error = robot.ServoJT(tor, 0.01, checkFlag, jPowerLimit, jVelLimit);  //# 关节空间伺服模式运动
+            System.out.printf("ServoJT rtn is %d\n", error);
+            count = count - 1;
+            robot.Sleep(1);
+            pkg=robot.GetRobotRealTimeState();
+            System.out.printf("maincode %d, subcode %d\n", pkg.main_code, pkg.sub_code);
+        }
+        robot.DragTeachSwitch(0);
+
+        error = robot.ServoJTEnd();  //#伺服运动结束
+    }
+
 
     public static void TestFTControlWithDamping(Robot robot)
     {

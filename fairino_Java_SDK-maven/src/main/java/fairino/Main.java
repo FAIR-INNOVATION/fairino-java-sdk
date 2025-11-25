@@ -7,7 +7,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Scanner;
-import java.time.LocalTime;
 
 public class Main {
     public static void main(String[] args) throws InterruptedException {
@@ -23,18 +22,10 @@ public class Main {
             return;
         }
 
-        int num=0;
-        while (true){
-            robot.Mode(num%2);
-            ROBOT_STATE_PKG pkg = robot.GetRobotRealTimeState();
-            System.out.println("机器人状态: "+pkg.robot_state+", 主错误码: "+pkg.main_code+", 子错误码: "+pkg.sub_code+", 模式: "+pkg.robot_mode);
-
-            LocalTime time = LocalTime.now();
-            System.out.println("当前时间: " + time+", 当前次数: "+num);
-            ++num;
-            robot.Sleep(1000);
-        }
-
+//        while(true){
+//            System.out.println(robot.GetRobotRealTimeState().robot_state==4);
+//            System.out.println("当前状态:"+robot.GetRobotRealTimeState().robot_state);
+//        }
 //*********************************日志功能 begin *******************************
 //        String[] ip={""};
 //        robot.GetControllerIP(ip);
@@ -387,6 +378,7 @@ public class Main {
 //        TestSpiral(robot);
 //        TestFTControlWithDamping(robot);
 //                ServoJTWithSafety(robot);
+        TestIntersectLineMove(robot);
 //        robot.CloseRPC();//关闭连接
 //
 ////        while (true)
@@ -400,6 +392,254 @@ public class Main {
 //        robot.GetActualJointPosDegree(1, pos);
         //System.out.println("J1: " + Double.toString(pos.J1) + "   J2: " + Double.toString(pos.J2) +"    J3: " + Double.toString(pos.J3) +"J4: "  + Double.toString(pos.J4) + "J5: " + Double.toString(pos.J5) +"J6: " + Double.toString(pos.J6));
     }
+
+    public static void TestIntersectLineMove(Robot robot)
+    {
+        DescPose[] mainPoint = new DescPose[6];
+        DescPose[] piecePoint = new DescPose[6];
+
+        ExaxisPos[] mainExaxisPos = new ExaxisPos[6];
+        ExaxisPos[] pieceExaxisPos = new ExaxisPos[6];
+        int extAxisFlag = 1;
+        ExaxisPos[] exaxisPos = new ExaxisPos[4];
+        DescPose offset =new DescPose(0.0, 2.0 ,30.0, -2.0, 0.0, 0.0 );
+
+        mainPoint[0] = new DescPose(490.004, -383.194, 402.735, -9.332, -1.528, 69.594);
+        mainPoint[1] = new DescPose(444.950, -407.117, 389.011, -5.546, -2.196, 65.279);
+        mainPoint[2] = new DescPose(445.168, -463.605, 355.759, -1.544, -10.886, 57.104);
+        mainPoint[3] = new DescPose(507.529, -485.385, 343.013, -0.786, -4.834, 61.799);
+        mainPoint[4] = new DescPose(554.390, -442.647, 367.701, -4.761, -10.181, 64.925);
+        mainPoint[5] = new DescPose(532.552, -394.003, 396.467, -13.732, -13.592, 67.411);
+
+        mainExaxisPos[0] = new ExaxisPos(-29.996, 0.000, 0.000, 0.000 );
+        mainExaxisPos[1] = new ExaxisPos(-29.996, 0.000, 0.000, 0.000 );
+        mainExaxisPos[2] = new ExaxisPos(-29.996, 0.000, 0.000, 0.000 );
+        mainExaxisPos[3] = new ExaxisPos(-29.996, 0.000, 0.000, 0.000 );
+        mainExaxisPos[4] = new ExaxisPos(-29.996, 0.000, 0.000, 0.000 );
+        mainExaxisPos[5] = new ExaxisPos(-29.996, 0.000, 0.000, 0.000 );
+
+        piecePoint[0] = new DescPose( 505.571, -192.408, 316.759, 38.098, 37.051, 139.447);
+        piecePoint[1] =new DescPose(533.837, -201.558, 332.340, 34.644, 42.339, 137.748);
+        piecePoint[2] =new DescPose(530.386, -225.085, 373.808, 35.431, 45.111, 137.560);
+        piecePoint[3] =new DescPose(485.646, -229.195, 383.778, 33.870, 45.173, 137.064);
+        piecePoint[4] =new DescPose(460.551, -212.161, 354.256, 28.856, 45.602, 135.930);
+        piecePoint[5] =new DescPose(474.217, -197.124, 324.611, 42.469, 41.133, 148.167);
+
+        pieceExaxisPos[0] = new ExaxisPos( -29.996, -0.000, 0.000, 0.000);
+        pieceExaxisPos[1] = new ExaxisPos( -29.996, -0.000, 0.000, 0.000);
+        pieceExaxisPos[2] = new ExaxisPos( -29.996, -0.000, 0.000, 0.000);
+        pieceExaxisPos[3] = new ExaxisPos( -29.996, -0.000, 0.000, 0.000);
+        pieceExaxisPos[4] = new ExaxisPos( -29.996, -0.000, 0.000, 0.000);
+        pieceExaxisPos[5] = new ExaxisPos( -29.996, -0.000, 0.000, 0.000);
+
+        exaxisPos[0] = new ExaxisPos(-29.996, -0.000, 0.000, 0.000);
+        exaxisPos[1] = new ExaxisPos(-44.994, 90.000, 0.000, 0.000);
+        exaxisPos[2] = new ExaxisPos(-59.992, 0.002, 0.000, 0.000);
+        exaxisPos[3] = new ExaxisPos(-44.994, -89.997, 0.000, 0.000);
+
+        int tool = 2;
+        int wobj = 0;
+        double vel = 100.0;
+        double acc = 100.0;
+        double ovl = 12.0;
+        double oacc = 12.0;
+        int moveType = 1;
+        int moveDirection = 1;
+        int  rtn = robot.MoveToIntersectLineStart(mainPoint, mainExaxisPos, piecePoint, pieceExaxisPos, extAxisFlag, exaxisPos[0], tool, wobj, vel, acc, ovl, oacc, moveType, moveDirection, offset);
+        System.out.printf("MoveToIntersectLineStart rtn is %d\n", rtn);
+        rtn = robot.MoveIntersectLine(mainPoint, mainExaxisPos, piecePoint, pieceExaxisPos, extAxisFlag, exaxisPos, tool, wobj, vel, acc, 5.0, 5.0, moveDirection, offset);
+        System.out.printf("MoveIntersectLine rtn is %d\n", rtn);
+
+        robot.CloseRPC();
+        return ;
+    }
+
+    public static void TestSensitivityCalib(Robot robot)
+    {
+        int rtn = robot.JointSensitivityEnable(0);
+        rtn = robot.JointSensitivityEnable(1);
+        System.out.printf("JointSensitivityEnable rtn is %d\n", rtn);
+        JointPos curJPos = new JointPos();
+        robot.GetActualJointPosDegree(curJPos);
+        ExaxisPos epos = new ExaxisPos(0,0,0,0);
+        DescPose offset_pos =new DescPose(0,0,0,0,0,0 );
+
+        JointPos jointPos1 = new JointPos(curJPos.J1, 0, 0, -90, 0.02, curJPos.J6);
+        DescPose descPos1 = new DescPose();
+        robot.GetForwardKin(jointPos1, descPos1);
+        robot.MoveJ(jointPos1, descPos1, 0, 0, 100, 100, 100, epos, -1, 0, offset_pos);
+
+        robot.Sleep(200);
+        rtn = robot.JointSensitivityCollect();
+        System.out.printf("JointSensitivityCollect 1 rtn is %d\n", rtn);
+        robot.Sleep(100);
+        JointPos jointPos2 =new JointPos( curJPos.J1, -30, 0, -90, 0.02, curJPos.J6 );
+        DescPose descPos2 =new DescPose();
+        robot.GetForwardKin(jointPos2, descPos2);
+
+        robot.MoveJ(jointPos2, descPos2, 0, 0, 100, 100, 100, epos, -1, 0, offset_pos);
+
+        robot.Sleep(100);
+        rtn = robot.JointSensitivityCollect();
+        System.out.printf("JointSensitivityCollect 2 rtn is %d\n", rtn);
+        robot.Sleep(100);
+
+        JointPos jointPos3 = new JointPos( curJPos.J1, -60, 0, -90, 0.02, curJPos.J6 );
+        DescPose descPos3 =new DescPose();
+        robot.GetForwardKin(jointPos3, descPos3);
+        robot.MoveJ(jointPos3, descPos3, 0, 0, 100, 100, 100, epos, -1, 0, offset_pos);
+
+        robot.Sleep(100);
+        rtn = robot.JointSensitivityCollect();
+        System.out.printf("JointSensitivityCollect 3 rtn is %d\n", rtn);
+        robot.Sleep(100);
+
+        JointPos jointPos4 = new JointPos(curJPos.J1, -90, 0, -90, 0.02, curJPos.J6);
+        DescPose descPos4 = new DescPose();
+        robot.GetForwardKin(jointPos4, descPos4);
+        robot.MoveJ(jointPos4, descPos4, 0, 0, 100, 100, 100, epos, -1, 0, offset_pos);
+
+        robot.Sleep(100);
+        rtn = robot.JointSensitivityCollect();
+        System.out.printf("JointSensitivityCollect 4 rtn is %d\n", rtn);
+        robot.Sleep(100);
+
+        JointPos jointPos5 = new JointPos(curJPos.J1, -120, 0, -90, 0.02, curJPos.J6);
+        DescPose descPos5 = new DescPose();
+        robot.GetForwardKin(jointPos5, descPos5);
+        robot.MoveJ(jointPos5, descPos5, 0, 0, 100, 100, 100, epos, -1, 0, offset_pos);
+
+        robot.Sleep(100);
+        rtn = robot.JointSensitivityCollect();
+        System.out.printf("JointSensitivityCollect 5 rtn is %d\n", rtn);
+        robot.Sleep(100);
+
+        JointPos jointPos6 = new JointPos(curJPos.J1, -150, 0, -90, 0.02, curJPos.J6);
+        DescPose descPos6 = new DescPose();
+        robot.GetForwardKin(jointPos6, descPos6);
+        robot.MoveJ(jointPos6, descPos6, 0, 0, 100, 100, 100, epos, -1, 0, offset_pos);
+
+        robot.Sleep(100);
+        rtn = robot.JointSensitivityCollect();
+        System.out.printf("JointSensitivityCollect 6 rtn is %d\n", rtn);
+        robot.Sleep(100);
+
+        JointPos jointPos7 = new JointPos(curJPos.J1, -180, 0, -90, 0.02, curJPos.J6);
+        DescPose descPos7 = new DescPose();
+        robot.GetForwardKin(jointPos7, descPos7);
+        robot.MoveJ(jointPos7, descPos7, 0, 0, 100, 100, 100, epos, -1, 0, offset_pos);
+
+        robot.Sleep(100);
+        rtn = robot.JointSensitivityCollect();
+        System.out.printf("JointSensitivityCollect 7 rtn is %d\n", rtn);
+        robot.Sleep(100);
+
+        //反向行程
+        robot.MoveJ(jointPos6, descPos6, 0, 0, 100, 100, 100, epos, -1, 0, offset_pos);
+        robot.Sleep(100);
+        rtn = robot.JointSensitivityCollect();
+        System.out.printf("JointSensitivityCollect 8 rtn is %d\n", rtn);
+        robot.Sleep(100);
+
+        robot.MoveJ(jointPos5, descPos5, 0, 0, 100, 100, 100, epos, -1, 0, offset_pos);
+        robot.Sleep(100);
+        rtn = robot.JointSensitivityCollect();
+        System.out.printf("JointSensitivityCollect 9 rtn is %d\n", rtn);
+        robot.Sleep(100);
+
+        robot.MoveJ(jointPos4, descPos4, 0, 0, 100, 100, 100, epos, -1, 0, offset_pos);
+        robot.Sleep(100);
+        rtn = robot.JointSensitivityCollect();
+        System.out.printf("JointSensitivityCollect 10 rtn is %d\n", rtn);
+        robot.Sleep(100);
+
+        robot.MoveJ(jointPos3, descPos3, 0, 0, 100, 100, 100, epos, -1, 0, offset_pos);
+        robot.Sleep(100);
+        rtn = robot.JointSensitivityCollect();
+        System.out.printf("JointSensitivityCollect 11 rtn is %d\n", rtn);
+        robot.Sleep(100);
+
+        robot.MoveJ(jointPos2, descPos2, 0, 0, 100, 100, 100, epos, -1, 0, offset_pos);
+        robot.Sleep(100);
+        rtn = robot.JointSensitivityCollect();
+        System.out.printf("JointSensitivityCollect 12 rtn is %d\n", rtn);
+        robot.Sleep(100);
+
+        robot.MoveJ(jointPos1, descPos1, 0, 0, 100, 100, 100, epos, -1, 0, offset_pos);
+        robot.Sleep(200);
+        rtn = robot.JointSensitivityCollect();
+        System.out.printf("JointSensitivityCollect 13 rtn is %d\n", rtn);
+        robot.Sleep(100);
+
+
+        double[] calibResult =new double[6];
+        double[] linearity = new double[6];
+        rtn = robot.JointSensitivityCalibration(calibResult, linearity);
+        System.out.printf("JointSensitivityCalibration rtn is %d\n", rtn);
+
+        rtn = robot.JointSensitivityEnable(0);
+        System.out.printf("JointSensitivityEnable rtn is %d\n", rtn);
+
+        System.out.printf("jointSensor Calib result is %f %f %f %f %f %f\njointSensor linearity is %f %f %f %f %f %f\n",
+                calibResult[0], calibResult[1], calibResult[2],
+                calibResult[3], calibResult[4], calibResult[5],
+                linearity[0], linearity[1], linearity[2],
+                linearity[3], linearity[4], linearity[5]);
+
+        double[] hysteresisError = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+        rtn = robot.JointHysteresisError(hysteresisError);
+        System.out.printf("JointHysteresisError result is %f %f %f %f %f %f\n",
+                hysteresisError[0], hysteresisError[1], hysteresisError[2],
+                hysteresisError[3], hysteresisError[4], hysteresisError[5]);
+
+        double[] repeatability = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+        rtn = robot.JointRepeatability(repeatability);
+        System.out.printf("JointRepeatability result is %f %f %f %f %f %f\n",
+                repeatability[0], repeatability[1], repeatability[2],
+                repeatability[3], repeatability[4], repeatability[5]);
+
+        double[] M = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+        double[] B = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+        double[] K = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+        double[] threshold = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+        int setZeroFlag = 1;
+        rtn = robot.SetAdmittanceParams(M, B, K, threshold, calibResult, setZeroFlag);
+        System.out.printf("SetAdmittanceParams rtn is %d\n", rtn);
+    }
+
+
+//    public static void TestIntersectLineMove(Robot robot)
+//    {
+//        DescPose[] mainPoint = new DescPose[6];
+//        DescPose[] piecePoint = new DescPose[6];
+//
+//        mainPoint[0] = new DescPose(144.084, 512.064, 8.899, -58.958, 40.838, 23.295);
+//        mainPoint[1] = new DescPose(132.150, 512.638, 28.157, -58.626, 40.788, 24.966);
+//        mainPoint[2] = new DescPose(150.155, 514.479, 74.107, -47.740, 40.410, 27.552);
+//        mainPoint[3] = new DescPose(188.346, 518.501, 73.946, -17.227, 60.139, 15.265);
+//        mainPoint[4] = new DescPose(206.811, 520.214, 52.966, -18.198, 60.381, 12.624);
+//        mainPoint[5] = new DescPose(203.002, 518.627, 19.028, -23.830, 61.410, 8.343);
+//        piecePoint[0] = new DescPose( 190.428,480.862,102.236,8.966,46.472,35.582 );
+//        piecePoint[1] = new DescPose(201.770,510.904,101.912,12.079,66.897,26.452);
+//        piecePoint[2] = new DescPose(186.344,533.294,102.866,1.980,62.882,25.094);
+//        piecePoint[3] = new DescPose(162.969,537.537,103.015,-22.013,46.227,28.606);
+//        piecePoint[4] = new DescPose(139.465,510.090,103.505,-23.996,33.774,41.829);
+//        piecePoint[5] = new DescPose(168.329,475.251,102.325,4.241,42.293,38.624);
+//
+//        int tool = 4;
+//        int wobj = 0;
+//        double vel = 100.0;
+//        double acc = 100.0;
+//        double ovl = 10.0;
+//        double oacc = 10.0;
+//        int moveType = 1;
+//        int moveDirection = 1;
+//        int rtn = robot.MoveToIntersectLineStart(mainPoint, piecePoint, tool, wobj, vel, acc, ovl, oacc, moveType);
+//        System.out.printf("MoveToIntersectLineStart rtn is %d\n", rtn);
+//        rtn = robot.MoveIntersectLine(mainPoint, piecePoint, tool, wobj, vel, acc, ovl, oacc, moveDirection);
+//        System.out.printf("MoveIntersectLine rtn is %d\n", rtn);
+//    }
+
 
     public static void ServoJTWithSafety(Robot robot)
     {
@@ -632,103 +872,103 @@ public class Main {
         robot.CloseRPC();
     }
 
-    public static void TestSensitivityCalib(Robot robot)
-    {
-        int rtn = robot.JointSensitivityEnable(1);
-        System.out.println("JointSensitivityEnable rtn is " + rtn);
-
-        JointPos curJPos = new JointPos();
-        robot.GetActualJointPosDegree(curJPos);
-
-        JointPos jointPos1 = new JointPos(curJPos.J1, 0, 0, -90, 0.02, curJPos.J6);
-        DescPose descPos1 = new DescPose();
-        robot.GetForwardKin(jointPos1, descPos1);
-
-        ExaxisPos epos = new ExaxisPos(0, 0, 0, 0);
-        DescPose offset_pos = new DescPose(0, 0, 0, 0, 0, 0);
-
-        robot.MoveJ(jointPos1, descPos1, 0, 0, 100, 100, 100, epos, -1, 0, offset_pos);
-
-        robot.Sleep(200);
-        rtn = robot.JointSensitivityCollect();
-        System.out.println("JointSensitivityCollect 1 rtn is " + rtn);
-        robot.Sleep(100);
-
-        JointPos jointPos2 = new JointPos(curJPos.J1, -30, 0, -90, 0.02, curJPos.J6);
-        DescPose descPos2 = new DescPose();
-        robot.GetForwardKin(jointPos2, descPos2);
-
-        robot.MoveJ(jointPos2, descPos2, 0, 0, 100, 100, 100, epos, -1, 0, offset_pos);
-
-        robot.Sleep(100);
-        rtn = robot.JointSensitivityCollect();
-        System.out.println("JointSensitivityCollect 2 rtn is " + rtn);
-        robot.Sleep(100);
-
-        JointPos jointPos3 = new JointPos(curJPos.J1, -60, 0, -90, 0.02, curJPos.J6);
-        DescPose descPos3 = new DescPose();
-        robot.GetForwardKin(jointPos3, descPos3);
-        robot.MoveJ(jointPos3, descPos3, 0, 0, 100, 100, 100, epos, -1, 0, offset_pos);
-
-        robot.Sleep(100);
-        rtn = robot.JointSensitivityCollect();
-        System.out.println("JointSensitivityCollect 3 rtn is " + rtn);
-        robot.Sleep(100);
-
-        JointPos jointPos4 = new JointPos(curJPos.J1, -90, 0, -90, 0.02, curJPos.J6);
-        DescPose descPos4 = new DescPose();
-        robot.GetForwardKin(jointPos4, descPos4);
-        robot.MoveJ(jointPos4, descPos4, 0, 0, 100, 100, 100, epos, -1, 0, offset_pos);
-
-        robot.Sleep(100);
-        rtn = robot.JointSensitivityCollect();
-        System.out.println("JointSensitivityCollect 4 rtn is " + rtn);
-        robot.Sleep(100);
-
-        JointPos jointPos5 = new JointPos(curJPos.J1, -120, 0, -90, 0.02, curJPos.J6);
-        DescPose descPos5 = new DescPose();
-        robot.GetForwardKin(jointPos5, descPos5);
-        robot.MoveJ(jointPos5, descPos5, 0, 0, 100, 100, 100, epos, -1, 0, offset_pos);
-
-        robot.Sleep(100);
-        rtn = robot.JointSensitivityCollect();
-        System.out.println("JointSensitivityCollect 5 rtn is " + rtn);
-        robot.Sleep(100);
-
-        JointPos jointPos6 = new JointPos(curJPos.J1, -150, 0, -90, 0.02, curJPos.J6);
-        DescPose descPos6 = new DescPose();
-        robot.GetForwardKin(jointPos6, descPos6);
-        robot.MoveJ(jointPos6, descPos6, 0, 0, 100, 100, 100, epos, -1, 0, offset_pos);
-
-        robot.Sleep(100);
-        rtn = robot.JointSensitivityCollect();
-        System.out.println("JointSensitivityCollect 6 rtn is " + rtn);
-        robot.Sleep(100);
-
-        JointPos jointPos7 = new JointPos(curJPos.J1, -180, 0, -90, 0.02, curJPos.J6);
-        DescPose descPos7 = new DescPose();
-        robot.GetForwardKin(jointPos7, descPos7);
-        robot.MoveJ(jointPos7, descPos7, 0, 0, 100, 100, 100, epos, -1, 0, offset_pos);
-
-        robot.Sleep(100);
-        rtn = robot.JointSensitivityCollect();
-        System.out.println("JointSensitivityCollect 7 rtn is " + rtn);
-        robot.Sleep(100);
-
-        double[] calibResult = new double[6];
-        rtn = robot.JointSensitivityCalibration(calibResult);
-        System.out.println("JointSensitivityCalibration rtn is " + rtn);
-
-        rtn = robot.JointSensitivityEnable(0);
-        System.out.println("JointSensitivityEnable rtn is " + rtn);
-
-        System.out.println("jointSensor Calib result is " +
-                calibResult[0] + " " + calibResult[1] + " " + calibResult[2] + " " +
-                calibResult[3] + " " + calibResult[4] + " " + calibResult[5]);
-
-        robot.CloseRPC();
-
-    }
+//    public static void TestSensitivityCalib(Robot robot)
+//    {
+//        int rtn = robot.JointSensitivityEnable(1);
+//        System.out.println("JointSensitivityEnable rtn is " + rtn);
+//
+//        JointPos curJPos = new JointPos();
+//        robot.GetActualJointPosDegree(curJPos);
+//
+//        JointPos jointPos1 = new JointPos(curJPos.J1, 0, 0, -90, 0.02, curJPos.J6);
+//        DescPose descPos1 = new DescPose();
+//        robot.GetForwardKin(jointPos1, descPos1);
+//
+//        ExaxisPos epos = new ExaxisPos(0, 0, 0, 0);
+//        DescPose offset_pos = new DescPose(0, 0, 0, 0, 0, 0);
+//
+//        robot.MoveJ(jointPos1, descPos1, 0, 0, 100, 100, 100, epos, -1, 0, offset_pos);
+//
+//        robot.Sleep(200);
+//        rtn = robot.JointSensitivityCollect();
+//        System.out.println("JointSensitivityCollect 1 rtn is " + rtn);
+//        robot.Sleep(100);
+//
+//        JointPos jointPos2 = new JointPos(curJPos.J1, -30, 0, -90, 0.02, curJPos.J6);
+//        DescPose descPos2 = new DescPose();
+//        robot.GetForwardKin(jointPos2, descPos2);
+//
+//        robot.MoveJ(jointPos2, descPos2, 0, 0, 100, 100, 100, epos, -1, 0, offset_pos);
+//
+//        robot.Sleep(100);
+//        rtn = robot.JointSensitivityCollect();
+//        System.out.println("JointSensitivityCollect 2 rtn is " + rtn);
+//        robot.Sleep(100);
+//
+//        JointPos jointPos3 = new JointPos(curJPos.J1, -60, 0, -90, 0.02, curJPos.J6);
+//        DescPose descPos3 = new DescPose();
+//        robot.GetForwardKin(jointPos3, descPos3);
+//        robot.MoveJ(jointPos3, descPos3, 0, 0, 100, 100, 100, epos, -1, 0, offset_pos);
+//
+//        robot.Sleep(100);
+//        rtn = robot.JointSensitivityCollect();
+//        System.out.println("JointSensitivityCollect 3 rtn is " + rtn);
+//        robot.Sleep(100);
+//
+//        JointPos jointPos4 = new JointPos(curJPos.J1, -90, 0, -90, 0.02, curJPos.J6);
+//        DescPose descPos4 = new DescPose();
+//        robot.GetForwardKin(jointPos4, descPos4);
+//        robot.MoveJ(jointPos4, descPos4, 0, 0, 100, 100, 100, epos, -1, 0, offset_pos);
+//
+//        robot.Sleep(100);
+//        rtn = robot.JointSensitivityCollect();
+//        System.out.println("JointSensitivityCollect 4 rtn is " + rtn);
+//        robot.Sleep(100);
+//
+//        JointPos jointPos5 = new JointPos(curJPos.J1, -120, 0, -90, 0.02, curJPos.J6);
+//        DescPose descPos5 = new DescPose();
+//        robot.GetForwardKin(jointPos5, descPos5);
+//        robot.MoveJ(jointPos5, descPos5, 0, 0, 100, 100, 100, epos, -1, 0, offset_pos);
+//
+//        robot.Sleep(100);
+//        rtn = robot.JointSensitivityCollect();
+//        System.out.println("JointSensitivityCollect 5 rtn is " + rtn);
+//        robot.Sleep(100);
+//
+//        JointPos jointPos6 = new JointPos(curJPos.J1, -150, 0, -90, 0.02, curJPos.J6);
+//        DescPose descPos6 = new DescPose();
+//        robot.GetForwardKin(jointPos6, descPos6);
+//        robot.MoveJ(jointPos6, descPos6, 0, 0, 100, 100, 100, epos, -1, 0, offset_pos);
+//
+//        robot.Sleep(100);
+//        rtn = robot.JointSensitivityCollect();
+//        System.out.println("JointSensitivityCollect 6 rtn is " + rtn);
+//        robot.Sleep(100);
+//
+//        JointPos jointPos7 = new JointPos(curJPos.J1, -180, 0, -90, 0.02, curJPos.J6);
+//        DescPose descPos7 = new DescPose();
+//        robot.GetForwardKin(jointPos7, descPos7);
+//        robot.MoveJ(jointPos7, descPos7, 0, 0, 100, 100, 100, epos, -1, 0, offset_pos);
+//
+//        robot.Sleep(100);
+//        rtn = robot.JointSensitivityCollect();
+//        System.out.println("JointSensitivityCollect 7 rtn is " + rtn);
+//        robot.Sleep(100);
+//
+//        double[] calibResult = new double[6];
+//        rtn = robot.JointSensitivityCalibration(calibResult);
+//        System.out.println("JointSensitivityCalibration rtn is " + rtn);
+//
+//        rtn = robot.JointSensitivityEnable(0);
+//        System.out.println("JointSensitivityEnable rtn is " + rtn);
+//
+//        System.out.println("jointSensor Calib result is " +
+//                calibResult[0] + " " + calibResult[1] + " " + calibResult[2] + " " +
+//                calibResult[3] + " " + calibResult[4] + " " + calibResult[5]);
+//
+//        robot.CloseRPC();
+//
+//    }
 
     public static void testLasertrackMoveC(Robot robot)
     {

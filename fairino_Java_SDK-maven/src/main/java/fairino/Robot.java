@@ -20,7 +20,7 @@ import org.apache.xmlrpc.client.XmlRpcClientConfigImpl;
 
 public class Robot
 {
-    String SDK_VERSION = "JavaSDK V1.0.10  WebApp V3.8.7";
+    String SDK_VERSION = "JavaSDK V1.0.11  WebApp V3.9.0";
     private String robotIp = "192.168.58.2";//机器人ip
 
     int ROBOT_CMD_PORT = 8080;
@@ -19666,6 +19666,59 @@ public class Robot
     }
 
     /**
+     * @brief 获取关节扭矩传感器灵敏度标定结果
+     * @param calibResult j1~j6关节灵敏度[0-1]
+     * @param linearity j1~j6关节线性度[0-1]
+     * @return 错误码
+     */
+    public int JointSensitivityCalibration(double[] calibResult,double[] linearity)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{};
+            Object[] results = (Object[])client.execute("JointSensitivityCalibration", params);
+            int rtn = (int)results[0];
+
+            if (rtn == 0) {
+                calibResult[0] = (double)results[1];
+                calibResult[1] = (double)results[2];
+                calibResult[2] = (double)results[3];
+                calibResult[3] = (double)results[4];
+                calibResult[4] = (double)results[5];
+                calibResult[5] = (double)results[6];
+                linearity[0] = (double)results[7];
+                linearity[1] = (double)results[8];
+                linearity[2] = (double)results[9];
+                linearity[3] = (double)results[10];
+                linearity[4] = (double)results[11];
+                linearity[5] = (double)results[12];
+            } else {
+                if (log != null) {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "execute JointSensitivityCalibration fail: " + rtn);
+                }
+            }
+
+            if (log != null) {
+                log.LogInfo("JointSensitivityCalibration:" + rtn);
+            }
+
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
      * @brief 关节扭矩传感器灵敏度数据采集
      * @return 错误码
      */
@@ -19909,6 +19962,627 @@ public class Robot
             if (log != null)
             {
                 log.LogInfo("RobotMCULogCollect( : " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 移动到相贯线起始点
+     * @param  mainPoint 主管6个示教点的笛卡尔位姿
+     * @param  piecePoint 辅管6个示教点的笛卡尔位姿
+     * @param  tool 工具坐标系编号
+     * @param  wobj 工件坐标系编号
+     * @param  vel 速度百分比
+     * @param  acc 加速度百分比
+     * @param  ovl 速度缩放因子
+     * @param  oacc 加速度缩放因子
+     * @param  moveType 运动类型; 0-PTP；1-LIN
+     * @return 错误码
+     */
+//    public int MoveToIntersectLineStart(DescPose[] mainPoint, DescPose[] piecePoint, int tool, int wobj, double vel, double acc, double ovl, double oacc, int moveType)
+//    {
+//        if (IsSockComError()) {
+//            return sockErr;
+//        }
+//
+//        if (GetSafetyCode() != 0)
+//        {
+//            return GetSafetyCode();
+//        }
+//
+//        int errcode=-1;
+//
+//        try {
+//            Object[] param = new Object[79];
+//            for (int i = 0; i < 6; i++)
+//            {
+//                param[i * 6 + 0] = mainPoint[i].tran.x;
+//                param[i * 6 + 1] = mainPoint[i].tran.y;
+//                param[i * 6 + 2] = mainPoint[i].tran.z;
+//                param[i * 6 + 3] = mainPoint[i].rpy.rx;
+//                param[i * 6 + 4] = mainPoint[i].rpy.ry;
+//                param[i * 6 + 5] = mainPoint[i].rpy.rz;
+//            }
+//
+//            for (int i = 0; i < 6; i++)
+//            {
+//                param[i * 6 + 0 + 36] = piecePoint[i].tran.x;
+//                param[i * 6 + 1 + 36] = piecePoint[i].tran.y;
+//                param[i * 6 + 2 + 36] = piecePoint[i].tran.z;
+//                param[i * 6 + 3 + 36] = piecePoint[i].rpy.rx;
+//                param[i * 6 + 4 + 36] = piecePoint[i].rpy.ry;
+//                param[i * 6 + 5 + 36] = piecePoint[i].rpy.rz;
+//            }
+//
+//            param[72] = tool;
+//            param[73] = wobj;
+//            param[74] = vel;
+//            param[75] = acc;
+//            param[76] = ovl;
+//            param[77] = oacc;
+//            param[78] = moveType;
+//
+//            Object[] params = new Object[]{param};
+//
+//            errcode = (int)client.execute("MoveToIntersectLineStart" , params);
+//            if (log != null)
+//            {
+//                log.LogInfo("MoveToIntersectLineStart: " + errcode);
+//            }
+//        } catch (Throwable e) {
+//            if (log != null) {
+//                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+//                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+//                        "RPC exception " + e.getMessage());
+//            }
+//            return RobotError.ERR_RPC_ERROR;
+//        }
+//
+//        ROBOT_STATE_PKG robot_state_pkg=GetRobotRealTimeState();
+//        if ((robot_state_pkg.main_code != 0 || robot_state_pkg.sub_code != 0) && errcode == 0)
+//        {
+//            errcode = 14;
+//        }
+//
+//        return errcode;
+//    }
+
+    /**
+     * @brief 移动到相贯线起始点
+     * @param  mainPoint 主管6个示教点的笛卡尔位姿
+     * @param  piecePoint 辅管6个示教点的笛卡尔位姿
+     * @param  tool 工具坐标系编号
+     * @param  wobj 工件坐标系编号
+     * @param  vel 速度百分比
+     * @param  acc 加速度百分比
+     * @param  ovl 速度缩放因子
+     * @param  oacc 加速度缩放因子
+     * @param  moveType 运动类型; 0-PTP；1-LIN
+     * @return 错误码
+     */
+    public int MoveToIntersectLineStart(DescPose[] mainPoint, DescPose[] piecePoint, int tool, int wobj, double vel, double acc, double ovl, double oacc, int moveType)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        if (GetSafetyCode() != 0)
+        {
+            return GetSafetyCode();
+        }
+
+        ExaxisPos[] mainExaxisPos = {new ExaxisPos(),new ExaxisPos(),new ExaxisPos(),new ExaxisPos(),new ExaxisPos(),new ExaxisPos()};
+        ExaxisPos[] pieceExaxisPos = {new ExaxisPos(),new ExaxisPos(),new ExaxisPos(),new ExaxisPos(),new ExaxisPos(),new ExaxisPos()};
+        int extAxisFlag = 0;
+        ExaxisPos exaxisPos = new ExaxisPos();
+        int moveDirection = 0;
+        DescPose offset = new DescPose();
+        int errcode = MoveToIntersectLineStart(mainPoint, mainExaxisPos, piecePoint, pieceExaxisPos, extAxisFlag, exaxisPos, tool, wobj, vel, acc, ovl, oacc, moveType, moveDirection, offset);
+
+        return errcode;
+    }
+
+    /**
+     * @brief 移动到相贯线起始点
+     * @param mainPoint 主管6个示教点的笛卡尔位姿
+     * @param mainExaxisPos 主管6个示教点扩展轴位置
+     * @param piecePoint 辅管6个示教点的笛卡尔位姿
+     * @param pieceExaxisPos 拼接管6个示教点扩展轴位置
+     * @param extAxisFlag 是否启用扩展轴；0-不启用；1-启用
+     * @param exaxisPos 起点扩展轴位置
+     * @param tool 工具坐标系编号
+     * @param wobj 工件坐标系编号
+     * @param vel 速度百分比
+     * @param acc 加速度百分比
+     * @param ovl 速度缩放因子
+     * @param oacc 加速度缩放因子
+     * @param moveType 运动类型; 0-PTP；1-LIN
+     * @param moveDirection 运动方向；0-顺时针；1-逆时针
+     * @param offset 偏移量
+     * @return 错误码
+     */
+    public int MoveToIntersectLineStart(DescPose[] mainPoint, ExaxisPos[] mainExaxisPos, DescPose[] piecePoint, ExaxisPos[] pieceExaxisPos, int extAxisFlag, ExaxisPos exaxisPos, int tool, int wobj, double vel, double acc, double ovl, double oacc, int moveType, int moveDirection, DescPose offset)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        if (GetSafetyCode() != 0)
+        {
+            return GetSafetyCode();
+        }
+
+        int errcode=-1;
+
+        try {
+            Object[] param = new Object[139];
+            for (int i = 0; i < 6; i++)
+            {
+                param[i * 6 + 0] = mainPoint[i].tran.x;
+                param[i * 6 + 1] = mainPoint[i].tran.y;
+                param[i * 6 + 2] = mainPoint[i].tran.z;
+                param[i * 6 + 3] = mainPoint[i].rpy.rx;
+                param[i * 6 + 4] = mainPoint[i].rpy.ry;
+                param[i * 6 + 5] = mainPoint[i].rpy.rz;
+            }
+
+            for (int i = 0; i < 6; i++)
+            {
+                param[i * 4 + 0 + 36] = mainExaxisPos[i].axis1;
+                param[i * 4 + 1 + 36] = mainExaxisPos[i].axis2;
+                param[i * 4 + 2 + 36] = mainExaxisPos[i].axis3;
+                param[i * 4 + 3 + 36] = mainExaxisPos[i].axis4;
+            }
+
+            for (int i = 0; i < 6; i++)
+            {
+                param[i * 6 + 0 + 60] = piecePoint[i].tran.x;
+                param[i * 6 + 1 + 60] = piecePoint[i].tran.y;
+                param[i * 6 + 2 + 60] = piecePoint[i].tran.z;
+                param[i * 6 + 3 + 60] = piecePoint[i].rpy.rx;
+                param[i * 6 + 4 + 60] = piecePoint[i].rpy.ry;
+                param[i * 6 + 5 + 60] = piecePoint[i].rpy.rz;
+            }
+
+            for (int i = 0; i < 6; i++)
+            {
+                param[i * 4 + 0 + 96] = pieceExaxisPos[i].axis1;
+                param[i * 4 + 1 + 96] = pieceExaxisPos[i].axis2;
+                param[i * 4 + 2 + 96] = pieceExaxisPos[i].axis3;
+                param[i * 4 + 3 + 96] = pieceExaxisPos[i].axis4;
+            }
+
+            param[120] = extAxisFlag;
+            param[121] = exaxisPos.axis1;
+            param[122] = exaxisPos.axis2;
+            param[123] = exaxisPos.axis3;
+            param[124] = exaxisPos.axis4;
+
+            param[125] = tool;
+            param[126] = wobj;
+            param[127] = vel;
+            param[128] = acc;
+            param[129] = ovl;
+            param[130] = oacc;
+            param[131] = moveType;
+            param[132] = moveDirection;
+
+            param[133] = offset.tran.x;
+            param[134] = offset.tran.y;
+            param[135] = offset.tran.z;
+            param[136] = offset.rpy.rx;
+            param[137] = offset.rpy.ry;
+            param[138] = offset.rpy.rz;
+
+            Object[] params = new Object[]{param};
+
+            errcode = (int)client.execute("MoveToIntersectLineStart" , params);
+            if (log != null)
+            {
+                log.LogInfo("MoveToIntersectLineStart: " + errcode);
+            }
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+
+        ROBOT_STATE_PKG robot_state_pkg=GetRobotRealTimeState();
+        if ((robot_state_pkg.main_code != 0 || robot_state_pkg.sub_code != 0) && errcode == 0)
+        {
+            errcode = 14;
+        }
+
+        return errcode;
+    }
+
+    /**
+     * @brief 相贯线运动
+     * @param  mainPoint 主管6个示教点的笛卡尔位姿
+     * @param  piecePoint 辅管6个示教点的笛卡尔位姿
+     * @param  tool 工具坐标系编号
+     * @param  wobj 工件坐标系编号
+     * @param  vel 速度百分比
+     * @param  acc 加速度百分比
+     * @param  ovl 速度缩放因子
+     * @param  oacc 加速度缩放因子
+     * @param  moveDirection 运动方向; 0-顺时针；1-逆时针
+     * @return 错误码
+     */
+//    public int MoveIntersectLine(DescPose[] mainPoint, DescPose[] piecePoint, int tool, int wobj, double vel, double acc, double ovl, double oacc, int moveDirection)
+//    {
+//        if (IsSockComError()) {
+//            return sockErr;
+//        }
+//
+//        if (GetSafetyCode() != 0)
+//        {
+//            return GetSafetyCode();
+//        }
+//
+//        int errcode=-1;
+//
+//        try {
+//            Object[] param = new Object[79];
+//            for (int i = 0; i < 6; i++)
+//            {
+//                param[i * 6 + 0] = mainPoint[i].tran.x;
+//                param[i * 6 + 1] = mainPoint[i].tran.y;
+//                param[i * 6 + 2] = mainPoint[i].tran.z;
+//                param[i * 6 + 3] = mainPoint[i].rpy.rx;
+//                param[i * 6 + 4] = mainPoint[i].rpy.ry;
+//                param[i * 6 + 5] = mainPoint[i].rpy.rz;
+//            }
+//
+//            for (int i = 0; i < 6; i++)
+//            {
+//                param[i * 6 + 0 + 36] = piecePoint[i].tran.x;
+//                param[i * 6 + 1 + 36] = piecePoint[i].tran.y;
+//                param[i * 6 + 2 + 36] = piecePoint[i].tran.z;
+//                param[i * 6 + 3 + 36] = piecePoint[i].rpy.rx;
+//                param[i * 6 + 4 + 36] = piecePoint[i].rpy.ry;
+//                param[i * 6 + 5 + 36] = piecePoint[i].rpy.rz;
+//            }
+//
+//            param[72] = tool;
+//            param[73] = wobj;
+//            param[74] = vel;
+//            param[75] = acc;
+//            param[76] = ovl;
+//            param[77] = oacc;
+//            param[78] = moveDirection;
+//
+//            Object[] params = new Object[]{param};
+//
+//            errcode = (int)client.execute("MoveIntersectLine" , params);
+//            if (log != null)
+//            {
+//                log.LogInfo("MoveIntersectLine: " + errcode);
+//            }
+//        } catch (Throwable e) {
+//            if (log != null) {
+//                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+//                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+//                        "RPC exception " + e.getMessage());
+//            }
+//            return RobotError.ERR_RPC_ERROR;
+//        }
+//
+//        ROBOT_STATE_PKG robot_state_pkg=GetRobotRealTimeState();
+//        if ((robot_state_pkg.main_code != 0 || robot_state_pkg.sub_code != 0) && errcode == 0)
+//        {
+//            errcode = 14;
+//        }
+//
+//        return errcode;
+//    }
+
+
+    /**
+     * @brief 相贯线运动
+     * @param mainPoint 主管6个示教点的笛卡尔位姿
+     * @param piecePoint 辅管6个示教点的笛卡尔位姿
+     * @param tool 工具坐标系编号
+     * @param wobj 工件坐标系编号
+     * @param vel 速度百分比
+     * @param acc 加速度百分比
+     * @param ovl 速度缩放因子
+     * @param oacc 加速度缩放因子
+     * @param moveDirection 运动方向; 0-顺时针；1-逆时针
+     * @return 错误码
+     */
+    public int MoveIntersectLine(DescPose[] mainPoint, DescPose[] piecePoint, int tool, int wobj, double vel, double acc, double ovl, double oacc, int moveDirection)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        if (GetSafetyCode() != 0)
+        {
+            return GetSafetyCode();
+        }
+
+        int errcode = 0;
+        ExaxisPos[] mainExaxisPos = {new ExaxisPos(),new ExaxisPos(),new ExaxisPos(),new ExaxisPos(),new ExaxisPos(),new ExaxisPos()};
+        ExaxisPos[] pieceExaxisPos = {new ExaxisPos(),new ExaxisPos(),new ExaxisPos(),new ExaxisPos(),new ExaxisPos(),new ExaxisPos()};
+        int extAxisFlag = 0;
+        ExaxisPos[] exaxisPos = {new ExaxisPos(),new ExaxisPos(),new ExaxisPos(),new ExaxisPos()};
+        DescPose offset =new DescPose();
+        errcode = MoveIntersectLine(mainPoint, mainExaxisPos, piecePoint, pieceExaxisPos, extAxisFlag, exaxisPos, tool, wobj, vel, acc, ovl, oacc, moveDirection, offset);
+
+        return errcode;
+    }
+
+    /**
+     * @brief 相贯线运动
+     * @param mainPoint 主管6个示教点的笛卡尔位姿
+     * @param mainExaxisPos 主管6个示教点扩展轴位置
+     * @param piecePoint 辅管6个示教点的笛卡尔位姿
+     * @param pieceExaxisPos 拼接管6个示教点扩展轴位置
+     * @param extAxisFlag 是否启用扩展轴；0-不启用；1-启用
+     * @param exaxisPos 起点扩展轴位置
+     * @param tool 工具坐标系编号
+     * @param wobj 工件坐标系编号
+     * @param vel 速度百分比
+     * @param acc 加速度百分比
+     * @param ovl 速度缩放因子
+     * @param oacc 加速度缩放因子
+     * @param moveDirection 运动方向; 0-顺时针；1-逆时针
+     * @param offset 偏移量
+     * @return 错误码
+     */
+    public int MoveIntersectLine(DescPose[] mainPoint, ExaxisPos[] mainExaxisPos, DescPose[] piecePoint, ExaxisPos[] pieceExaxisPos, int extAxisFlag, ExaxisPos[] exaxisPos, int tool, int wobj, double vel, double acc, double ovl, double oacc, int moveDirection, DescPose offset)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        if (GetSafetyCode() != 0)
+        {
+            return GetSafetyCode();
+        }
+
+        int errcode=-1;
+
+        try {
+            Object[] param = new Object[150];
+            for (int i = 0; i < 6; i++)
+            {
+                param[i * 6 + 0] = mainPoint[i].tran.x;
+                param[i * 6 + 1] = mainPoint[i].tran.y;
+                param[i * 6 + 2] = mainPoint[i].tran.z;
+                param[i * 6 + 3] = mainPoint[i].rpy.rx;
+                param[i * 6 + 4] = mainPoint[i].rpy.ry;
+                param[i * 6 + 5] = mainPoint[i].rpy.rz;
+            }
+
+            for (int i = 0; i < 6; i++)
+            {
+                param[i * 4 + 0 + 36] = mainExaxisPos[i].axis1;
+                param[i * 4 + 1 + 36] = mainExaxisPos[i].axis2;
+                param[i * 4 + 2 + 36] = mainExaxisPos[i].axis3;
+                param[i * 4 + 3 + 36] = mainExaxisPos[i].axis4;
+            }
+
+            for (int i = 0; i < 6; i++)
+            {
+                param[i * 6 + 0 + 60] = piecePoint[i].tran.x;
+                param[i * 6 + 1 + 60] = piecePoint[i].tran.y;
+                param[i * 6 + 2 + 60] = piecePoint[i].tran.z;
+                param[i * 6 + 3 + 60] = piecePoint[i].rpy.rx;
+                param[i * 6 + 4 + 60] = piecePoint[i].rpy.ry;
+                param[i * 6 + 5 + 60] = piecePoint[i].rpy.rz;
+            }
+
+            for (int i = 0; i < 6; i++)
+            {
+                param[i * 4 + 0 + 96] = pieceExaxisPos[i].axis1;
+                param[i * 4 + 1 + 96] = pieceExaxisPos[i].axis2;
+                param[i * 4 + 2 + 96] = pieceExaxisPos[i].axis3;
+                param[i * 4 + 3 + 96] = pieceExaxisPos[i].axis4;
+            }
+
+            param[120] = extAxisFlag;
+
+            for (int i = 0; i < 4; i++)
+            {
+                param[121 + i * 4] = exaxisPos[i].axis1;
+                param[122 + i * 4] = exaxisPos[i].axis2;
+                param[123 + i * 4] = exaxisPos[i].axis3;
+                param[124 + i * 4] = exaxisPos[i].axis4;
+            }
+
+            param[137] = tool;
+            param[138] = wobj;
+            param[139] = vel;
+            param[140] = acc;
+            param[141] = ovl;
+            param[142] = oacc;
+            param[143] = moveDirection;
+
+            param[144] = offset.tran.x;
+            param[145] = offset.tran.y;
+            param[146] = offset.tran.z;
+            param[147] = offset.rpy.rx;
+            param[148] = offset.rpy.ry;
+            param[149] = offset.rpy.rz;
+
+            Object[] params = new Object[]{param};
+
+            errcode = (int)client.execute("MoveIntersectLine" , params);
+            if (log != null)
+            {
+                log.LogInfo("MoveIntersectLine: " + errcode);
+            }
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+
+        ROBOT_STATE_PKG robot_state_pkg=GetRobotRealTimeState();
+        if ((robot_state_pkg.main_code != 0 || robot_state_pkg.sub_code != 0) && errcode == 0)
+        {
+            errcode = 14;
+        }
+
+        return errcode;
+    }
+
+
+    /**
+     * @brief 获取关节扭矩传感器迟滞误差
+     * @param  hysteresisError j1~j6关节迟滞误差
+     * @return 错误码
+     */
+    public int JointHysteresisError(double[] hysteresisError)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        int errcode = 0;
+
+        try {
+            Object[] params = new Object[]{};
+            Object[] result = (Object[]) client.execute("JointHysteresisError", params);
+            errcode = (int) result[0];
+            if (errcode == 0) {
+                hysteresisError[0] = (double) result[1];
+                hysteresisError[1] = (double) result[2];
+                hysteresisError[2] = (double) result[3];
+                hysteresisError[3] = (double) result[4];
+                hysteresisError[4] = (double) result[5];
+                hysteresisError[5] = (double) result[6];
+            }
+            if (log != null) {
+                log.LogInfo("JointHysteresisError: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取关节扭矩传感器重复精度
+     * @param repeatability j1~j6关节重复精度
+     * @return 错误码
+     */
+    public int JointRepeatability(double[] repeatability)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        int errcode = 0;
+
+        try {
+            Object[] params = new Object[]{};
+            Object[] result = (Object[]) client.execute("JointRepeatability", params);
+            errcode = (int) result[0];
+            if (errcode == 0) {
+                repeatability[0] = (double) result[1];
+                repeatability[1] = (double) result[2];
+                repeatability[2] = (double) result[3];
+                repeatability[3] = (double) result[4];
+                repeatability[4] = (double) result[5];
+                repeatability[5] = (double) result[6];
+            }
+            if (log != null) {
+                log.LogInfo("JointRepeatability: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+
+    }
+
+    /**
+     * @brief 设置关节力传感器参数
+     * @param M J1-J6质量系数[]
+     * @param B J1-J6阻尼系数[]
+     * @param K J1-J6刚度系数[]
+     * @param threshold 力控制阈值，Nm
+     * @param sensitivity 灵敏度,Nm/V,[]
+     * @param setZeroFlag 功能开启标志位；0-关闭；1-开启；2-位置1记录零点；3-位置2记录零点
+     * @return 错误码
+     */
+    public int SetAdmittanceParams(double[] M, double[] B, double[] K, double[] threshold, double[] sensitivity, int setZeroFlag) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        if (GetSafetyCode() != 0) {
+            return GetSafetyCode();
+        }
+
+        int errcode = 0;
+        try {
+            Object[] param = new Object[31];
+            param[0] = M[0];
+            param[1] = M[1];
+            param[2] = M[2];
+            param[3] = M[3];
+            param[4] = M[4];
+            param[5] = M[5];
+            param[6] = B[0];
+            param[7] = B[1];
+            param[8] = B[2];
+            param[9] = B[3];
+            param[10] = B[4];
+            param[11] = B[5];
+            param[12] = K[0];
+            param[13] = K[1];
+            param[14] = K[2];
+            param[15] = K[3];
+            param[16] = K[4];
+            param[17] = K[5];
+            param[18] = threshold[0];
+            param[19] = threshold[1];
+            param[20] = threshold[2];
+            param[21] = threshold[3];
+            param[22] = threshold[4];
+            param[23] = threshold[5];
+            param[24] = sensitivity[0];
+            param[25] = sensitivity[1];
+            param[26] = sensitivity[2];
+            param[27] = sensitivity[3];
+            param[28] = sensitivity[4];
+            param[29] = sensitivity[5];
+            param[30] = setZeroFlag;
+
+            Object[] params = new Object[]{param};
+
+            errcode = (int) client.execute("SetAdmittanceParams", params);
+
+            if (log != null) {
+                log.LogInfo("SetAdmittanceParams: " + errcode);
             }
             return errcode;
         } catch (Throwable e) {

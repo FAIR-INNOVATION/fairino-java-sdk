@@ -371,6 +371,7 @@ public class Main {
 //        TestCustomWeaveSetPara(robot);
 
 //                testLaserRecordAndReplayMoveC(robot);
+        TestFTControlWithAdjustCoeff(robot);
 //        testLasertrackMoveC(robot);
 //        TestSensitivityCalib(robot);
 //        TestServoJ_1015(robot);
@@ -378,7 +379,7 @@ public class Main {
 //        TestSpiral(robot);
 //        TestFTControlWithDamping(robot);
 //                ServoJTWithSafety(robot);
-        TestIntersectLineMove(robot);
+//        TestIntersectLineMove(robot);
 //        robot.CloseRPC();//关闭连接
 //
 ////        while (true)
@@ -391,6 +392,51 @@ public class Main {
 //        JointPos pos = new JointPos();
 //        robot.GetActualJointPosDegree(1, pos);
         //System.out.println("J1: " + Double.toString(pos.J1) + "   J2: " + Double.toString(pos.J2) +"    J3: " + Double.toString(pos.J3) +"J4: "  + Double.toString(pos.J4) + "J5: " + Double.toString(pos.J5) +"J6: " + Double.toString(pos.J6));
+    }
+
+
+    //带有力矩调节系数的恒力控制代码实例
+    public static int TestFTControlWithAdjustCoeff(Robot robot)
+    {
+        int sensor_id = 10;
+        int[] select = { 0,0,1,0,0,0 };
+        double[] ft_pid = { 0.0008, 0.0, 0.0, 0.0, 0.0, 0.0 };
+        int adj_sign = 0;
+        int ILC_sign = 0;
+        double max_dis = 1000.0;
+        double max_ang = 20;
+
+        ForceTorque ft = new ForceTorque(0.0,0,0,0,0,0);
+        ExaxisPos epos=new ExaxisPos(0, 0, 0, 0);
+
+
+        JointPos j1=new JointPos(80.765, -98.795, 106.548, -97.734, -89.999, 94.842);
+        JointPos j2=new JointPos(43.067, -84.429, 92.620, -98.175, -90.011, 57.144);
+        DescPose desc_p1=new DescPose(5.009, -547.463, 262.053, -179.999, -0.019, 75.923);
+        DescPose desc_p2=new DescPose(-347.966, -547.463, 262.048, -180.000, -0.019, 75.923);
+        DescPose offset_pos=new DescPose(0, 0, 0, 0, 0, 0);
+
+        double[] M = { 2.0, 2.0 };
+        double[] B = { 15.0, 15.0 };
+        double[] threshold = {1.0, 1.0};
+        double[] adjustCoeff = {1.0, 0.8};
+        double polishRadio = 0.0;
+        int filter_Sign = 0;
+        int posAdapt_sign = 1;
+        int isNoBlock;
+
+        ft.fz = -10.0;
+        while(true)
+        {
+            int rtn = robot.FT_Control(1, sensor_id, select, ft, ft_pid, adj_sign, ILC_sign, max_dis, max_ang, M, B, threshold, adjustCoeff, 0, 0, 1, 0);
+            System.out.printf("FT_Control start rtn is %d\n", rtn);
+
+            robot.MoveL(j1, desc_p1, 1, 0, 100.0, 100.0, 100.0, -1.0, 0, epos, 0, 0, offset_pos, 0,0, 0,10);
+            robot.MoveL(j2, desc_p2, 1, 0, 100.0, 100.0, 100.0, -1.0, 0, epos, 0, 0, offset_pos, 0,0, 0,10);
+
+            rtn = robot.FT_Control(0, sensor_id, select, ft, ft_pid, adj_sign, ILC_sign, max_dis, max_ang, M, B, threshold, adjustCoeff, 0, 0, 1, 0);
+            System.out.printf("FT_Control end rtn is %d\n", rtn);
+        }
     }
 
     public static void TestIntersectLineMove(Robot robot)
@@ -704,8 +750,8 @@ public class Main {
         int rtn = robot.FT_Control(1, sensor_id, select, ft, ft_pid, adj_sign, ILC_sign, max_dis, max_ang, M, B, 0, 0, 1, 0);
         System.out.printf("FT_Control start rtn is %d\n", rtn);
 
-        rtn = robot.MoveL(j1, desc_p1, 0, 0, 100.0, 100.0, 20.0, -1.0,0, epos, 0, 0, offset_pos,0,0,10);
-        rtn = robot.MoveL(j2, desc_p2, 0, 0, 100.0, 100.0, 20.0, -1.0, 0,epos, 0, 0, offset_pos,0,0,10);
+        rtn = robot.MoveL(j1, desc_p1, 0, 0, 100.0, 100.0, 20.0, -1.0,0, epos, 0, 0, offset_pos,100,0,0,10);
+        rtn = robot.MoveL(j2, desc_p2, 0, 0, 100.0, 100.0, 20.0, -1.0, 0,epos, 0, 0, offset_pos,100,0,0,10);
         rtn = robot.FT_Control(1, sensor_id, select, ft, ft_pid, adj_sign, ILC_sign, max_dis, max_ang, M, B, 0, 0, 1, 0);
         System.out.printf("FT_Control end rtn is %d\n", rtn);
 
@@ -990,7 +1036,7 @@ public class Main {
             ExaxisPos exaxisPos=new ExaxisPos(0, 0, 0, 0);
             DescPose offdese=new DescPose(0, 0, 0, 0, 0, 0);
             DescTran directionPoint=new DescTran();
-            robot.MoveL(startjointPos, startdescPose, 1, 0, 50, 100, 100, -1, 0,exaxisPos, 0, 0, offdese,0, 1, 1);
+            robot.MoveL(startjointPos, startdescPose, 1, 0, 50, 100, 100, -1, 0,exaxisPos, 0, 0, offdese,100,0, 1, 1);
             robot.Sleep(2000);
             //沿着-y方向开始寻位
             int ret = robot.LaserTrackingSearchStart_xyz(0, 100, 300, 1000, 2);
@@ -1006,7 +1052,7 @@ public class Main {
                 DescPose middescPose=new DescPose(-561.957, -282.616, 179.994, -166.732, -1.366, 11.262);
                 JointPos endjointPos=new JointPos(-11.146, -110.681, 112.893, -71.999, -83.325, 208.723);
                 DescPose enddescPose=new DescPose(-250.875, -93.272, 182.343, -159.126, 4.036, -130.316);
-                robot.MoveC(midjointPos, middescPose, 1, 0, 30, 100, exaxisPos, 0, offdese, endjointPos, enddescPose, 1, 0, 30, 100, exaxisPos, 0, offdese, 100, -1, 0);
+                robot.MoveC(midjointPos, middescPose, 1, 0, 30, 100, exaxisPos, 0, offdese, endjointPos, enddescPose, 1, 0, 30, 100, exaxisPos, 0, offdese,100, 100, -1, 0);
 //                robot.Circle(midjointPos, middescPose, 1, 0, 30, 100, exaxisPos, endjointPos, enddescPose, 1, 0, 30, 100, exaxisPos, 100, 0, offdese, 100, -1, 0);
 
                 //停止跟踪
@@ -1035,7 +1081,7 @@ public class Main {
             //运动到扫描的起点
             JointPos startjointPos=new JointPos(-23.965, -150.841, 137.707, -89.747, -56.114, -122.685);
             DescPose startdescPose=new DescPose(-274.002, -189.344, 194.938, -157.388, -28.759, -173.209);
-            robot.MoveL(startjointPos, startdescPose, 1, 0, 10, 100, 100, -1,0, exaxisPos, 0, 0, offdese, 0,1, 1);
+            robot.MoveL(startjointPos, startdescPose, 1, 0, 10, 100, 100, -1,0, exaxisPos, 0, 0, offdese, 100,0,1, 1);
             //开始轨迹记录
             robot.LaserSensorRecord1(2, 10);
             //运动到需要记录的终点
@@ -1044,7 +1090,7 @@ public class Main {
             System.out.println("111111");
             JointPos endjointPos=new JointPos(-26.944, -101.993, 115.794, -72.164, -53.080, 164.700);
             DescPose enddescPose=new DescPose(-353.625, -155.023, 185.415, -151.407, -39.177, -122.813);
-            robot.MoveC(midjointPos, middescPose, 1, 0, 10, 100, exaxisPos, 0, offdese, endjointPos, enddescPose, 1, 0, 10, 100, exaxisPos, 0, offdese, 100, -1, 0);
+            robot.MoveC(midjointPos, middescPose, 1, 0, 10, 100, exaxisPos, 0, offdese, endjointPos, enddescPose, 1, 0, 10, 100, exaxisPos, 0, offdese, 100, -1,100, 0);
 //            robot.Circle(midjointPos, middescPose, 1, 0, 10, 100, exaxisPos, endjointPos, enddescPose, 1, 0, 10, 100, exaxisPos, 100, 0, offdese, 100, -1, 0);
             System.out.println("222222\n");
             //停止记录
@@ -1149,7 +1195,7 @@ public class Main {
         robot.WeaveEnd(0);
         robot.MoveJ(j1, desc_p1, 3, 0, 100, 100, 100, epos, -1, 0, offset_pos);
         robot.WeaveStart(0);
-        robot.MoveC(j3, desc_p3, 3, 0, 100, 100, epos, 0, offset_pos, j2, desc_p2, 3, 0, 100, 100, epos, 0, offset_pos, 10, -1,0);
+        robot.MoveC(j3, desc_p3, 3, 0, 100, 100, epos, 0, offset_pos, j2, desc_p2, 3, 0, 100, 100, epos, 0, offset_pos, 10, -1,100,0);
         robot.WeaveEnd(0);
         robot.MoveJ(j1, desc_p1, 3, 0, 100, 100, 100, epos, -1, 0, offset_pos);
         robot.WeaveStart(0);
@@ -1567,7 +1613,7 @@ public class Main {
 //        DescPose startdescPose=new DescPose(107.882,-195.329,262.601,176.131,2.427,172.947);
         ExaxisPos exaxisPos=new ExaxisPos(0, 0, 0, 0);
         DescPose offdese=new DescPose(0, 0, 0, 0, 0, 0);
-        robot.MoveL(startjointPos, startdescPose, 1, 0, 10, 100, 100, -1,0, exaxisPos, 0, 0,offdese, 0,1, 1);
+        robot.MoveL(startjointPos, startdescPose, 1, 0, 10, 100, 100, -1,0, exaxisPos, 0, 0,offdese, 100,0,1, 1);
 
         //robot.LaserSensorRecord1(2, 10);
 
@@ -1589,13 +1635,13 @@ public class Main {
         DescPose startdescPose=new DescPose(-97.552, -282.855, 26.675, 174.182, -1.338, -91.707);
         ExaxisPos exaxisPos=new ExaxisPos(0, 0, 0, 0);
         DescPose offdese=new DescPose(0, 0, 0, 0, 0, 0);
-        robot.MoveL(startjointPos, startdescPose, 1, 0, 100, 100, 100, -1, 0,exaxisPos, 0, 0, offdese, 0,1, 1);
+        robot.MoveL(startjointPos, startdescPose, 1, 0, 100, 100, 100, -1, 0,exaxisPos, 0, 0, offdese, 100,0,1, 1);
 
         robot.LaserSensorRecord1(2, 10);
 
         JointPos endjointPos=new JointPos(68.809, -87.100, 121.120, -127.233, -95.038, -109.555);
         DescPose enddescPose=new DescPose(-103.555, -464.234, 13.076, 174.179, -1.344, -91.709);
-        robot.MoveL(endjointPos, enddescPose, 1, 0, 50, 100, 100, -1, 0,exaxisPos, 0, 0, offdese, 0,1, 1);
+        robot.MoveL(endjointPos, enddescPose, 1, 0, 50, 100, 100, -1, 0,exaxisPos, 0, 0, offdese, 100,0,1, 1);
 
         robot.LaserSensorRecord1(0, 10);
 
@@ -1611,13 +1657,13 @@ public class Main {
         DescPose startdescPose=new DescPose(-97.552, -282.855, 26.675, 174.182, -1.338, -91.707);
         ExaxisPos exaxisPos=new ExaxisPos(0, 0, 0, 0);
         DescPose offdese=new DescPose(0, 0, 0, 0, 0, 0);
-        robot.MoveL(startjointPos, startdescPose, 1, 0, 100, 100, 100, -1,0, exaxisPos, 0, 0, offdese, 0,1, 1);
+        robot.MoveL(startjointPos, startdescPose, 1, 0, 100, 100, 100, -1,0, exaxisPos, 0, 0, offdese, 100,0,1, 1);
 
         robot.LaserSensorRecord1(2, 10);
 
         JointPos endjointPos=new JointPos(68.809, -87.100, 121.120, -127.233, -95.038, -109.555);
         DescPose enddescPose=new DescPose(-103.555, -464.234, 13.076, 174.179, -1.344, -91.709);
-        robot.MoveL(endjointPos, enddescPose, 1, 0, 50, 100, 100, -1, 0,exaxisPos, 0, 0, offdese, 0,1, 1);
+        robot.MoveL(endjointPos, enddescPose, 1, 0, 50, 100, 100, -1, 0,exaxisPos, 0, 0, offdese, 100,0,1, 1);
 
         robot.LaserSensorRecord1(0, 10);
 
@@ -1636,7 +1682,7 @@ public class Main {
         DescPose offdese=new DescPose(0, 0, 0, 0, 0, 0);
         DescTran directionPoint=new DescTran();
 
-        robot.MoveL(startjointPos,startdescPose, 1, 0, 100, 100, 100, -1,0, exaxisPos, 0, 0, offdese, 0,1, 1);
+        robot.MoveL(startjointPos,startdescPose, 1, 0, 100, 100, 100, -1,0, exaxisPos, 0, 0, offdese, 100,0,1, 1);
 
         data=robot.GetRobotTeachingPoint(name);
         System.out.println(data.get(1).doubleValue()+","+data.get(2).doubleValue()+","+data.get(3).doubleValue()+","+data.get(4).doubleValue()+","+data.get(5).doubleValue()+","+data.get(6).doubleValue()+","+data.get(7).doubleValue()+","+data.get(8).doubleValue()+","+data.get(9).doubleValue()+","+data.get(10).doubleValue()+","+data.get(11).doubleValue()+","+data.get(12).doubleValue());
@@ -1670,13 +1716,13 @@ public class Main {
             DescPose startdescPose=new DescPose(-97.552, -282.855, 26.675, 174.182, -1.338, -91.707);
             ExaxisPos exaxisPos=new ExaxisPos(0, 0, 0, 0);
             DescPose offdese=new DescPose(0, 0, 0, 0, 0, 0);
-            robot.MoveL(startjointPos, startdescPose, 1, 0, 100, 100, 100, -1, 0,exaxisPos, 0, 0, offdese, 0,1, 1);
+            robot.MoveL(startjointPos, startdescPose, 1, 0, 100, 100, 100, -1, 0,exaxisPos, 0, 0, offdese, 100,0,1, 1);
 
             robot.LaserSensorRecord1(2, 10);
 
             JointPos endjointPos=new JointPos(68.809, -87.100, 121.120, -127.233, -95.038, -109.555);
             DescPose enddescPose=new DescPose(-103.555, -464.234, 13.076, 174.179, -1.344, -91.709);
-            robot.MoveL(endjointPos, enddescPose, 1, 0, 50, 100, 100, -1,0, exaxisPos, 0, 0, offdese, 0,1, 1);
+            robot.MoveL(endjointPos, enddescPose, 1, 0, 50, 100, 100, -1,0, exaxisPos, 0, 0, offdese,100, 0,1, 1);
 
             robot.LaserSensorRecord1(0, 10);
 
@@ -1708,7 +1754,7 @@ public class Main {
             ExaxisPos exaxisPos=new ExaxisPos(0, 0, 0, 0);
             DescPose offdese=new DescPose(0, 0, 0, 0, 0, 0);
             DescTran directionPoint=new DescTran();
-            robot.MoveL(startjointPos, startdescPose, 1, 0, 100, 100, 100, -1, 0,exaxisPos, 0, 0, offdese, 0,1, 1);
+            robot.MoveL(startjointPos, startdescPose, 1, 0, 100, 100, 100, -1, 0,exaxisPos, 0, 0, offdese, 100,0,1, 1);
 
             robot.LaserTrackingSearchStart_xyz(3, 100, 300, 1000, 3);
             robot.LaserTrackingSearchStop();
@@ -1721,7 +1767,7 @@ public class Main {
             //robot.LaserTrackingTrackOn(3);
             JointPos endjointPos=new JointPos(68.809,-87.100,121.120,-127.233,-95.038,-109.555);
             DescPose enddescPose=new DescPose(-103.555,-464.234,13.076,174.179,-1.344,-91.709);
-            robot.MoveL(endjointPos, enddescPose, 1, 0, 20, 100, 100, -1, 0,exaxisPos, 0, 0, offdese, 0,1, 1);
+            robot.MoveL(endjointPos, enddescPose, 1, 0, 20, 100, 100, -1, 0,exaxisPos, 0, 0, offdese, 100,0,1, 1);
 
             robot.LaserTrackingTrackOnOff(0, 3);
             System.out.println("当前是第"+(i+1)+"次");
@@ -1736,7 +1782,7 @@ public class Main {
         ExaxisPos exaxisPos=new ExaxisPos(0, 0, 0, 0);
         DescPose offdese=new DescPose(0, 0, 0, 0, 0, 0);
         DescTran directionPoint;
-        robot.MoveL(startjointPos, startdescPose, 1, 0, 100, 100, 100, -1, 0,exaxisPos, 0, 0, offdese, 0,1, 1);
+        robot.MoveL(startjointPos, startdescPose, 1, 0, 100, 100, 100, -1, 0,exaxisPos, 0, 0, offdese,100, 0,1, 1);
 
         robot.LaserTrackingSearchStart_xyz(3, 100, 300, 1000, 3);
 
@@ -3059,51 +3105,41 @@ public class Main {
         DescPose desc_pos4=new DescPose(-443.165, 147.881, 480.951, 179.511, -0.775, -15.409);
         DescPose offset_pos=new DescPose(0, 0, 0, 0, 0, 0);
         ExaxisPos epos=new ExaxisPos(0, 0, 0, 0);
-
         int tool = 0;
         int user = 0;
         double vel = 100.0;
         double acc = 100.0;
         double ovl = 100.0;
+        double oacc = 100.0;
         double blendT = 0.0;
         double blendR = 0.0;
         int flag = 0;
         int search = 0;
-
+        int blendMode = 0;
+        int velAccMode = 0;
         robot.SetSpeed(20);
-
         rtn = robot.MoveJ(j1, desc_pos1, tool, user, vel, acc, ovl, epos, blendT, flag, offset_pos);
-        System.out.println("movej errcode:"+ rtn);
-
-        rtn = robot.MoveL(j2, desc_pos2, tool, user, vel, acc, ovl, blendR, 0,epos, search, flag, offset_pos,0,10);
-        System.out.println("movel errcode:"+ rtn);
-
-        rtn = robot.MoveC(j3, desc_pos3, tool, user, vel, acc, epos, flag, offset_pos, j4, desc_pos4, tool, user, vel, acc, epos, flag, offset_pos, ovl, blendR);
-        System.out.println("movec errcode:"+ rtn);
-
+        System.out.printf("movej errcode:%d\n", rtn);
+        rtn = robot.MoveL(j2, desc_pos2, tool, user, vel, acc, ovl, blendR, blendMode, epos, search, flag, offset_pos, oacc, velAccMode,0,10);
+        System.out.printf("movel errcode:%d\n", rtn);
+        rtn = robot.MoveC(j3, desc_pos3, tool, user, vel, acc, epos, flag, offset_pos, j4, desc_pos4, tool, user, vel, acc, epos, flag, offset_pos, ovl, blendR, oacc, velAccMode);
+        System.out.printf("movec errcode:%d\n", rtn);
         rtn = robot.MoveJ(j2, desc_pos2, tool, user, vel, acc, ovl, epos, blendT, flag, offset_pos);
-        System.out.println("movej errcode:"+ rtn);
-
-        rtn = robot.Circle(j3, desc_pos3, tool, user, vel, acc, epos, j1, desc_pos1, tool, user, vel, acc, epos, ovl, flag, offset_pos);
-        System.out.println("circle errcode:"+ rtn);
-
+        System.out.printf("movej errcode:%d\n", rtn);
+        rtn = robot.Circle(j3, desc_pos3, tool, user, vel, acc, epos, j1, desc_pos1, tool, user, vel, acc, epos, ovl, flag, offset_pos, oacc, -1, velAccMode);
+        System.out.printf("circle errcode:%d\n", rtn);
         rtn = robot.MoveCart(desc_pos4, tool, user, vel, acc, ovl, blendT, -1);
-        System.out.println("MoveCart errcode:"+ rtn);
-
+        System.out.printf("MoveCart errcode:%d\n", rtn);
         rtn = robot.MoveJ(j1, tool, user, vel, acc, ovl, epos, blendT, flag, offset_pos);
-        System.out.println("movej errcode:"+ rtn);
-
-        rtn = robot.MoveL(desc_pos2, tool, user, vel, acc, ovl, blendR, 0,epos, search, flag, offset_pos,-1,0,10);
-        System.out.println("movel errcode:"+ rtn);
-
-        rtn = robot.MoveC(desc_pos3, tool, user, vel, acc, epos, flag, offset_pos, desc_pos4, tool, user, vel, acc, epos, flag, offset_pos, ovl, blendR,-1);
-        System.out.println("movec errcode:"+ rtn);
-
+        System.out.printf("movej errcode:%d\n", rtn);
+        rtn = robot.MoveL(desc_pos2, tool, user, vel, acc, ovl, blendR, blendMode, epos, search, flag, offset_pos, -1, velAccMode,0,10);
+        System.out.printf("movel errcode:%d\n", rtn);
+        rtn = robot.MoveC(desc_pos3, tool, user, vel, acc, epos, flag, offset_pos, desc_pos4, tool, user, vel, acc, epos, flag, offset_pos, ovl, blendR, -1, velAccMode);
+        System.out.printf("movec errcode:%d\n", rtn);
         rtn = robot.MoveJ(j2, tool, user, vel, acc, ovl, epos, blendT, flag, offset_pos);
-        System.out.println("movej errcode:"+ rtn);
-
-        rtn = robot.Circle(desc_pos3, tool, user, vel, acc, epos, desc_pos1, tool, user, vel, acc, epos, ovl, flag, offset_pos, 100,-1,-1);
-        System.out.println("circle errcode:"+ rtn);
+        System.out.printf("movej errcode:%d\n", rtn);
+        rtn = robot.Circle(desc_pos3, tool, user, vel, acc, epos, desc_pos1, tool, user, vel, acc, epos, ovl, flag, offset_pos, oacc, blendR, -1, velAccMode);
+        System.out.printf("circle errcode:%d\n", rtn);
 
         return 0;
     }
@@ -5825,7 +5861,7 @@ public class Main {
         robot.MoveJ(JP3, DP3, 0, 0, 100, 100, 100, exaxisPos, 200, 0, offdese);
         robot.MoveJ(JP4, DP4, 0, 0, 100, 100, 100, exaxisPos, 200, 0, offdese);
 
-        robot.MoveL(JP5, DP5, 0, 0, 100, 100, 100, 20,0, exaxisPos, 0, 0, offdese, 0,0, 10);
+        robot.MoveL(JP5, DP5, 0, 0, 100, 100, 100, 20,0, exaxisPos, 0, 0, offdese, 100,0,0, 10);
         robot.MoveL(JP6, DP6, 0, 0, 100, 100, 100, 20, 1, exaxisPos, 0, 0, offdese, 0, 10);
         robot.MoveL(JP7, DP7, 0, 0, 100, 100, 100, 20, 0, exaxisPos, 0, 0, offdese, 0, 10);
 

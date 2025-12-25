@@ -20,7 +20,7 @@ import org.apache.xmlrpc.client.XmlRpcClientConfigImpl;
 
 public class Robot
 {
-    String SDK_VERSION = "JavaSDK V1.0.11  WebApp V3.9.0";
+    String SDK_VERSION = "JavaSDK V1.1.1  WebApp V3.9.1";
     private String robotIp = "192.168.58.2";//机器人ip
 
     int ROBOT_CMD_PORT = 8080;
@@ -588,7 +588,7 @@ public class Robot
     }
 
     /**
-     * @brief  笛卡尔空间直线运动
+     * @brief  笛卡尔空间直线运动(旧)
      * @param  joint_pos  目标关节位置,单位deg
      * @param  desc_pos   目标笛卡尔位姿
      * @param  tool  工具坐标号，范围[0~14]
@@ -678,7 +678,7 @@ public class Robot
     }
 
     /**
-     * @brief  笛卡尔空间直线运动
+     * @brief  笛卡尔空间直线运动(旧)
      * @param  joint_pos  目标关节位置,单位deg
      * @param  desc_pos   目标笛卡尔位姿
      * @param  tool  工具坐标号，范围[0~14]
@@ -769,7 +769,7 @@ public class Robot
     }
 
     /**
-     * @brief  笛卡尔空间直线运动(重载函数2 不需要输入关节位置)
+     * @brief  笛卡尔空间直线运动(重载函数2 不需要输入关节位置)(旧)
      * @param  desc_pos   目标笛卡尔位姿
      * @param  tool  工具坐标号，范围[0~14]
      * @param  user  工件坐标号，范围[0~14]
@@ -822,12 +822,13 @@ public class Robot
      * @param  search  0-不焊丝寻位，1-焊丝寻位
      * @param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
      * @param  offset_pos  位姿偏移量
+     * @param  oacc 加速度缩放因子[0-100]/物理加速度(mm/s2)
      * @param  velAccParamMode 速度加速度参数模式；0-百分比；1-物理速度(mm/s)加速度(mm/s2)
      * @param  overSpeedStrategy  超速处理策略，1-标准；2-超速时报错停止；3-自适应降速，默认为0
      * @param  speedPercent  允许降速阈值百分比[0-100]，默认10%
      * @return  错误码
      */
-    public int MoveL(JointPos joint_pos, DescPose desc_pos, int tool, int user, double vel, double acc, double ovl, double blendR, int blendMode, ExaxisPos epos, int search, int offset_flag, DescPose offset_pos, int velAccParamMode, int overSpeedStrategy, int speedPercent)
+    public int MoveL(JointPos joint_pos, DescPose desc_pos, int tool, int user, double vel, double acc, double ovl, double blendR, int blendMode, ExaxisPos epos, int search, int offset_flag, DescPose offset_pos, double oacc,int velAccParamMode, int overSpeedStrategy, int speedPercent)
     {
         if (IsSockComError())
         {
@@ -860,7 +861,7 @@ public class Robot
                     desc_pos.tran.x, desc_pos.tran.y, desc_pos.tran.z, desc_pos.rpy.rx, desc_pos.rpy.ry, desc_pos.rpy.rz,
                     tool, user, vel, acc, ovl, blendR, blendMode,epos.axis1, epos.axis2, epos.axis3, epos.axis4,
                     search, offset_flag,offset_pos.tran.x, offset_pos.tran.y, offset_pos.tran.z, offset_pos.rpy.rx, offset_pos.rpy.ry,
-                    offset_pos.rpy.rz,100.0,velAccParamMode};
+                    offset_pos.rpy.rz,oacc,velAccParamMode};
 
             Object[] params1 = new Object[]{params};
 
@@ -896,11 +897,11 @@ public class Robot
         {
             if(!IsSockComError())
             {
-                return MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, blendMode, epos, search, offset_flag, offset_pos,velAccParamMode, overSpeedStrategy, speedPercent);
+                return MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, blendMode, epos, search, offset_flag, offset_pos,oacc,velAccParamMode, overSpeedStrategy, speedPercent);
             }
             if(e.getMessage().contains("Connection timed out") || e.getMessage().contains("connect timed out"))
             {
-                MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, blendMode, epos, search, offset_flag, offset_pos, velAccParamMode,overSpeedStrategy, speedPercent);
+                MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, blendMode, epos, search, offset_flag, offset_pos, oacc,velAccParamMode,overSpeedStrategy, speedPercent);
             }
             if (log != null)
             {
@@ -950,7 +951,7 @@ public class Robot
             return errcode;
         }
 
-        errcode = MoveL(jPos, desc_pos, tool, user, vel, acc, ovl, blendR, blendMode, epos, search, offset_flag, offset_pos, velAccParamMode, overSpeedStrategy, speedPercent);
+        errcode = MoveL(jPos, desc_pos, tool, user, vel, acc, ovl, blendR, blendMode, epos, search, offset_flag, offset_pos, 0,velAccParamMode, overSpeedStrategy, speedPercent);
         return errcode;
     }
 
@@ -975,7 +976,7 @@ public class Robot
      */
     public int MoveL(JointPos joint_pos, DescPose desc_pos, int tool, int user, double vel, double acc, double ovl, double blendR, ExaxisPos epos, int search, int offset_flag, DescPose offset_pos, int velAccParamMode, int overSpeedStrategy, int speedPercent)
     {
-        int errcode = MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, 0/*blendMode*/, epos, search, offset_flag, offset_pos, 0/*velAccParamMode*/, overSpeedStrategy, speedPercent);
+        int errcode = MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, 0/*blendMode*/, epos, search, offset_flag, offset_pos, ovl,0/*velAccParamMode*/, overSpeedStrategy, speedPercent);
 
         return errcode;
     }
@@ -1124,10 +1125,11 @@ public class Robot
      * @param  offset_pos_t  位姿偏移量
      * @param  ovl  速度缩放因子，范围[0~100]
      * @param  blendR [-1.0]-运动到位(阻塞)，[0~1000.0]-平滑半径(非阻塞)，单位mm
+     * @param  oacc 加速度缩放因子[0-100]/物理加速度(mm/s2)
      * @param  velAccParamMode 速度加速度参数模式；0-百分比；1-物理速度(mm/s)加速度(mm/s2)
      * @return  错误码
      */
-    public int MoveC(JointPos joint_pos_p, DescPose desc_pos_p, int ptool, int puser, double pvel, double pacc, ExaxisPos epos_p, int poffset_flag, DescPose offset_pos_p, JointPos joint_pos_t, DescPose desc_pos_t, int ttool, int tuser, double tvel, double tacc, ExaxisPos epos_t, int toffset_flag, DescPose offset_pos_t, double ovl, double blendR, int velAccParamMode)
+    public int MoveC(JointPos joint_pos_p, DescPose desc_pos_p, int ptool, int puser, double pvel, double pacc, ExaxisPos epos_p, int poffset_flag, DescPose offset_pos_p, JointPos joint_pos_t, DescPose desc_pos_t, int ttool, int tuser, double tvel, double tacc, ExaxisPos epos_t, int toffset_flag, DescPose offset_pos_t, double ovl, double blendR, double oacc,int velAccParamMode)
     {
         if (IsSockComError())
         {
@@ -1146,7 +1148,7 @@ public class Robot
                     desc_pos_t.tran.x, desc_pos_t.tran.y, desc_pos_t.tran.z, desc_pos_t.rpy.rx, desc_pos_t.rpy.ry, desc_pos_t.rpy.rz,
                     ttool,tuser,tvel,tacc,epos_t.axis1, epos_t.axis2, epos_t.axis3, epos_t.axis4,toffset_flag,
                     offset_pos_t.tran.x, offset_pos_t.tran.y, offset_pos_t.tran.z, offset_pos_t.rpy.rx, offset_pos_t.rpy.ry, offset_pos_t.rpy.rz,
-                    ovl, blendR,(double)100.0,velAccParamMode};
+                    ovl, blendR,oacc,velAccParamMode};
             Object[] params1 = new Object[]{params};
             int rtn = (int)client.execute("MoveC" , params1);
             if (log != null)
@@ -1162,7 +1164,7 @@ public class Robot
         {
             if(e.getMessage().contains("Connection timed out") || e.getMessage().contains("connect timed out"))
             {
-                MoveC(joint_pos_p, desc_pos_p, ptool, puser, pvel, pacc, epos_p, poffset_flag, offset_pos_p, joint_pos_t, desc_pos_t, ttool, tuser, tvel, tacc, epos_t, toffset_flag, offset_pos_t, ovl, blendR,velAccParamMode);
+                MoveC(joint_pos_p, desc_pos_p, ptool, puser, pvel, pacc, epos_p, poffset_flag, offset_pos_p, joint_pos_t, desc_pos_t, ttool, tuser, tvel, tacc, epos_t, toffset_flag, offset_pos_t, ovl, blendR,oacc,velAccParamMode);
             }
             else if (log != null)
             {
@@ -1222,7 +1224,7 @@ public class Robot
             return errcode;
         }
 
-        errcode = MoveC(jPosP, desc_pos_p, ptool, puser, pvel, pacc, epos_p, poffset_flag, offset_pos_p, jPosT, desc_pos_t, ttool, tuser, tvel, tacc, epos_t, toffset_flag, offset_pos_t, ovl, blendR, velAccParamMode);
+        errcode = MoveC(jPosP, desc_pos_p, ptool, puser, pvel, pacc, epos_p, poffset_flag, offset_pos_p, jPosT, desc_pos_t, ttool, tuser, tvel, tacc, epos_t, toffset_flag, offset_pos_t, ovl, blendR, ovl,velAccParamMode);
 
         return errcode;
     }
@@ -7822,19 +7824,71 @@ public class Robot
      * @param  isNoBlock 阻塞标志，0-阻塞；1-非阻塞
      * @return  错误码
      */
-    public int FT_Control(int flag, int sensor_id, int[] select, ForceTorque ft, double[] ft_pid, int adj_sign, int ILC_sign, double max_dis, double max_ang,double[] M,double[] B, double polishRadio,int filter_Sign, int posAdapt_sign, int isNoBlock)
+//    public int FT_Control(int flag, int sensor_id, int[] select, ForceTorque ft, double[] ft_pid, int adj_sign, int ILC_sign, double max_dis, double max_ang,double[] M,double[] B, double polishRadio,int filter_Sign, int posAdapt_sign, int isNoBlock)
+//    {
+//        if (IsSockComError()) {
+//            return sockErr;
+//        }
+//        if (GetSafetyCode() != 0) {
+//            return GetSafetyCode();
+//        }
+//        try {
+//            Object[] selectData={select[0],select[1],select[2],select[3],select[4],select[5]};
+//            Object[] ft_pidData={ft_pid[0],ft_pid[1],ft_pid[2],ft_pid[3],ft_pid[4],ft_pid[5]};
+//            Object[] ftData = {ft.fx, ft.fy, ft.fz, ft.tx, ft.ty, ft.tz};
+//            Object[] MB={M[0],M[1],B[0],B[1]};
+//            Object[] params = new Object[]{flag, sensor_id, selectData, ftData, ft_pidData, adj_sign, ILC_sign, max_dis, max_ang,polishRadio, filter_Sign, posAdapt_sign,MB, isNoBlock};
+//            int rtn = (int) client.execute("FT_Control", params);
+//            if (log != null) {
+//                log.LogInfo("FT_Control(" + flag + "," + sensor_id + "," + flag + "," + select[0] + "," + select[1] + "," + select[2] + "," + select[3] + "," + select[4] + "," + select[5] + "," + ft.fx + "," + ft.fy + "," + ft.fz + "," + ft.tx + "," + ft.ty + "," + ft.tz + "," +
+//                        ft_pid[0] + "," + ft_pid[1] + "," + ft_pid[2] + "," + ft_pid[3] + "," + ft_pid[4] + "," + ft_pid[5] + "," + adj_sign + "," + ILC_sign + "," + max_dis + "," + max_ang + "," + filter_Sign + "," + posAdapt_sign + "," + isNoBlock + ") : " + rtn);
+//            }
+//            return rtn;
+//        } catch (Throwable e) {
+//            if (log != null) {
+//                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
+//            }
+//            return RobotError.ERR_RPC_ERROR;
+//        }
+//    }
+
+
+    /**
+     * @brief  恒力控制
+     * @param  flag 0-关闭恒力控制，1-开启恒力控制
+     * @param  sensor_id 力传感器编号
+     * @param  select  选择六个自由度是否检测碰撞，0-不检测，1-检测
+     * @param  ft  碰撞力/扭矩，fx,fy,fz,tx,ty,tz
+     * @param  ft_pid 力pid参数，力矩pid参数
+     * @param  adj_sign 自适应启停控制，0-关闭，1-开启
+     * @param  ILC_sign ILC启停控制， 0-停止，1-训练，2-实操
+     * @param  max_dis 最大调整距离，单位mm
+     * @param  max_ang 最大调整角度，单位deg
+     * @param  M rx、ry质量参数[0.1-10],默认2
+     * @param  B rx、ry阻尼参数[0.1-50],默认8
+     * @param  threshold rx、ry启动阈值[0-10],默认0.2
+     * @param  adjustCoeff rx、ry力矩调节系数[0-1],默认1
+     * @param  polishRadio 打磨半径，单位mm
+     * @param  filter_Sign 滤波开启标志 0-关；1-开，默认关闭
+     * @param  posAdapt_sign 姿态顺应开启标志 0-关；1-开，默认关闭
+     * @param  isNoBlock 阻塞标志，0-阻塞；1-非阻塞
+     * @return  错误码
+     */
+    public int FT_Control(int flag, int sensor_id, int[] select, ForceTorque ft, double[] ft_pid, int adj_sign, int ILC_sign, double max_dis, double max_ang,double[] M,double[] B, double[] threshold, double[] adjustCoeff, double polishRadio,int filter_Sign, int posAdapt_sign, int isNoBlock)
     {
         if (IsSockComError()) {
             return sockErr;
         }
-        if (GetSafetyCode() != 0) {
+        if (GetSafetyCode() != 0)
+        {
             return GetSafetyCode();
         }
+
         try {
             Object[] selectData={select[0],select[1],select[2],select[3],select[4],select[5]};
-            Object[] ft_pidData={ft_pid[0],ft_pid[1],ft_pid[2],ft_pid[3],ft_pid[4],ft_pid[5]};
             Object[] ftData = {ft.fx, ft.fy, ft.fz, ft.tx, ft.ty, ft.tz};
-            Object[] MB={M[0],M[1],B[0],B[1]};
+            Object[] ft_pidData={ft_pid[0],ft_pid[1],ft_pid[2],ft_pid[3],ft_pid[4],ft_pid[5]};
+            Object[] MB={M[0],M[1],B[0],B[1],threshold[0],threshold[1],adjustCoeff[0],adjustCoeff[1]};
             Object[] params = new Object[]{flag, sensor_id, selectData, ftData, ft_pidData, adj_sign, ILC_sign, max_dis, max_ang,polishRadio, filter_Sign, posAdapt_sign,MB, isNoBlock};
             int rtn = (int) client.execute("FT_Control", params);
             if (log != null) {
@@ -7872,6 +7926,32 @@ public class Robot
         double[] M = { 0.0 };
         double[] B = { 0.0 };
         return FT_Control(flag, sensor_id, select, ft, ft_pid, adj_sign, ILC_sign, max_dis, max_ang, M, B, 0.0, filter_Sign, posAdapt_sign, isNoBlock);
+    }
+
+    /**
+     * @brief  恒力控制
+     * @param  flag 0-关闭恒力控制，1-开启恒力控制
+     * @param  sensor_id 力传感器编号
+     * @param  select  选择六个自由度是否检测碰撞，0-不检测，1-检测
+     * @param  ft  碰撞力/扭矩，fx,fy,fz,tx,ty,tz
+     * @param  ft_pid 力pid参数，力矩pid参数
+     * @param  adj_sign 自适应启停控制，0-关闭，1-开启
+     * @param  ILC_sign ILC启停控制， 0-停止，1-训练，2-实操
+     * @param  max_dis 最大调整距离，单位mm
+     * @param  max_ang 最大调整角度，单位deg
+     * @param  M rx、ry质量参数[0.1-10],默认2
+     * @param  B rx、ry阻尼参数[0.1-50],默认8
+     * @param  polishRadio 打磨半径，单位mm
+     * @param  filter_Sign 滤波开启标志 0-关；1-开，默认关闭
+     * @param  posAdapt_sign 姿态顺应开启标志 0-关；1-开，默认关闭
+     * @param  isNoBlock 阻塞标志，0-阻塞；1-非阻塞
+     * @return  错误码
+     */
+    public int FT_Control(int flag, int sensor_id, int[] select, ForceTorque ft, double[] ft_pid, int adj_sign, int ILC_sign, double max_dis, double max_ang, double[] M,double[] B,double polishRadio, int filter_Sign, int posAdapt_sign, int isNoBlock)
+    {
+        double[] threshold = { 0.0 };
+        double[] adjustCoeff = { 0.0 };
+        return FT_Control(flag, sensor_id, select, ft, ft_pid, adj_sign, ILC_sign, max_dis, max_ang, M, B, threshold, adjustCoeff, polishRadio, filter_Sign, posAdapt_sign, isNoBlock);
     }
 
     /**
@@ -12649,7 +12729,7 @@ public class Robot
                 return rtn;
             }
             Object[] axis = {epos.axis1, epos.axis2, epos.axis3, epos.axis4};
-            rtn = MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, 0,epos,0,  offset_flag, offset_pos, 0,0, 100);
+            rtn = MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, 0,epos,0,  offset_flag, offset_pos, ovl,0,0, 100);
             return rtn;
         }
         catch (Throwable e)
@@ -20593,6 +20673,45 @@ public class Robot
             }
             return RobotError.ERR_RPC_ERROR;
         }
+    }
+
+
+    /**
+     * @brief 开启力矩补偿功能及补偿系数
+     * @param  status 开关，0-关闭；1-开启
+     * @param  torqueCoeff J1-J6力矩补偿系数[0-1]
+     * @return 错误码
+     */
+    public int SerCoderCompenParams(int status, double[] torqueCoeff)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        if (GetSafetyCode() != 0) {
+            return GetSafetyCode();
+        }
+
+        int errcode = 0;
+
+        try {
+            Object[] param = new Object[]{status,torqueCoeff[0],torqueCoeff[1],
+                    torqueCoeff[2],torqueCoeff[3],torqueCoeff[4],torqueCoeff[5]};
+            Object[] params = new Object[]{param};
+            errcode=(int) client.execute("SerCoderCompenParams", params);
+            if (log != null) {
+                log.LogInfo("SerCoderCompenParams: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+
     }
 
     /**

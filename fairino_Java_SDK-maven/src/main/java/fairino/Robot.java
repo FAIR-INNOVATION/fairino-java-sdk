@@ -20,7 +20,7 @@ import org.apache.xmlrpc.client.XmlRpcClientConfigImpl;
 
 public class Robot
 {
-    String SDK_VERSION = "JavaSDK V1.1.1  WebApp V3.9.1";
+    String SDK_VERSION = "JavaSDK V1.1.2  WebApp V3.9.2";
     private String robotIp = "192.168.58.2";//机器人ip
 
     int ROBOT_CMD_PORT = 8080;
@@ -505,7 +505,7 @@ public class Robot
      * @param  user  工件坐标号，范围[0~14]
      * @param  vel  速度百分比，范围[0~100]
      * @param  acc  加速度百分比，范围[0~100],暂不开放
-     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  ovl  速度缩放因子[0~100]/物理速度(mm/s)
      * @param  epos  扩展轴位置，单位mm
      * @param  blendT [-1.0]-运动到位(阻塞)，[0~500.0]-平滑时间(非阻塞)，单位ms
      * @param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
@@ -558,7 +558,7 @@ public class Robot
      * @param  user  工件坐标号，范围[0~14]
      * @param  vel  速度百分比，范围[0~100]
      * @param  acc  加速度百分比，范围[0~100],暂不开放
-     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  ovl  速度缩放因子[0~100]/物理速度(mm/s)
      * @param  epos  扩展轴位置，单位mm
      * @param  blendT [-1.0]-运动到位(阻塞)，[0~500.0]-平滑时间(非阻塞)，单位ms
      * @param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
@@ -595,7 +595,7 @@ public class Robot
      * @param  user  工件坐标号，范围[0~14]
      * @param  vel  速度百分比，范围[0~100]
      * @param  acc  加速度百分比，范围[0~100],暂不开放
-     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  ovl  速度缩放因子[0~100]/物理速度(mm/s)
      * @param  blendR [-1.0]-运动到位(阻塞)，[0~1000.0]-平滑半径(非阻塞)，单位mm
      * @param  epos  扩展轴位置，单位mm
      * @param  search  0-不焊丝寻位，1-焊丝寻位
@@ -605,77 +605,77 @@ public class Robot
      * @param  speedPercent  允许降速阈值百分比[0-100]，默认10%
      * @return  错误码
      */
-    public int MoveL(JointPos joint_pos, DescPose desc_pos, int tool, int user, double vel, double acc, double ovl, double blendR,ExaxisPos epos, int search, int offset_flag, DescPose offset_pos, int overSpeedStrategy, int speedPercent)
-    {
-        if (IsSockComError())
-        {
-            return sockErr;
-        }
-
-        if(GetSafetyCode()!=0){
-            return GetSafetyCode();
-        }
-        try
-        {
-            int rtn = -1;
-            if (overSpeedStrategy > 1)
-            {
-                Object[] paramProtectStart = new Object[] {overSpeedStrategy, speedPercent};
-                rtn = (int)client.execute("JointOverSpeedProtectStart" , paramProtectStart);
-                if (log != null)
-                {
-                    log.LogInfo("JointOverSpeedProtectStart(" + overSpeedStrategy + "," + speedPercent + ") : " + rtn);
-                }
-                if (rtn != 0)
-                {
-                    return rtn;
-                }
-            }
-
-            Object[] joint = {joint_pos.J1, joint_pos.J2, joint_pos.J3, joint_pos.J4, joint_pos.J5, joint_pos.J6};
-            Object[] desc = { desc_pos.tran.x, desc_pos.tran.y, desc_pos.tran.z, desc_pos.rpy.rx, desc_pos.rpy.ry, desc_pos.rpy.rz };;
-            Object[] exteraxis = {epos.axis1, epos.axis2, epos.axis3, epos.axis4};
-            Object[] offect = { offset_pos.tran.x, offset_pos.tran.y, offset_pos.tran.z, offset_pos.rpy.rx, offset_pos.rpy.ry, offset_pos.rpy.rz };
-            Object[] params = new Object[] {joint, desc, tool, user, vel, acc, ovl, blendR, 0, exteraxis, search, offset_flag, offect};
-            rtn = (int)client.execute("MoveL" , params);
-            if (log != null)
-            {
-                log.LogInfo("MoveL(" + joint[0] + "," + joint[1] + "," + joint[2] + "," + joint[3] + "," + joint[4] + "," + joint[5] + "," + desc[0] + "," + desc[1] + "," + desc[2] + "," + desc[3] + "," + desc[4] + "," + desc[5] + "," + tool + "," + user + "," + vel + "," + acc + "," + ovl + "," + blendR +
-                        epos.axis1 + "," + epos.axis2 + "," + epos.axis3 + "," + epos.axis4 + "," + search + "," + offset_flag + "," + offect[0] + "," + offect[1] + "," + offect[2] + "," + offect[3] + "," + offect[4] + "," + offect[5] + ") : " + rtn);
-            }
-
-            if (overSpeedStrategy > 1)
-            {
-                Object[] paramProtectStart = new Object[] {};
-                rtn = (int)client.execute("JointOverSpeedProtectEnd" , params);
-                if (log != null)
-                {
-                    log.LogInfo("JointOverSpeedProtectEnd() : " + rtn);
-                }
-                if (rtn != 0)
-                {
-                    return rtn;
-                }
-            }
-            return rtn;
-        }
-        catch (Throwable e)
-        {
-            if(!IsSockComError())
-            {
-                return MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, epos, search, offset_flag, offset_pos, overSpeedStrategy, speedPercent);
-            }
-            if(e.getMessage().contains("Connection timed out") || e.getMessage().contains("connect timed out"))
-            {
-                MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, epos, search, offset_flag, offset_pos, overSpeedStrategy, speedPercent);
-            }
-            if (log != null)
-            {
-                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
-            }
-            return (int) RobotError.ERR_RPC_ERROR;
-        }
-    }
+//    public int MoveL(JointPos joint_pos, DescPose desc_pos, int tool, int user, double vel, double acc, double ovl, double blendR,ExaxisPos epos, int search, int offset_flag, DescPose offset_pos, int overSpeedStrategy, int speedPercent)
+//    {
+//        if (IsSockComError())
+//        {
+//            return sockErr;
+//        }
+//
+//        if(GetSafetyCode()!=0){
+//            return GetSafetyCode();
+//        }
+//        try
+//        {
+//            int rtn = -1;
+//            if (overSpeedStrategy > 1)
+//            {
+//                Object[] paramProtectStart = new Object[] {overSpeedStrategy, speedPercent};
+//                rtn = (int)client.execute("JointOverSpeedProtectStart" , paramProtectStart);
+//                if (log != null)
+//                {
+//                    log.LogInfo("JointOverSpeedProtectStart(" + overSpeedStrategy + "," + speedPercent + ") : " + rtn);
+//                }
+//                if (rtn != 0)
+//                {
+//                    return rtn;
+//                }
+//            }
+//
+//            Object[] joint = {joint_pos.J1, joint_pos.J2, joint_pos.J3, joint_pos.J4, joint_pos.J5, joint_pos.J6};
+//            Object[] desc = { desc_pos.tran.x, desc_pos.tran.y, desc_pos.tran.z, desc_pos.rpy.rx, desc_pos.rpy.ry, desc_pos.rpy.rz };;
+//            Object[] exteraxis = {epos.axis1, epos.axis2, epos.axis3, epos.axis4};
+//            Object[] offect = { offset_pos.tran.x, offset_pos.tran.y, offset_pos.tran.z, offset_pos.rpy.rx, offset_pos.rpy.ry, offset_pos.rpy.rz };
+//            Object[] params = new Object[] {joint, desc, tool, user, vel, acc, ovl, blendR, 0, exteraxis, search, offset_flag, offect};
+//            rtn = (int)client.execute("MoveL" , params);
+//            if (log != null)
+//            {
+//                log.LogInfo("MoveL(" + joint[0] + "," + joint[1] + "," + joint[2] + "," + joint[3] + "," + joint[4] + "," + joint[5] + "," + desc[0] + "," + desc[1] + "," + desc[2] + "," + desc[3] + "," + desc[4] + "," + desc[5] + "," + tool + "," + user + "," + vel + "," + acc + "," + ovl + "," + blendR +
+//                        epos.axis1 + "," + epos.axis2 + "," + epos.axis3 + "," + epos.axis4 + "," + search + "," + offset_flag + "," + offect[0] + "," + offect[1] + "," + offect[2] + "," + offect[3] + "," + offect[4] + "," + offect[5] + ") : " + rtn);
+//            }
+//
+//            if (overSpeedStrategy > 1)
+//            {
+//                Object[] paramProtectStart = new Object[] {};
+//                rtn = (int)client.execute("JointOverSpeedProtectEnd" , params);
+//                if (log != null)
+//                {
+//                    log.LogInfo("JointOverSpeedProtectEnd() : " + rtn);
+//                }
+//                if (rtn != 0)
+//                {
+//                    return rtn;
+//                }
+//            }
+//            return rtn;
+//        }
+//        catch (Throwable e)
+//        {
+//            if(!IsSockComError())
+//            {
+//                return MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, epos, search, offset_flag, offset_pos, overSpeedStrategy, speedPercent);
+//            }
+//            if(e.getMessage().contains("Connection timed out") || e.getMessage().contains("connect timed out"))
+//            {
+//                MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, epos, search, offset_flag, offset_pos, overSpeedStrategy, speedPercent);
+//            }
+//            if (log != null)
+//            {
+//                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
+//            }
+//            return (int) RobotError.ERR_RPC_ERROR;
+//        }
+//    }
 
     /**
      * @brief  笛卡尔空间直线运动(旧)
@@ -685,7 +685,7 @@ public class Robot
      * @param  user  工件坐标号，范围[0~14]
      * @param  vel  速度百分比，范围[0~100]
      * @param  acc  加速度百分比，范围[0~100],暂不开放
-     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  ovl  速度缩放因子[0~100]/物理速度(mm/s)
      * @param  blendR [-1.0]-运动到位(阻塞)，[0~1000.0]-平滑半径(非阻塞)，单位mm
      * @param  blendMode 过渡方式；0-内切过渡；1-角点过渡
      * @param  epos  扩展轴位置，单位mm
@@ -775,7 +775,7 @@ public class Robot
      * @param  user  工件坐标号，范围[0~14]
      * @param  vel  速度百分比，范围[0~100]
      * @param  acc  加速度百分比，范围[0~100],暂不开放
-     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  ovl  速度缩放因子[0~100]/物理速度(mm/s)
      * @param  blendR [-1.0]-运动到位(阻塞)，[0~1000.0]-平滑半径(非阻塞)，单位mm
      * @param  blendMode 过渡方式；0-内切过渡；1-角点过渡
      * @param  epos  扩展轴位置，单位mm
@@ -815,7 +815,7 @@ public class Robot
      * @param  user  工件坐标号，范围[1~15]
      * @param  vel  速度百分比，范围[0~100]
      * @param  acc  加速度百分比，范围[0~100],暂不开放
-     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  ovl  速度缩放因子[0~100]/物理速度(mm/s)
      * @param  blendR [-1.0]-运动到位(阻塞)，[0~1000.0]-平滑半径(非阻塞)，单位mm
      * @param  blendMode 过渡方式；0-内切过渡；1-角点过渡
      * @param  epos  扩展轴位置，单位mm
@@ -918,7 +918,7 @@ public class Robot
      * @param  user  工件坐标号，范围[1~15]
      * @param  vel  速度百分比，范围[0~100]
      * @param  acc  加速度百分比，范围[0~100],暂不开放
-     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  ovl  速度缩放因子[0~100]/物理速度(mm/s)
      * @param  blendR [-1.0]-运动到位(阻塞)，[0~1000.0]-平滑半径(非阻塞)，单位mm
      * @param  blendMode 过渡方式；0-内切过渡；1-角点过渡
      * @param  epos  扩展轴位置，单位mm
@@ -963,18 +963,17 @@ public class Robot
      * @param  user  工件坐标号，范围[1~15]
      * @param  vel  速度百分比，范围[0~100]
      * @param  acc  加速度百分比，范围[0~100],暂不开放
-     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  ovl  速度缩放因子[0~100]/物理速度(mm/s)
      * @param  blendR [-1.0]-运动到位(阻塞)，[0~1000.0]-平滑半径(非阻塞)，单位mm
      * @param  epos  扩展轴位置，单位mm
      * @param  search  0-不焊丝寻位，1-焊丝寻位
      * @param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
      * @param  offset_pos  位姿偏移量
-     * @param  velAccParamMode 速度加速度参数模式；0-百分比；1-物理速度(mm/s)加速度(mm/s2)
      * @param  overSpeedStrategy  超速处理策略，1-标准；2-超速时报错停止；3-自适应降速，默认为0
      * @param  speedPercent  允许降速阈值百分比[0-100]，默认10%
      * @return  错误码
      */
-    public int MoveL(JointPos joint_pos, DescPose desc_pos, int tool, int user, double vel, double acc, double ovl, double blendR, ExaxisPos epos, int search, int offset_flag, DescPose offset_pos, int velAccParamMode, int overSpeedStrategy, int speedPercent)
+    public int MoveL(JointPos joint_pos, DescPose desc_pos, int tool, int user, double vel, double acc, double ovl, double blendR, ExaxisPos epos, int search, int offset_flag, DescPose offset_pos, int overSpeedStrategy, int speedPercent)
     {
         int errcode = MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, 0/*blendMode*/, epos, search, offset_flag, offset_pos, ovl,0/*velAccParamMode*/, overSpeedStrategy, speedPercent);
 
@@ -1001,7 +1000,7 @@ public class Robot
      * @param  epos_t  扩展轴位置，单位mm
      * @param  toffset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
      * @param  offset_pos_t  位姿偏移量
-     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  ovl  速度缩放因子[0~100]/物理速度(mm/s)
      * @param  blendR [-1.0]-运动到位(阻塞)，[0~1000.0]-平滑半径(非阻塞)，单位mm
      * @return  错误码
      */
@@ -1070,7 +1069,7 @@ public class Robot
      * @param  epos_t  扩展轴位置，单位mm
      * @param  toffset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
      * @param  offset_pos_t  位姿偏移量
-     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  ovl  速度缩放因子[0~100]/物理速度(mm/s)
      * @param  blendR [-1.0]-运动到位(阻塞)，[0~1000.0]-平滑半径(非阻塞)，单位mm
      * @param  config 逆解关节空间配置，[-1]-参考当前关节位置解算，[0~7]-依据特定关节空间配置求解
      * @return  错误码
@@ -1123,7 +1122,7 @@ public class Robot
      * @param  epos_t  扩展轴位置，单位mm
      * @param  toffset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
      * @param  offset_pos_t  位姿偏移量
-     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  ovl  速度缩放因子[0~100]/物理速度(mm/s)
      * @param  blendR [-1.0]-运动到位(阻塞)，[0~1000.0]-平滑半径(非阻塞)，单位mm
      * @param  oacc 加速度缩放因子[0-100]/物理加速度(mm/s2)
      * @param  velAccParamMode 速度加速度参数模式；0-百分比；1-物理速度(mm/s)加速度(mm/s2)
@@ -1192,7 +1191,7 @@ public class Robot
      * @param  epos_t  扩展轴位置，单位mm
      * @param  toffset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
      * @param  offset_pos_t  位姿偏移量
-     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  ovl  速度缩放因子[0~100]/物理速度(mm/s)
      * @param  blendR [-1.0]-运动到位(阻塞)，[0~1000.0]-平滑半径(非阻塞)，单位mm
      * @param  config 逆解关节空间配置，[-1]-参考当前关节位置解算，[0~7]-依据特定关节空间配置求解
      * @param  velAccParamMode 速度加速度参数模式；0-百分比；1-物理速度(mm/s)加速度(mm/s2)
@@ -1245,7 +1244,7 @@ public class Robot
      * @param  tvel  速度百分比，范围[0~100]
      * @param  tacc  加速度百分比，范围[0~100],暂不开放
      * @param  epos_t  扩展轴位置，单位mm
-     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  ovl  速度缩放因子[0~100]/物理速度(mm/s)
      * @param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
      * @param  offset_pos  位姿偏移量
      * @return  错误码
@@ -1312,10 +1311,10 @@ public class Robot
      * @param  tvel  速度百分比，范围[0~100]
      * @param  tacc  加速度百分比，范围[0~100],暂不开放
      * @param  epos_t  扩展轴位置，单位mm
-     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  ovl  速度缩放因子[0~100]/物理速度(mm/s)
      * @param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
      * @param  offset_pos  位姿偏移量
-     * @param  oacc 加速度百分比
+     * @param  oacc 加速度缩放因子[0-100]/物理加速度(mm/s2)
      * @param  blendR -1：阻塞；0~1000：平滑半径
      * @return  错误码
      */
@@ -1381,10 +1380,10 @@ public class Robot
      * @param  tvel  速度百分比，范围[0~100]
      * @param  tacc  加速度百分比，范围[0~100],暂不开放
      * @param  epos_t  扩展轴位置，单位mm
-     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  ovl  速度缩放因子[0~100]/物理速度(mm/s)
      * @param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
      * @param  offset_pos  位姿偏移量
-     * @param  oacc 加速度百分比
+     * @param  oacc 加速度缩放因子[0-100]/物理加速度(mm/s2)
      * @param  blendR -1：阻塞；0~1000：平滑半径
      * @param  config 逆解关节空间配置，[-1]-参考当前关节位置解算，[0~7]-依据特定关节空间配置求解
      * @return  错误码
@@ -1420,28 +1419,28 @@ public class Robot
     }
 
     /**
-     *@brief  笛卡尔空间整圆运动
-     *@param  joint_pos_p  路径点1关节位置,单位deg
-     *@param  desc_pos_p   路径点1笛卡尔位姿
-     *@param  ptool  工具坐标号，范围[1~15]
-     *@param  puser  工件坐标号，范围[1~15]
-     *@param  pvel  速度百分比，范围[0~100]
-     *@param  pacc  加速度百分比，范围[0~100],暂不开放
-     *@param  epos_p  扩展轴位置，单位mm
-     *@param  joint_pos_t  路径点2关节位置,单位deg
-     *@param  desc_pos_t   路径点2笛卡尔位姿
-     *@param  ttool  工具坐标号，范围[1~15]
-     *@param  tuser  工件坐标号，范围[1~15]
-     *@param  tvel  速度百分比，范围[0~100]
-     *@param  tacc  加速度百分比，范围[0~100],暂不开放
-     *@param  epos_t  扩展轴位置，单位mm
-     *@param  ovl  速度缩放因子，范围[0~100]
-     *@param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
-     *@param  offset_pos  位姿偏移量
-     *@param  oacc 加速度百分比
-     *@param  blendR -1：阻塞；0~1000：平滑半径
-     *@param  velAccParamMode 速度加速度参数模式；0-百分比；1-物理速度(mm/s)加速度(mm/s2)
-     *@return  错误码
+     * @brief  笛卡尔空间整圆运动
+     * @param  joint_pos_p  路径点1关节位置,单位deg
+     * @param  desc_pos_p   路径点1笛卡尔位姿
+     * @param  ptool  工具坐标号，范围[1~15]
+     * @param  puser  工件坐标号，范围[1~15]
+     * @param  pvel  速度百分比，范围[0~100]
+     * @param  pacc  加速度百分比，范围[0~100],暂不开放
+     * @param  epos_p  扩展轴位置，单位mm
+     * @param  joint_pos_t  路径点2关节位置,单位deg
+     * @param  desc_pos_t   路径点2笛卡尔位姿
+     * @param  ttool  工具坐标号，范围[1~15]
+     * @param  tuser  工件坐标号，范围[1~15]
+     * @param  tvel  速度百分比，范围[0~100]
+     * @param  tacc  加速度百分比，范围[0~100],暂不开放
+     * @param  epos_t  扩展轴位置，单位mm
+     * @param  ovl  速度缩放因子[0~100]/物理速度(mm/s)
+     * @param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
+     * @param  offset_pos  位姿偏移量
+     * @param  oacc 加速度缩放因子[0-100]/物理加速度(mm/s2)
+     * @param  blendR -1：阻塞；0~1000：平滑半径
+     * @param  velAccParamMode 速度加速度参数模式；0-百分比；1-物理速度(mm/s)加速度(mm/s2)
+     * @return  错误码
      */
     public int Circle(JointPos joint_pos_p, DescPose desc_pos_p, int ptool, int puser, double pvel, double pacc, ExaxisPos epos_p, JointPos joint_pos_t, DescPose desc_pos_t, int ttool, int tuser, double tvel, double tacc, ExaxisPos epos_t, double ovl, int offset_flag, DescPose offset_pos, double oacc, double blendR, int velAccParamMode)
     {
@@ -1507,10 +1506,10 @@ public class Robot
      * @param  tvel  速度百分比，范围[0~100]
      * @param  tacc  加速度百分比，范围[0~100],暂不开放
      * @param  epos_t  扩展轴位置，单位mm
-     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  ovl  速度缩放因子[0~100]/物理速度(mm/s)
      * @param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
      * @param  offset_pos  位姿偏移量
-     * @param  oacc 加速度百分比
+     * @param  oacc 加速度缩放因子[0-100]/物理加速度(mm/s2)
      * @param  blendR -1：阻塞；0~1000：平滑半径
      * @param  config 逆解关节空间配置，[-1]-参考当前关节位置解算，[0~7]-依据特定关节空间配置求解
      * @param  velAccParamMode 速度加速度参数模式；0-百分比；1-物理速度(mm/s)加速度(mm/s2)
@@ -7923,8 +7922,8 @@ public class Robot
      */
     public int FT_Control(int flag, int sensor_id, int[] select, ForceTorque ft, double[] ft_pid, int adj_sign, int ILC_sign, double max_dis, double max_ang,int filter_Sign, int posAdapt_sign, int isNoBlock)
     {
-        double[] M = { 0.0 };
-        double[] B = { 0.0 };
+        double[] M = { 0.0,0.0 };
+        double[] B = { 0.0,0.0 };
         return FT_Control(flag, sensor_id, select, ft, ft_pid, adj_sign, ILC_sign, max_dis, max_ang, M, B, 0.0, filter_Sign, posAdapt_sign, isNoBlock);
     }
 
@@ -7949,8 +7948,8 @@ public class Robot
      */
     public int FT_Control(int flag, int sensor_id, int[] select, ForceTorque ft, double[] ft_pid, int adj_sign, int ILC_sign, double max_dis, double max_ang, double[] M,double[] B,double polishRadio, int filter_Sign, int posAdapt_sign, int isNoBlock)
     {
-        double[] threshold = { 0.0 };
-        double[] adjustCoeff = { 0.0 };
+        double[] threshold = { 0.0 ,0.0};
+        double[] adjustCoeff = { 0.0,0.0 };
         return FT_Control(flag, sensor_id, select, ft, ft_pid, adj_sign, ILC_sign, max_dis, max_ang, M, B, threshold, adjustCoeff, polishRadio, filter_Sign, posAdapt_sign, isNoBlock);
     }
 
@@ -9923,6 +9922,7 @@ public class Robot
             int weldNum = 0;
             int noWeldNum = 0;
             int i = 0;
+            System.out.println("次数:"+(int)(distance / (weldLength + noWeldLength)) * 2 + 2);
             while (i < (int)(distance / (weldLength + noWeldLength)) * 2 + 2)
             {
                 if (i % 2 == 0)
@@ -9943,7 +9943,8 @@ public class Robot
                                 return rtn;
                             }
                         }
-                        rtn = MoveL(endJPos, endDesePos, tool, user, vel, acc, ovl, blendR, epos, search, 0, offset_pos, 0, 100);
+                        rtn = MoveL(endJPos, endDesePos, tool, user, vel, acc, ovl, blendR, epos, search, offset_flag, offset_pos, 0, 10);
+
                         if (rtn != 0)
                         {
                             ARCEnd(weldIOType, arcNum, weldTimeout);
@@ -9978,6 +9979,7 @@ public class Robot
                         DescPose tmpWeldDesc = new DescPose(0, 0, 0, 0, 0, 0);
                         JointPos tmpJoint = new JointPos(0, 0, 0, 0, 0, 0);
                         Coord coord  = new Coord();
+
                         rtn = GetSegmentWeldPoint(startDesePos, endDesePos, weldNum * weldLength + noWeldNum * noWeldLength, tmpWeldDesc, tmpJoint, coord);
                         if (rtn != 0)
                         {
@@ -9996,7 +9998,7 @@ public class Robot
                                 return rtn;
                             }
                         }
-                        rtn = MoveL(tmpJoint, tmpWeldDesc, coord.tool, coord.user, vel, acc, ovl, blendR,epos, search, 0, endOffPos, 0, 1000);
+                        rtn = MoveL(tmpJoint, tmpWeldDesc, coord.tool, coord.user, vel, acc, ovl, blendR,epos, search, 0, endOffPos,0,10);
                         if (rtn != 0)
                         {
                             ARCEnd(weldIOType, arcNum, weldTimeout);
@@ -10030,7 +10032,7 @@ public class Robot
                     noWeldNum += 1;
                     if (weldNum * weldLength + noWeldNum * noWeldLength > distance)
                     {
-                        rtn = MoveL(endJPos, endDesePos, tool, user, vel, acc, ovl, blendR,epos, search, 0, offset_pos, 0, 100);
+                        rtn = MoveL(endJPos, endDesePos, tool, user, vel, acc, ovl, blendR,epos, search, 0, offset_pos,0, 100);
                         if (rtn != 0)
                         {
                             return rtn;
@@ -10044,11 +10046,12 @@ public class Robot
                         JointPos tmpJoint = new JointPos(0, 0, 0, 0, 0, 0);
                         Coord coord = new Coord();
                         rtn = GetSegmentWeldPoint(startDesePos, endDesePos, weldNum * weldLength + noWeldNum * noWeldLength, tmpWeldDesc, tmpJoint, coord);
+
                         if (rtn != 0)
                         {
                             return rtn;
                         }
-                        rtn = MoveL(tmpJoint, tmpWeldDesc, coord.tool, coord.user, vel, acc, ovl, blendR, epos, search, 0, offset_pos,0,100);
+                        rtn = MoveL(tmpJoint, tmpWeldDesc, coord.tool, coord.user, vel, acc, ovl, blendR, epos, search, offset_flag, offset_pos,0,100);
                         if (rtn != 0)
                         {
                             return rtn;
@@ -10068,7 +10071,6 @@ public class Robot
             return RobotError.ERR_RPC_ERROR;
         }
     }
-
 
     /**
      * @brief CI功能配置
@@ -20712,6 +20714,418 @@ public class Robot
             return RobotError.ERR_RPC_ERROR;
         }
 
+    }
+
+    /**
+     * @brief 激光焊缝轨迹复现
+     * @param delayMode 模式 0-延时时间 1-延时距离
+     * @param delayTime 延时时间 单位ms
+     * @param delayDisExAxisNum 扩展轴编号
+     * @param delayDis 延时距离 单位mm
+     * @param sensitivePara 补偿灵敏系数
+     * @param trackMode 定点跟踪类型。0-扩展轴异步运动；1-机器人
+     * @param triggerMode 定点跟踪触发方式。0-跟踪时长；1-IO
+     * @param runTime 机器人定点跟踪时长(s)
+     * @param speed 速度 单位%
+     * @return 错误码
+     */
+    public int LaserSensorRecordandReplay(int delayMode, int delayTime, int delayDisExAxisNum, double delayDis, double sensitivePara, int trackMode, int triggerMode, double runTime, double speed)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        int errcode = 0;
+
+        try {
+            Object[] params = new Object[]{4, delayTime, speed, delayMode, delayDisExAxisNum, delayDis,
+                                sensitivePara, trackMode, triggerMode, runTime};
+            errcode=(int) client.execute("LaserSensorRecordandReplay", params);
+            if (log != null) {
+                log.LogInfo("LaserSensorRecordandReplay: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 原地空运动
+     * @return 错误码
+     */
+    public int MoveStationary()
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        int errcode = 0;
+
+        try {
+            Object[] params = new Object[]{};
+            errcode=(int) client.execute("MoveStationary", params);
+            if (log != null) {
+                log.LogInfo("MoveStationary: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 旋转插入
+     * @param rcs 参考坐标系，0-工具坐标系，1-基坐标系
+     * @param angVelRot 旋转角速度，单位deg/s
+     * @param ft  力/扭矩阈值，fx,fy,fz,tx,ty,tz，范围[0~100]
+     * @param max_angle 最大旋转角度，单位deg
+     * @param orn 力/扭矩方向，1-沿z轴方向，2-绕z轴方向
+     * @param max_angAcc 最大旋转加速度，单位deg/s^2，暂不使用，默认为0
+     * @param rotorn  旋转方向，1-顺时针，2-逆时针
+     * @param strategy 未检测到力/力矩的处理策略，0-报错；1-警告，继续运动
+     * @return  错误码
+     */
+    public int FT_RotInsertion(int rcs, double angVelRot, double ft, double max_angle, int orn, double max_angAcc, int rotorn, int strategy)
+    {
+
+
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        if (GetSafetyCode() != 0) {
+            return GetSafetyCode();
+        }
+
+        int errcode = 0;
+
+        try {
+            Object[] params = new Object[]{rcs,angVelRot,ft,max_angle,orn,max_angAcc,rotorn,strategy};
+            errcode=(int) client.execute("FT_RotInsertion", params);
+            if (log != null) {
+                log.LogInfo("FT_RotInsertion: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 光电传感器TCP标定-计算工具RPY
+     * @param  Btool 机器人笛卡尔位置
+     * @param  Etool 当前工具坐标系数值
+     * @param  sensor 当前传感器坐标系数值(暂未开放)
+     * @param  radius 圆周运动半径mm(暂未开放)
+     * @param  dz 沿基座标系z轴负方向运动距离；当dz = 10000时，函数直接返回工具RPY
+     * @param  TCPRPY 工具RPY数值
+     * @return 错误码
+     */
+    public int TCPComputeRPY(DescPose Btool, DescPose Etool, DescPose sensor, double radius, double dz, Rpy TCPRPY)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        int errcode = 0;
+
+        try {
+            Object[] param = new Object[24];
+            param[0] = Btool.tran.x;
+            param[1] = Btool.tran.y;
+            param[2] = Btool.tran.z;
+            param[3] = Btool.rpy.rx;
+            param[4] = Btool.rpy.ry;
+            param[5] = Btool.rpy.rz;
+            param[6] = Etool.tran.x;
+            param[7] = Etool.tran.y;
+            param[8] = Etool.tran.z;
+            param[9] = Etool.rpy.rx;
+            param[10] = Etool.rpy.ry;
+            param[11] = Etool.rpy.rz;
+            param[12] = sensor.tran.x;
+            param[13] = sensor.tran.y;
+            param[14] = sensor.tran.z;
+            param[15] = sensor.rpy.rx;
+            param[16] = sensor.rpy.ry;
+            param[17] = sensor.rpy.rz;
+            param[18] = radius;
+            param[19] = dz;
+            param[20] = 0.0;
+            param[21] = 0.0;
+            param[22] = 0.0;
+            param[23] = 0.0;
+            Object[] params = new Object[]{param};
+            Object[] result = (Object[]) client.execute("TCPComputeRPY", params);
+            errcode=(int)result[0];
+            if(errcode==0){
+                TCPRPY.rx = (Double)(result[1]);
+                TCPRPY.ry = (double)(result[2]);
+                TCPRPY.rz = (double)(result[3]);
+            }
+
+            if (log != null) {
+                log.LogInfo("TCPComputeRPY: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 光电传感器TCP标定-计算工具XYZ
+     * @param  select 0-计算工具TCP；1-计算传感器原点；2-计算传感器姿态；3-直接返回工具TCP；4-记录当前工件坐标系和工具坐标系
+     * @param  originDirection 0-X方向；1-Y方向；2-Z方向
+     * @param  pos1 机器人笛卡尔位置1
+     * @param  pos2 机器人笛卡尔位置2
+     * @param  pos3 机器人笛卡尔位置3
+     * @param  pos4 机器人笛卡尔位置4
+     * @param  TCP 工具XYZ数值
+     * @return 错误码
+     */
+    public int TCPComputeXYZ(int select, double originDirection, DescTran pos1, DescTran pos2, DescTran pos3, DescTran pos4, DescTran TCP)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+
+        int errcode = 0;
+
+        try {
+            Object[] param = new Object[14];
+            param[0] = select;
+            param[1] = originDirection;
+            param[2] = pos1.x;
+            param[3] = pos1.y;
+            param[4] = pos1.z;
+            param[5] = pos2.x;
+            param[6] = pos2.y;
+            param[7] = pos2.z;
+            param[8] = pos3.x;
+            param[9] = pos3.y;
+            param[10] = pos3.z;
+            param[11] = pos4.x;
+            param[12] = pos4.y;
+            param[13] = pos4.z;
+            Object[] params = new Object[]{param};
+            Object[] result = (Object[]) client.execute("TCPComputeXYZ", params);
+            errcode=(int)result[0];
+            if(errcode==0){
+                TCP.x = (double)(result[1]);
+                TCP.y = (double)(result[2]);
+                TCP.z = (double)(result[3]);
+            }
+
+            if (log != null) {
+                log.LogInfo("TCPComputeXYZ: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 光电传感器TCP标定-开始记录末端法兰中心位置
+     * @return 错误码
+     */
+    public int TCPRecordFlangePosStart()
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+
+        int errcode = 0;
+
+        try {
+            Object[] params = new Object[]{};
+            errcode = (int) client.execute("TCPRecordFlangePosStart", params);
+
+            if (log != null) {
+                log.LogInfo("TCPRecordFlangePosStart: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 光电传感器TCP标定-停止记录末端法兰中心位置
+     * @return 错误码
+     */
+    public int TCPRecordFlangePosEnd()
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+
+        int errcode = 0;
+
+        try {
+            Object[] params = new Object[]{};
+            errcode = (int) client.execute("TCPRecordFlangePosEnd", params);
+
+            if (log != null) {
+                log.LogInfo("TCPRecordFlangePosEnd: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+
+    /**
+     * @brief 光电传感器TCP标定-获取末端工具中心点位置
+     * @param  TCP 工具中心点位置(x,y,z)
+     * @return 错误码
+     */
+    public int TCPGetRecordFlangePos(DescTran TCP)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+
+        int errcode = 0;
+
+        try {
+            Object[] params = new Object[]{};
+            Object[] result = (Object[]) client.execute("TCPGetRecordFlangePos", params);
+            errcode=(int)result[0];
+            if(errcode==0){
+                TCP.x = (double)(result[1]);
+                TCP.y = (double)(result[2]);
+                TCP.z = (double)(result[3]);
+            }
+
+            if (log != null) {
+                log.LogInfo("TCPGetRecordFlangePos: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 光电传感器TCP标定
+     * @param luaPath 自动标定lua程序路径：QX版本机器人-"/fruser/FR_CalibrateTheToolTcp.lua";LA版本机器人-"/usr/local/etc/controller/lua/FR_CalibrateTheToolTcp.lua"
+     * @param offset 示教点偏移(x,y,z)mm
+     * @param TCP 标定后的工具坐标系(x,y,z,rx,ry,rz)
+     * @return 错误码
+     */
+    public int PhotoelectricSensorTCPCalibration(String luaPath, DescTran offset, DescPose TCP)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        int rtn = 0;
+
+        rtn = SetSysVarValue(1, offset.x);
+        if (rtn != 0)
+        {
+            return rtn;
+        }
+        rtn = SetSysVarValue(2, offset.y);
+        if (rtn != 0)
+        {
+            return rtn;
+        }
+        rtn = SetSysVarValue(3, offset.z);
+        if (rtn != 0)
+        {
+            return rtn;
+        }
+
+        rtn = Mode(0);
+        if (rtn != 0)
+        {
+            return rtn;
+        }
+
+        rtn = ProgramLoad(luaPath);
+        if (rtn != 0)
+        {
+            return rtn;
+        }
+        rtn = ProgramRun();
+        if (rtn != 0)
+        {
+            return rtn;
+        }
+
+        Sleep(2 * 1000);
+
+        ROBOT_STATE_PKG robot_state_pkg=GetRobotRealTimeState();
+        while (robot_state_pkg.program_state != 1)
+        {
+            robot_state_pkg=GetRobotRealTimeState();
+            Sleep(200);
+        }
+
+        DescTran pos1 = new DescTran();
+        DescTran pos2 = new DescTran();
+        DescTran pos3 = new DescTran();
+        DescTran pos4 = new DescTran();
+
+        rtn = TCPComputeXYZ(3, 0, pos1, pos2, pos3, pos4, TCP.tran);
+        if (rtn != 0)
+        {
+            return rtn;
+        }
+        DescPose Btool = new DescPose();
+        DescPose Etool = new DescPose();
+        DescPose sensor = new DescPose();
+        double radius = 1.0;
+        rtn = TCPComputeRPY(Btool, Etool, sensor, radius, 10000, TCP.rpy);
+        return rtn;
     }
 
     /**

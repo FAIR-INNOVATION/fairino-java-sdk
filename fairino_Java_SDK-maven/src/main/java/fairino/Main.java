@@ -371,7 +371,7 @@ public class Main {
 //        TestCustomWeaveSetPara(robot);
 
 //                testLaserRecordAndReplayMoveC(robot);
-        TestFTControlWithAdjustCoeff(robot);
+//        TestFTControlWithAdjustCoeff(robot);
 //        testLasertrackMoveC(robot);
 //        TestSensitivityCalib(robot);
 //        TestServoJ_1015(robot);
@@ -380,7 +380,9 @@ public class Main {
 //        TestFTControlWithDamping(robot);
 //                ServoJTWithSafety(robot);
 //        TestIntersectLineMove(robot);
-//        robot.CloseRPC();//关闭连接
+//        test_RecordandReplay(robot);
+                TestRotInsert(robot);
+        robot.CloseRPC();//关闭连接
 //
 ////        while (true)
 ////        {
@@ -392,6 +394,74 @@ public class Main {
 //        JointPos pos = new JointPos();
 //        robot.GetActualJointPosDegree(1, pos);
         //System.out.println("J1: " + Double.toString(pos.J1) + "   J2: " + Double.toString(pos.J2) +"    J3: " + Double.toString(pos.J3) +"J4: "  + Double.toString(pos.J4) + "J5: " + Double.toString(pos.J5) +"J6: " + Double.toString(pos.J6));
+    }
+
+    public static void TestPhotoelectricSensorTCPCalib(Robot robot)
+    {
+        DescTran offset = new DescTran(10.0, 10.0, 3.0 );
+        DescPose TCP = new DescPose();
+        int rtn = robot.PhotoelectricSensorTCPCalibration("/fruser/FR_CalibrateTheToolTcp.lua", offset, TCP);
+        System.out.printf("PhotoelectricSensorTCPCalibration rtn is %d %f %f %f %f %f %f \n", rtn, TCP.tran.x, TCP.tran.y, TCP.tran.z, TCP.rpy.rx, TCP.rpy.ry, TCP.rpy.rz);
+        robot.CloseRPC();
+        robot.Sleep(9999999);
+    }
+
+    public static void TestRotInsert(Robot robot)
+    {
+        double forceInsertion = 2.0; //力或力矩阈值（0~100），单位N或Nm
+        int angleMax = 12; //最大旋转角度，单位°
+        int orn = 2; //力的方向，1-fz,2-mz
+        double angAccmax = 5; //最大旋转角加速度，单位°/s^2,暂不使用
+        int status = 1;  //恒力控制开启标志，0-关，1-开
+        int sensor_num = 2; //力传感器编号
+        double[] gain = { 0.0001,0.0,0.0,0.0,0.0,0.0 };  //最大阈值
+        int adj_sign = 0;  //自适应启停状态，0-关闭，1-开启
+        int ILC_sign = 0;  //ILC控制启停状态，0-停止，1-训练，2-实操
+        double max_dis = 1000.0;  //最大调整距离
+        double max_ang = 5.0;  //最大调整角度
+        ForceTorque ft=new ForceTorque(0,0,0,0,0,0);
+        int rcs = 0;  //参考坐标系，0-工具坐标系，1-基坐标系
+        double angVelRot = 2.0;  //旋转角速度，单位°/s
+        int rotorn = 1; //旋转方向，1-顺时针，2-逆时针
+
+        JointPos j1=new JointPos(58.417, -85.578, -100.516, -83.915, 90.000, -31.662);
+        JointPos j2=new JointPos(58.417, -87.111, -107.956, -74.942, 90.000, -31.662);
+        DescPose desc_p1=new DescPose(328.796, 339.109, 433.617, 179.993, 0.005, 0.079);
+        DescPose desc_p2=new DescPose(328.795, 339.109, 373.605, 179.993, 0.005, 0.079);
+        ExaxisPos epos =new ExaxisPos( 0.0, 0.0, 0.0, 0.0 );
+        DescPose offset_pos=new DescPose(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+
+        robot.MoveL(j1, desc_p1, 0, 0, 100.0, 180.0, 100.0, -1.0, epos, 0, 1, offset_pos,0,10);
+        int[] select3 = { 0,0,1,0,0,0 };  //六个自由度选择[fx,fy,fz,mx,my,mz]，0-不生效，1-生效
+        ft.fz = -10.0;
+        gain[0] = 0.0001;
+        status = 1;
+        robot.FT_Control(status, sensor_num, select3, ft, gain, adj_sign, ILC_sign, max_dis, max_ang, 0, 0, 0);
+        int rtn = robot.FT_RotInsertion(rcs, angVelRot, forceInsertion, angleMax, orn, angAccmax, rotorn, 1);
+        System.out.printf("FT_RotInsertion rtn is %d\n", rtn);
+        status = 0;
+        robot.FT_Control(status, sensor_num, select3, ft, gain, adj_sign, ILC_sign, max_dis, max_ang, 0, 0, 0);
+        robot.MoveL(j2, desc_p2, 0, 0, 100.0, 180.0, 100.0, -1.0, epos, 0, 0, offset_pos,0,10);
+        robot.Sleep(1000);
+        ROBOT_STATE_PKG pkg=robot.GetRobotRealTimeState();
+        System.out.printf("robot errcode %d  %d\n", pkg.main_code, pkg.sub_code);
+        robot.CloseRPC();
+    }
+
+
+    public static void test_RecordandReplay(Robot robot)
+    {
+
+        int rtn = robot.LaserSensorRecordandReplay(0, 10, 1, 0, 0.1, 1, 1, 10, 100);
+        System.out.printf("LaserSensorRecordandReplay rtn is %d\n", rtn);
+        rtn = robot.MoveStationary();
+        System.out.printf("MoveStationary rtn is %d\n", rtn);
+        rtn = robot.LaserSensorRecord1(0, 10);
+        System.out.printf("LaserSensorRecordandReplay rtn is %d\n", rtn);
+
+        robot.CloseRPC();
+
+        robot.Sleep(9999999);
     }
 
 
@@ -1016,6 +1086,7 @@ public class Main {
 //
 //    }
 
+
     public static void testLasertrackMoveC(Robot robot)
     {
 
@@ -1199,7 +1270,7 @@ public class Main {
         robot.WeaveEnd(0);
         robot.MoveJ(j1, desc_p1, 3, 0, 100, 100, 100, epos, -1, 0, offset_pos);
         robot.WeaveStart(0);
-        robot.MoveL(j2, desc_p2, 3, 0, 100, 100, 10, -1,epos, 0, 0, offset_pos, 0,0, 100);
+        robot.MoveL(j2, desc_p2, 3, 0, 100, 100, 10, -1,epos, 0, 0, offset_pos, 0, 100);
         robot.WeaveEnd(0);
 
         robot.CloseRPC();
@@ -3140,7 +3211,6 @@ public class Main {
         System.out.printf("movej errcode:%d\n", rtn);
         rtn = robot.Circle(desc_pos3, tool, user, vel, acc, epos, desc_pos1, tool, user, vel, acc, epos, ovl, flag, offset_pos, oacc, blendR, -1, velAccMode);
         System.out.printf("circle errcode:%d\n", rtn);
-
         return 0;
     }
 

@@ -381,7 +381,10 @@ public class Main {
 //                ServoJTWithSafety(robot);
 //        TestIntersectLineMove(robot);
 //        test_RecordandReplay(robot);
-                TestRotInsert(robot);
+//                TestRotInsert(robot);
+//        TestInverseKinExaxis(robot);
+//        TestServoCart1(robot);
+        TestDOReset(robot);
         robot.CloseRPC();//关闭连接
 //
 ////        while (true)
@@ -394,6 +397,85 @@ public class Main {
 //        JointPos pos = new JointPos();
 //        robot.GetActualJointPosDegree(1, pos);
         //System.out.println("J1: " + Double.toString(pos.J1) + "   J2: " + Double.toString(pos.J2) +"    J3: " + Double.toString(pos.J3) +"J4: "  + Double.toString(pos.J4) + "J5: " + Double.toString(pos.J5) +"J6: " + Double.toString(pos.J6));
+    }
+
+    public static void TestDOReset(Robot robot)
+    {
+        for (int i = 0; i < 16; i++)
+        {
+            robot.SetDO(i, 1, 0, 0);
+            robot.Sleep(200);
+        }
+
+        int resetFlag = 1;
+        int resumeReloadFlag = 1;
+        int rtn = robot.SetOutputResetCtlBoxDO(resetFlag, resumeReloadFlag);
+        robot.SetOutputResetCtlBoxAO(resetFlag, resumeReloadFlag);
+        robot.SetOutputResetAxleDO(resetFlag, resumeReloadFlag);
+        robot.SetOutputResetAxleAO(resetFlag, resumeReloadFlag);
+        robot.SetOutputResetExtDO(resetFlag, resumeReloadFlag);
+        robot.SetOutputResetExtAO(resetFlag, resumeReloadFlag);
+        robot.SetOutputResetSmartToolDO(resetFlag, resumeReloadFlag);
+
+        robot.ProgramLoad("/fruser/test.lua");
+        robot.ProgramRun();
+
+        robot.Sleep(2000);
+        robot.PauseMotion();
+        robot.Sleep(2000);
+        robot.ResumeMotion();
+        robot.Sleep(2000);
+
+        robot.CloseRPC();
+    }
+
+    public static void  TestInverseKinExaxis(Robot robot)
+    {
+        DescPose desc=new DescPose(99.957, -0.002, 29.994, -176.569, -6.757, -167.462);
+        ExaxisPos exaxis=new ExaxisPos(100.0, 0.0, 0.0, 0.0);
+        JointPos jointPos =new JointPos();
+        DescPose offsetPos =new DescPose();
+
+        ROBOT_STATE_PKG pkg=robot.GetRobotRealTimeState();
+        int toolnum = pkg.tool;
+        int workPcsNum = pkg.user;
+        robot.GetInverseKinExaxis(0, desc, exaxis, toolnum, workPcsNum, jointPos);
+        System.out.printf("GetInverseKinExaxis joint is %f, %f, %f, %f, %f, %f\n", jointPos.J1, jointPos.J2, jointPos.J3, jointPos.J4, jointPos.J5, jointPos.J6);
+
+        robot.ExtAxisMove(exaxis, 100, -1);
+        robot.MoveJ(jointPos, desc, toolnum, workPcsNum, 100.0, 100.0, 100.0, exaxis, -1, 0, offsetPos);
+
+        robot.CloseRPC();
+
+        robot.Sleep(9999999);
+    }
+
+    public static void TestServoCart(Robot robot)
+    {
+        DescPose desc_pos_dt = new DescPose(83.00800, 50.525000 , 29.246 , 179.629 , -7.138 , -166.975 );
+        ExaxisPos exaxis = new ExaxisPos( 100.0, 0.0, 0.0, 0.0 );
+        double[] pos_gain = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+        int mode = 0;
+        double vel = 0.0;
+        double acc = 0.0;
+        double cmdT = 0.001;
+        double filterT = 0.0;
+        double gain = 0.0;
+        int flag = 0;
+        int count = 5000;
+
+        robot.SetSpeed(20);
+
+        while (count>0)
+        {
+            int rtn = robot.ServoCart(mode, desc_pos_dt, exaxis, pos_gain, acc, vel, cmdT, filterT, gain);
+            System.out.printf("ServoCart rtn is %d\n", rtn);
+            count -= 1;
+            desc_pos_dt.tran.x += 0.01;
+            exaxis.axis1 += 0.01;
+        }
+
+        robot.CloseRPC();
     }
 
     public static void TestPhotoelectricSensorTCPCalib(Robot robot)
@@ -3280,34 +3362,6 @@ public class Main {
         return 0;
     }
 
-    public static int TestServoCart(Robot robot)
-    {
-        DescPose desc_pos_dt=new DescPose(0,0,0,0,0,0);
-
-        desc_pos_dt.tran.z = -0.5;
-        Object[] pos_gain = { 0.0,0.0,1.0,0.0,0.0,0.0 };
-        int mode = 2;
-        double vel = 0.0;
-        double acc = 0.0;
-        double cmdT = 0.008;
-        double filterT = 0.0;
-        double gain = 0.0;
-        int flag = 0;
-        int count = 100;
-
-        robot.SetSpeed(20);
-
-        while (count>0)
-        {
-            robot.ServoCart(mode, desc_pos_dt, pos_gain, acc, vel, cmdT, filterT, gain);
-            count -= 1;
-            double time=cmdT*1000;
-            robot.WaitMs((int)time);
-        }
-
-        return 0;
-    }
-
     public static int TestSpline(Robot robot)
     {
         JointPos j1=new JointPos(-11.904, -99.669, 117.473, -108.616, -91.726, 74.256);
@@ -3594,29 +3648,29 @@ public class Main {
     }
 
 
-    public static int TestDOReset(Robot robot)
-    {
-
-        int rtn=-1;
-        for (int i = 0; i < 16; i++)
-        {
-            robot.SetDO(i, 1, 0, 0);
-            robot.Sleep(300);
-        }
-
-        int resetFlag = 1;
-        rtn = robot.SetOutputResetCtlBoxDO(resetFlag);
-        robot.SetOutputResetCtlBoxAO(resetFlag);
-        robot.SetOutputResetAxleDO(resetFlag);
-        robot.SetOutputResetAxleAO(resetFlag);
-        robot.SetOutputResetExtDO(resetFlag);
-        robot.SetOutputResetExtAO(resetFlag);
-        robot.SetOutputResetSmartToolDO(resetFlag);
-
-        robot.ProgramLoad("/fruser/test.lua");
-        robot.ProgramRun();
-        return 0;
-    }
+//    public static int TestDOReset(Robot robot)
+//    {
+//
+//        int rtn=-1;
+//        for (int i = 0; i < 16; i++)
+//        {
+//            robot.SetDO(i, 1, 0, 0);
+//            robot.Sleep(300);
+//        }
+//
+//        int resetFlag = 1;
+//        rtn = robot.SetOutputResetCtlBoxDO(resetFlag);
+//        robot.SetOutputResetCtlBoxAO(resetFlag);
+//        robot.SetOutputResetAxleDO(resetFlag);
+//        robot.SetOutputResetAxleAO(resetFlag);
+//        robot.SetOutputResetExtDO(resetFlag);
+//        robot.SetOutputResetExtAO(resetFlag);
+//        robot.SetOutputResetSmartToolDO(resetFlag);
+//
+//        robot.ProgramLoad("/fruser/test.lua");
+//        robot.ProgramRun();
+//        return 0;
+//    }
 
     public static int TestTCPCompute(Robot robot)
     {
@@ -8184,10 +8238,10 @@ public class Main {
         robot.SetToolAO(0, 60, 0);
         robot.Sleep(2000);
 
-        robot.SetOutputResetCtlBoxDO(1);
-        robot.SetOutputResetAxleDO(1);//工具
-        robot.SetOutputResetCtlBoxAO(1);
-        robot.SetOutputResetAxleAO(1);//工具
+//        robot.SetOutputResetCtlBoxDO(1);
+//        robot.SetOutputResetAxleDO(1);//工具
+//        robot.SetOutputResetCtlBoxAO(1);
+//        robot.SetOutputResetAxleAO(1);//工具
 
         JointPos j1 = new JointPos(-81.684, -106.159, -74.447, -86.33, 94.725, 41.639);
         JointPos j2 = new JointPos(-102.804, -106.159, -74.449, -86.328, 94.715, 41.639);
@@ -8230,8 +8284,8 @@ public class Main {
         robot.SetAuxAO(1, 2345, false);
         robot.SetAuxAO(2, 3456, false);
         robot.SetAuxAO(3, 1111, false);
-        robot.SetOutputResetExtDO(1);
-        robot.SetOutputResetExtAO(1);
+//        robot.SetOutputResetExtDO(1);
+//        robot.SetOutputResetExtAO(1);
 //
 //        robot.Sleep(3000);
 //        DescPose  desc_p1, desc_p2;

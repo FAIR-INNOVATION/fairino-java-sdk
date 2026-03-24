@@ -7,12 +7,13 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Scanner;
+import java.util.concurrent.TimeUnit;
 
 public class Main {
     public static void main(String[] args) throws InterruptedException {
 
         Robot robot = new Robot();
-        robot.SetReconnectParam(true, 100, 500);//设置重连次数、间隔
+        robot.SetReconnectParam(true, 100, 50);//设置重连次数、间隔
         robot.LoggerInit(FrLogType.DIRECT, FrLogLevel.INFO, "D://log", 10, 10);
         int rtn = robot.RPC("192.168.58.2");
         if (rtn == 0) {
@@ -21,7 +22,16 @@ public class Main {
             System.out.println("rpc连接 fail");
             return;
         }
-
+        TestCtrlOpenLuaOperate(robot);
+        // TestUDPAxis(robot);
+        // TestIOConfig(robot);
+//         TestOriginPointWeave(robot);
+//        TestSetVelReducePara(robot);
+//        TestRobotUDP(robot);
+//         TestServoJ(robot);
+        // ServoJTWithSafety(robot);
+        // testAxleGenCom(robot);
+//        TestRobotStopOnComDisc(robot);
 //        while(true){
 //            System.out.println(robot.GetRobotRealTimeState().robot_state==4);
 //            System.out.println("当前状态:"+robot.GetRobotRealTimeState().robot_state);
@@ -245,7 +255,6 @@ public class Main {
         //TestJOG(robot);
 //        TestMove(robot);
 //        TestSpiral(robot);//笛卡尔空间螺旋线运动
-//        TestServoJ(robot);
 //        TestServoJT(robot);
 //        TestServoCart(robot);
 //        TestSpline(robot);//关节空间样条运动
@@ -378,13 +387,14 @@ public class Main {
 //                TestSlavePortErr(robot);
 //        TestSpiral(robot);
 //        TestFTControlWithDamping(robot);
-//                ServoJTWithSafety(robot);
+
 //        TestIntersectLineMove(robot);
 //        test_RecordandReplay(robot);
 //                TestRotInsert(robot);
 //        TestInverseKinExaxis(robot);
 //        TestServoCart1(robot);
-        TestDOReset(robot);
+//        TestDOReset(robot);
+//        TestTPD2(robot);
         robot.CloseRPC();//关闭连接
 //
 ////        while (true)
@@ -841,33 +851,62 @@ public class Main {
 
     public static void ServoJTWithSafety(Robot robot)
     {
-        robot.ResetAllError();
-        robot.Sleep(500);
-        List<Number> torques;
-        torques=robot.GetJointTorques(1);
-        robot.ServoJTStart(); //   #servoJT开始
-        ROBOT_STATE_PKG pkg=new ROBOT_STATE_PKG();
-        robot.DragTeachSwitch(1);
-        int checkFlag = 3;//-1,3
-        //double[] jPowerLimit = {1.0,1.0,1.0,1.0,1.0,1.0};//5001
-        double[] jPowerLimit = { 10.0, 10.0, 10.0, 10.0, 10.0, 10.0 };
-        double[] jVelLimit = { 50, 50, 50, 50, 50, 50};//180.1,-1
-        int count = 800000;
-        int error = 0;
-        double[] tor=new double[]{(double)torques.get(1),(double)torques.get(2),(double)torques.get(3),(double)torques.get(4),(double)torques.get(5),(double)torques.get(6)};
-        while (count > 0)
-        {
-            tor[2] = tor[2]+0.01;//  #每次1轴增加0.01NM，运动100次
-            error = robot.ServoJT(tor, 0.01, checkFlag, jPowerLimit, jVelLimit);  //# 关节空间伺服模式运动
-            System.out.printf("ServoJT rtn is %d\n", error);
-            count = count - 1;
-            robot.Sleep(1);
-            pkg=robot.GetRobotRealTimeState();
-            System.out.printf("maincode %d, subcode %d\n", pkg.main_code, pkg.sub_code);
-        }
-        robot.DragTeachSwitch(0);
+        robot.udpCmdClient.SetUDPCmdRpyCallback((srcType, count, cmdID, dataLen, content) -> {
+            System.out.println("\n[Received UDP reply from robot]");
+            System.out.println("srcType: " + srcType);
+            System.out.println("count: " + count);
+            System.out.println("cmdID: " + cmdID);
+            System.out.println("dataLen: " + dataLen);
+            System.out.println("content: " + content);
+            return 0;
+        });
+        while (true) {
+           robot.ResetAllError();
+            robot.Sleep(500);
+            List<Number> torques;
+            torques=robot.GetJointTorques(1);
+            robot.ServoJTStart(1); //   #servoJT开始
+            ROBOT_STATE_PKG pkg=new ROBOT_STATE_PKG();
+            robot.DragTeachSwitch(1);
+            int checkFlag = 3;//-1,3
+            double[] jPowerLimit = { 10.0, 10.0, 10.0, 10.0, 10.0, 10.0 };
+            double[] jVelLimit = { 50, 50, 50, 50, 50, 50};//180.1,-1
+            int count = 800000;
+            int error = 0;
+            int comType = 1;
 
-        error = robot.ServoJTEnd();  //#伺服运动结束
+            double[] tor=new double[]{(double)torques.get(1),(double)torques.get(2),(double)torques.get(3),(double)torques.get(4),(double)torques.get(5),(double)torques.get(6)};
+
+            while (true) {
+                tor[0] = 0.08;//  #每次1轴增加0.01NM，运动100次
+                error = robot.ServoJT(tor, 0.01, checkFlag, jPowerLimit, jVelLimit, comType);  //# 关节空间伺服模式运动
+                System.out.printf("ServoJT rtn is %d\n", error);
+                count = count - 1;
+                robot.Sleep(1);
+                pkg = robot.GetRobotRealTimeState();
+                System.out.printf("maincode %d, subcode %d\n", pkg.main_code, pkg.sub_code);
+                if (pkg.jt_cur_pos[0] > 30)
+                    break;
+            }
+
+            tor = new double[]{(double) torques.get(1), (double) torques.get(2), (double) torques.get(3), (double) torques.get(4), (double) torques.get(5), (double) torques.get(6)};
+            while (true) {
+                tor[0] = -0.08;//  #每次1轴增加0.01NM，运动100次
+                error = robot.ServoJT(tor, 0.01, checkFlag, jPowerLimit, jVelLimit, 1);  //# 关节空间伺服模式运动
+                System.out.printf("ServoJT rtn is %d\n", error);
+                count = count - 1;
+                robot.Sleep(1);
+                pkg = robot.GetRobotRealTimeState();
+                System.out.printf("maincode %d, subcode %d\n", pkg.main_code, pkg.sub_code);
+                if (pkg.jt_cur_pos[0] < 0)
+                    break;
+            }
+
+
+            robot.DragTeachSwitch(0);
+
+            error = robot.ServoJTEnd(1);  //#伺服运动结束
+        }
     }
 
 
@@ -975,10 +1014,10 @@ public class Main {
         if (ret == 0)
         {
             cmdID += 1;
-            robot.ServoMoveStart();
+            robot.ServoMoveStart(1);
             while (count>0)
             {
-                robot.ServoJ(j, epos, acc, vel, cmdT, filterT, gain, cmdID);
+                robot.ServoJ(j, epos, acc, vel, cmdT, filterT, gain, cmdID,1);
                 j.J5 += dt;
                 count -= 1;
                 robot.WaitMs((int)(1000*cmdT));
@@ -995,7 +1034,7 @@ public class Main {
                     break;
                 }
             }
-            robot.ServoMoveEnd();
+            robot.ServoMoveEnd(1);
         }
         else
         {
@@ -1619,6 +1658,50 @@ public class Main {
     }
 
     public static int TestImpedanceControl(Robot robot)
+    {
+        JointPos j1=new JointPos(102.622, -135.990, 120.769, -73.950, -90.848, 35.507);
+        JointPos j2=new JointPos(93.674, -80.062, 82.947, -92.199, -90.967, 26.559);
+
+        DescPose desc_pos1=new DescPose(136.552, -149.799, 449.532, 179.817, -1.172, 157.123);
+        DescPose desc_pos2=new DescPose(136.540, -561.048, 449.542, 179.819, -1.172, 157.122);
+
+        DescPose offset_pos=new DescPose(0, 0, 0, 0, 0, 0);
+        ExaxisPos epos=new ExaxisPos(0, 0, 0, 0);
+
+        int tool = 0;
+        int user = 0;
+        double vel = 100.0;
+        double acc = 200.0;
+        double ovl = 100.0;
+        double blendT = -1.0;
+        double blendR = -1.0;
+        int flag = 0;
+        int search = 0;
+
+        robot.SetSpeed(20);
+
+        double[] forceThreshold = { 10,10,10,1,1,1 };
+        double[] m = { 0.04,0.04,0.04,0.01,0.01,0.01 };
+        double[] b = { 0.1,0.1,0.1,0.08,0.08,0.08 };
+        double[] k = { 0,0,0,0,0,0 };
+
+        int rtn = robot.ImpedanceControlStartStop(1, 0, forceThreshold, m, b, k, 50, 50, 100, 100);
+        System.out.println("ImpedanceControlStartStop errcode:%d" + rtn);
+        rtn = robot.MoveJ(j1, tool, user, vel, acc, ovl, epos, -1, 0, offset_pos);
+        rtn = robot.MoveJ(j2, tool, user, vel, acc, ovl, epos, -1, 0, offset_pos);
+        rtn = robot.MoveJ(j1, tool, user, vel, acc, ovl, epos, -1, 0, offset_pos);
+        rtn = robot.MoveJ(j2, tool, user, vel, acc, ovl, epos, -1, 0, offset_pos);
+
+        System.out.println("movel errcode:"+ rtn);
+
+        robot.ImpedanceControlStartStop(0, 1, forceThreshold, m, b, k, 1000, 500, 100, 100);
+
+
+        robot.CloseRPC();
+        return 0;
+    }
+
+    public static int TestImpedanceControl_old(Robot robot)
     {
         JointPos j1=new JointPos(102.622, -135.990, 120.769, -73.950, -90.848, 35.507);
         JointPos j2=new JointPos(93.674, -80.062, 82.947, -92.199, -90.967, 26.559);
@@ -3325,6 +3408,15 @@ public class Main {
 
     public static int TestServoJ(Robot robot)
     {
+        robot.udpCmdClient.SetUDPCmdRpyCallback((srcType, count, cmdID, dataLen, content) -> {
+            System.out.println("\n[Received UDP reply from robot]");
+            System.out.println("srcType: " + srcType);
+            System.out.println("count: " + count);
+            System.out.println("cmdID: " + cmdID);
+            System.out.println("dataLen: " + dataLen);
+            System.out.println("内容 (content): " + content);
+            return 0;
+        });
         int rtn=-1;
 
         JointPos j=new JointPos(0, 0, 0, 0, 0, 0);
@@ -3332,34 +3424,55 @@ public class Main {
 
         double vel = 0.0;
         double acc = 0.0;
-        double cmdT = 0.008;
+        double cmdT = 0.016;
         double filterT = 0.0;
         double gain = 0.0;
         int flag = 0;
-        int count = 500;
+        int count = 300;
         double dt = 0.1;
         int cmdID = 0;
+        int comType = 1;
         int ret = robot.GetActualJointPosDegree(j);
         if (ret == 0)
         {
-            robot.ServoMoveStart();
+            robot.ServoMoveStart(comType);
+            count = 300;
             while (count>0)
             {
-                robot.ServoJ(j, epos, acc, vel, cmdT, filterT, gain, cmdID);
+                robot.ServoJ(j, epos, acc, vel, cmdT, filterT, gain, cmdID, comType);
                 j.J1 += dt;
+                j.J2 += dt;
+                j.J4 += dt;
+                j.J5 += dt;
+                j.J6 += dt;
+                epos.axis1 += dt;
                 count -= 1;
-                double time=cmdT*1000;
-                robot.WaitMs((int)time);
+                robot.Sleep(10);
             }
-            robot.ServoMoveEnd();
+            robot.ServoMoveEnd(comType);
+
+            robot.Sleep(1000);
+            robot.ServoMoveStart(comType);
+            count = 300;
+            while (count>0)
+            {
+                robot.ServoJ(j, epos, acc, vel, cmdT, filterT, gain, cmdID, comType);
+                j.J1 -= dt;
+                j.J2 -= dt;
+                j.J4 -= dt;
+                j.J5 -= dt;
+                j.J6 -= dt;
+                epos.axis1 -= dt;
+                count -= 1;
+                robot.Sleep(10);
+            }
+            robot.ServoMoveEnd(comType);
         }
         else
         {
             System.out.println("GetActualJointPosDegree errcode:"+ ret);
         }
-
-        robot.CloseRPC();
-        return 0;
+        return ret;
     }
 
     public static int TestSpline(Robot robot)
@@ -3401,7 +3514,6 @@ public class Main {
         DescPose offset_pos=new DescPose(0, 0, 0, 0, 0, 0);
         ExaxisPos epos=new ExaxisPos(0, 0, 0, 0);
 
-
         int tool = 0;
         int user = 0;
         double vel = 100.0;
@@ -3409,7 +3521,6 @@ public class Main {
         double ovl = 100.0;
         double blendT = -1.0;
         int flag = 0;
-
 
         int err1 = robot.MoveJ(j1, tool, user, vel, acc, ovl, epos, blendT, flag, offset_pos);
         System.out.println("movej errcode:"+ err1);
@@ -3978,7 +4089,7 @@ public class Main {
         joint_toq=robot.GetJointTorques(1);
 
         int count = 100;
-        robot.ServoJTStart(); //   #servoJT开始
+        robot.ServoJTStart(1); //   #servoJT开始
         int error = 0;
         while (count > 0)
         {
@@ -3986,7 +4097,7 @@ public class Main {
             count = count - 1;
             robot.Sleep(1);
         }
-        error = robot.ServoJTEnd();
+        error = robot.ServoJTEnd(1);
         robot.DragTeachSwitch(0);
 
         robot.CloseRPC();
@@ -4001,7 +4112,7 @@ public class Main {
         joint_toq=robot.GetJointTorques(1);
 
         int count = 100;
-        robot.ServoJTStart(); //   #servoJT开始
+        robot.ServoJTStart(1); //   #servoJT开始
         int error = 0;
         while (count > 0)
         {
@@ -4009,7 +4120,7 @@ public class Main {
             count = count - 1;
             robot.Sleep(1);
         }
-        error = robot.ServoJTEnd();
+        error = robot.ServoJTEnd(1);
         robot.DragTeachSwitch(0);
 
         robot.CloseRPC();
@@ -5499,51 +5610,6 @@ public class Main {
         rtn = robot.ForceAndJointImpedanceStartStop(0, 0, lamdeDain, KGain, BGain, 1000.0, 180.0);
 
         robot.CloseRPC();
-        return 0;
-    }
-
-
-    public static int TestUDPAxis(Robot robot)//UDP
-    {
-        UDPComParam para1=new UDPComParam("192.168.58.88", 2021, 2, 100, 3, 200, 1, 100, 5, 1);
-        int rtn = robot.ExtDevSetUDPComParam(para1);
-        String ip = ""; int port = 0; int period = 0; int lossPkgTime = 0; int lossPkgNum = 0; int disconnectTime = 0; int reconnectEnable = 0; int reconnectPeriod = 0; int reconnectNum = 0;
-        UDPComParam para2=new UDPComParam(ip, port, period, lossPkgTime, lossPkgNum, disconnectTime, reconnectEnable, reconnectPeriod, reconnectNum,0);
-        rtn = robot.ExtDevGetUDPComParam(para2);
-
-        robot.ExtDevLoadUDPDriver();
-
-        rtn = robot.ExtAxisServoOn(1, 1);
-        rtn = robot.ExtAxisServoOn(2, 1);
-        robot.Sleep(3000);
-
-        robot.ExtAxisSetHoming(1, 0, 10, 2);
-        robot.Sleep(3000);
-        rtn = robot.ExtAxisSetHoming(2, 0, 10, 2);
-
-        robot.Sleep(4000);
-
-        rtn = robot.SetRobotPosToAxis(1);
-        rtn = robot.SetAxisDHParaConfig(10, 20, 0, 0, 0, 0, 0, 0, 0);
-        rtn = robot.ExtAxisParamConfig(1, 1, 1, 1000, -1000, 1000, 1000, 1.905, 262144, 200, 1, 0, 0);
-        rtn = robot.ExtAxisParamConfig(2, 1, 1, 1000, -1000, 1000, 1000, 4.444, 262144, 200, 1, 0, 0);
-
-        robot.Sleep(4000);
-        robot.ExtAxisStartJog(1, 0, 10, 10, 30);
-        robot.Sleep(4000);
-        robot.ExtAxisStopJog(1);
-        robot.Sleep(4000);
-        robot.ExtAxisServoOn(1, 0);
-
-        robot.Sleep(4000);
-        robot.ExtAxisStartJog(2, 0, 10, 10, 30);
-        robot.Sleep(4000);
-        robot.ExtAxisStopJog(2);
-        robot.Sleep(4000);
-        robot.ExtAxisServoOn(2, 0);
-        robot.Sleep(4000);
-        robot.ExtDevUnloadUDPDriver();
-
         return 0;
     }
 
@@ -9633,6 +9699,444 @@ public class Main {
             robot.MoveJ(startjointPos, startdescPose, 0, 0, 100, 100, 100, exaxisPos, -1, 0, offdese);
             robot.MoveJ(endjointPos, enddescPose, 0, 0, 100, 100, 100, exaxisPos, -1, 0, offdese);
         }
+    }
+
+    public static void TestTPD2(Robot robot)
+    {
+        int rtn = 0;
+        int type = 1;
+        String name = "tpd2025";
+        int period_ms = 4;
+        int di_choose = 0;
+        int do_choose = 0;
+
+        robot.SetTPDParam(type, name, period_ms, di_choose, do_choose);
+
+        robot.Mode(1);
+        robot.Sleep(1000);
+        robot.DragTeachSwitch(1);
+        robot.SetTPDStart(type, name, period_ms, di_choose, do_choose);
+        robot.Sleep(3000);
+        robot.SetWebTPDStop();
+        robot.DragTeachSwitch(0);
+
+        robot.Sleep(1000);
+        double ovl = 100.0;
+        int blend = 0;
+        DescPose start_pose = new DescPose();
+        rtn = robot.LoadTPD(name);
+        System.out.printf("LoadTPD rtn is: %d\n", rtn);
+
+        robot.GetTPDStartPose(name, start_pose);
+        System.out.printf("start pose, xyz is: %f %f %f. rpy is: %f %f %f \n", start_pose.tran.x, start_pose.tran.y, start_pose.tran.z, start_pose.rpy.rx, start_pose.rpy.ry, start_pose.rpy.rz);
+        //robot.MoveCart(&start_pose, 0, 0, 100, 100, ovl, -1, -1);
+        //robot.Sleep(1000);
+
+        rtn = robot.MoveToTPDStart(name, 0, 100);
+        System.out.printf("MoveToTPDStart rtn is: %d\n", rtn);
+
+        rtn = robot.MoveTPD(name, blend, ovl);
+        System.out.printf("MoveTPD rtn is: %d\n", rtn);
+
+        robot.Sleep(5000);
+
+        robot.SetTPDDelete(name);
+
+        return ;
+    }
+
+    public static void testAxleGenCom(Robot robot) {
+        int[] led_on = {0xAB, 0xBA, 0x12, 0x01, 0x01, 0x79};
+        int[] led_off = {0xAB, 0xBA, 0x12, 0x01, 0x00, 0x78};
+        int[] version = {0xAB, 0xBA, 0x11, 0x00, 0x76};
+        int[] state = {0xAB, 0xBA, 0x1B, 0x01, 0xAA, 0x2B};
+
+        int[] rcvdata = new int[16];
+        int ret = 0;
+        int cnt = 1;
+
+        JointPos p1Joint = new JointPos(88.708, -86.178, 140.989, -141.825, -89.162, -49.879);
+        DescPose p1Desc = new DescPose(188.007, -377.850, 260.207, 178.715, 2.823, -131.466);
+
+        JointPos p2Joint = new JointPos(112.131, -75.554, 126.989, -139.027, -88.044, -26.477);
+        DescPose p2Desc = new DescPose(368.003, -377.848, 260.211, 178.715, 2.823, -131.465);
+
+        ExaxisPos exaxisPos = new ExaxisPos(0, 0, 0, 0);
+        DescPose offdese = new DescPose(0, 0, 0, 0, 0, 0);
+
+        // 开启末端透传功能
+        robot.SetAxleGenComEnable(1);
+        robot.SetAxleLuaEnable(1);
+
+        while (cnt <= 10000) {
+            // 读取版本号
+            ret = robot.SndRcvAxleGenComCmdData(5, version, 10, rcvdata);
+            if (ret == 0) {
+                System.out.printf(" hard version : %d,hard code:%d, soft version:%d %d, soft code:%d \n",
+                        rcvdata[4], rcvdata[5], rcvdata[6], rcvdata[7], rcvdata[8]);
+            } else {
+                System.out.println("SndRcvAxleGenComCmdData version fail: " + ret);
+                break;
+            }
+            robot.Sleep(1000);
+
+            // 读取艾灸头在位状态
+            ret = robot.SndRcvAxleGenComCmdData(6, state, 6, rcvdata);
+            if (ret == 0) {
+                System.out.printf(" state : %d \n", rcvdata[4]);
+            }
+            robot.Sleep(1000);
+
+            // 开启艾灸头激光
+            ret = robot.SndRcvAxleGenComCmdData(6, led_on, 6, rcvdata);
+            if (ret == 0) {
+                System.out.printf("led on rcv data is: %d, %d, %d, %d, %d, %d  \n",
+                        rcvdata[0], rcvdata[1], rcvdata[2], rcvdata[3], rcvdata[4], rcvdata[5]);
+            }
+            robot.MoveJ(p1Joint, p1Desc, 0, 0, 100.0, 100.0, 100.0, exaxisPos, -1.0, 0, offdese);
+            robot.Sleep(4000);
+
+            // 关闭艾灸头激光
+            ret = robot.SndRcvAxleGenComCmdData(6, led_off, 6, rcvdata);
+            if (ret == 0) {
+                System.out.printf("led off rcv data is: %d, %d, %d, %d, %d, %d \n",
+                        rcvdata[0], rcvdata[1], rcvdata[2], rcvdata[3], rcvdata[4], rcvdata[5]);
+            }
+            robot.MoveJ(p2Joint, p2Desc, 0, 0, 100.0, 100.0, 100.0, exaxisPos, -1.0, 0, offdese);
+            robot.Sleep(1000);
+
+            System.out.println("***********************complete No. " + cnt + " SDK test*****************************");
+            cnt++;
+        }
+    }  
+      
+    public static void TestRobotStopOnComDisc(Robot robot)
+    {
+        int[] enable = {0};
+        int[] confirmTime = {0};
+        int rtn = 0;
+        rtn = robot.SetRobotStopOnComDisc(0, true, 330);
+        rtn = robot.SetRobotStopOnComDisc(1, true, 550);
+        rtn = robot.SetRobotStopOnComDisc(2, true, 110);
+        rtn = robot.SetRobotStopOnComDisc(3, true, 220);
+        System.out.printf("SetRobotStopOnComDisc %d\n", rtn);
+
+        robot.GetRobotStopOnComDisc(0, enable, confirmTime);
+        System.out.printf("GetRobotStopOnComDisc 8080 rtn %d; enable is %d; confirm time is %d\n", rtn, enable[0], confirmTime[0]);
+        robot.GetRobotStopOnComDisc(1, enable, confirmTime);
+        System.out.printf("GetRobotStopOnComDisc 8083 rtn %d; enable is %d; confirm time is %d\n", rtn, enable[0], confirmTime[0]);
+        robot.GetRobotStopOnComDisc(2, enable, confirmTime);
+        System.out.printf("GetRobotStopOnComDisc 20002 rtn %d; enable is %d; confirm time is %d\n", rtn, enable[0], confirmTime[0]);
+        robot.GetRobotStopOnComDisc(3, enable, confirmTime);
+        System.out.printf("GetRobotStopOnComDisc 20004 rtn %d; enable is %d; confirm time is %d\n", rtn, enable[0], confirmTime[0]);
+
+        return;
+    }
+
+public static void TestRobotUDP (Robot robot) {
+    robot.udpCmdClient.SetUDPCmdRpyCallback((srcType, count, cmdID, dataLen, content) -> {
+        System.out.println("\n[收到机器人 UDP 回复]");
+        System.out.println("srcType: " + srcType);
+        System.out.println("count: " + count);
+        System.out.println("cmdID: " + cmdID);
+        System.out.println("dataLen: " + dataLen);
+        System.out.println("内容 (content): " + content);
+        return 0;
+    });
+    // 发送帧
+    String frameToSend = "/f/bIII52III236III7IIIMode(1)III/b/f";
+    robot.SendUDPFrame(frameToSend);
+    robot.Sleep(2000);
+    frameToSend = "/f/bIII52III236III7IIIMode(0)III/b/f";
+    robot.SendUDPFrame(frameToSend);
+    robot.Sleep(2000);
+    frameToSend = "/f/bIII41III201III153IIIMoveJ(53.857,-89.441,119.453,-22.664,61.059,3.369,-54.249,-491.930,375.396,96.474,-6.896,-7.783,0,0,100,100,100,0.000,0.000,0.000,0.000,-1,0,0,0,0,0,0,0)III/b/f";
+    robot.SendUDPFrame(frameToSend);
+    robot.Sleep(2000);
+    frameToSend = "/f/bIII42III203III163IIIMoveL(81.736,-85.284,114.974,-23.261,88.746,6.799,125.744,-506.570,375.396,96.474,-6.896,-7.783,0,0,100,100,100,-1,0,0.000,0.000,0.000,0.000,0,0,0,0,0,0,0,0,100,0)III/b/f";
+    robot.SendUDPFrame(frameToSend);
+    robot.Sleep(2000);
+    frameToSend = "/f/bIII47III400III15IIIGetMCVersion(1)III/b/f/f/bIII48III424III21IIIGetSlaveFirmVersion()III/b/f";
+    robot.SendUDPFrame(frameToSend);
+    robot.Sleep(2000);
+
+//        int rtn;
+//
+//        rtn = robot.SendUDPFrame("/f/bIII20III303III7IIIMode(0)III/b/f");
+//        System.out.println("SendUDPFrame rtn is " + rtn);
+//
+//        rtn = robot.SendUDPFrame("III20III303III7IIIMode(0)III/b/f");
+//        System.out.println("SendUDPFrame rtn is " + rtn);
+//
+//        rtn = robot.SendUDPFrame("/f/bIII20III303III7IIIMode(0)");
+//        System.out.println("SendUDPFrame rtn is " + rtn);
+//
+//        rtn = robot.SendUDPFrame("/f/bIII20III303III6IIIMode(0)III/b/f");
+//        System.out.println("SendUDPFrame rtn is " + rtn);
+//
+//        rtn = robot.SendUDPFrame("/f/b|||20|||303|||7|||Mode(0)|||/b/f");
+//        System.out.println("SendUDPFrame rtn is " + rtn);
+//
+//        rtn = robot.SendUDPFrame("/f/bII20II303II7IIMode(0)II/b/f");
+//        System.out.println("SendUDPFrame rtn is " + rtn);
+    }
+    public static int TestSetVelReducePara(Robot robot) {
+        int rtn = 0;
+
+        JointPos j1 = new JointPos(0, -90, 90, 0, 0, 0);
+        JointPos j2 = new JointPos(90, -90, 90, 0, 0, 0);
+        ExaxisPos epos = new ExaxisPos(0, 0, 0, 0);
+        DescPose offset_pos = new DescPose(0, 0, 0, 0, 0, 0);
+
+        robot.SetSpeed(80);
+        rtn = robot.SetVelReducePara(2, 30, 1);
+        System.out.printf("SetVelReducePara param error rtn is %d\n", rtn);
+
+        rtn = robot.SetVelReducePara(0, 30, 1);
+        System.out.printf("SetVelReducePara disable reduce vel rtn is %d\n", rtn);
+        robot.MoveJ(j1, 0, 0, 100, 100, 100.0, epos, -1.0, 0, offset_pos);
+        robot.MoveJ(j2, 0, 0, 100, 100, 100.0, epos, -1.0, 0, offset_pos);
+
+        rtn = robot.SetVelReducePara(1, 30, 1);
+        System.out.printf("SetVelReducePara reduce vel rtn is %d\n", rtn);
+        robot.MoveJ(j1, 0, 0, 100, 100, 100.0, epos, -1.0, 0, offset_pos);
+        robot.MoveJ(j2, 0, 0, 100, 100, 100.0, epos, -1.0, 0, offset_pos);
+
+        rtn = robot.SetVelReducePara(2, 30, 2);
+        System.out.printf("SetVelReducePara disable robot rtn is %d\n", rtn);
+        robot.MoveJ(j1, 0, 0, 100, 100, 100.0, epos, -1.0, 0, offset_pos);
+        robot.MoveJ(j2, 0, 0, 100, 100, 100.0, epos, -1.0, 0, offset_pos);
+
+        robot.Sleep(2000);
+        robot.ResetAllError();
+        robot.RobotEnable(1);
+        robot.Sleep(1000);
+
+        rtn = robot.SetVelReducePara(2, 30, 0);
+        System.out.printf("SetVelReducePara report error rtn is %d\n", rtn);
+        robot.MoveJ(j1, 0, 0, 100, 100, 100.0, epos, -1.0, 0, offset_pos);
+        robot.MoveJ(j2, 0, 0, 100, 100, 100.0, epos, -1.0, 0, offset_pos);
+
+        robot.Sleep(1000);
+        return 0;
+    }
+    /**
+     * @brief 测试定点摆动功能
+     * @param robot Robot对象
+     * @return 错误码
+     */
+    public static int TestOriginPointWeave(Robot robot) {
+        JointPos j = new JointPos(39.886, -98.580, -124.032, -47.393, 90.000, 40.842);
+        ExaxisPos epos = new ExaxisPos(0, 0, 0, 0);
+        DescPose offset_pos = new DescPose(0, 0, 0, 0, 0, 0);
+
+        DescPose refPoint = new DescPose(400.021, 300.022, 299.996, 179.997, -0.003, -90.956);
+        robot.MoveJ(j, 1, 0, 100, 100, 100.0, epos, -1.0, 0, offset_pos);
+        
+        robot.OriginPointWeaveStart(0, 0, refPoint, 3);
+        robot.MoveStationary();
+        robot.OriginPointWeaveEnd();
+
+        robot.Sleep(2000);
+
+        robot.MoveJ(j, 1, 0, 100, 100, 100.0, epos, -1.0, 0, offset_pos);
+        robot.OriginPointWeaveStart(0, 1, refPoint, 3);
+        robot.MoveStationary();
+        robot.OriginPointWeaveEnd();
+
+        robot.Sleep(1000);
+        return 0;
+    }
+
+ /**
+     * @brief 测试IO配置功能
+     * @param robot Robot对象
+     * @return 错误码
+     */
+    public static int TestIOConfig(Robot robot) {
+        int[] setDIConfig = new int[]{1, 2, 3, 4, 5, 6, 7, 8};
+        int[] getDIConfig = new int[8];
+        int rtn = robot.SetDIConfig(setDIConfig);
+        System.out.println("SetDIConfig rtn is " + rtn);
+        rtn = robot.GetDIConfig(getDIConfig);
+        System.out.println("GetDIConfig rtn is " + rtn + ", value is " + 
+            getDIConfig[0] + " " + getDIConfig[1] + " " + getDIConfig[2] + " " + getDIConfig[3] + " " + 
+            getDIConfig[4] + " " + getDIConfig[5] + " " + getDIConfig[6] + " " + getDIConfig[7]);
+
+        int[] setDOConfig = new int[]{9, 10, 11, 12, 13, 14, 15, 16};
+        int[] getDOConfig = new int[8];
+        rtn = robot.SetDOConfig(setDOConfig);
+        System.out.println("SetDOConfig rtn is " + rtn);
+        rtn = robot.GetDOConfig(getDOConfig);
+        System.out.println("GetDOConfig rtn is " + rtn + ", value is " + 
+            getDOConfig[0] + " " + getDOConfig[1] + " " + getDOConfig[2] + " " + getDOConfig[3] + " " + 
+            getDOConfig[4] + " " + getDOConfig[5] + " " + getDOConfig[6] + " " + getDOConfig[7]);
+
+        int[] setToolDIConfig = new int[]{17, 18};
+        int[] getToolDIConfig = new int[2];
+        rtn = robot.SetToolDIConfig(setToolDIConfig);
+        System.out.println("SetToolDIConfig rtn is " + rtn);
+        rtn = robot.GetToolDIConfig(getToolDIConfig);
+        System.out.println("GetToolDIConfig rtn is " + rtn + ", value is " + getToolDIConfig[0] + " " + getToolDIConfig[1]);
+
+        int[] setDIConfigLevel = new int[]{1, 1, 1, 1, 0, 0, 0, 0};
+        int[] getDIConfigLevel = new int[8];
+        rtn = robot.SetDIConfigLevel(setDIConfigLevel);
+        System.out.println("SetDIConfigLevel rtn is " + rtn);
+        rtn = robot.GetDIConfigLevel(getDIConfigLevel);
+        System.out.println("GetDIConfigLevel rtn is " + rtn + ", value is " + 
+            getDIConfigLevel[0] + " " + getDIConfigLevel[1] + " " + getDIConfigLevel[2] + " " + getDIConfigLevel[3] + " " + 
+            getDIConfigLevel[4] + " " + getDIConfigLevel[5] + " " + getDIConfigLevel[6] + " " + getDIConfigLevel[7]);
+
+        int[] setDOConfigLevel = new int[]{0, 0, 0, 0, 1, 1, 1, 1};
+        int[] getDOConfigLevel = new int[8];
+        rtn = robot.SetDOConfigLevel(setDOConfigLevel);
+        System.out.println("SetDOConfigLevel rtn is " + rtn);
+        rtn = robot.GetDOConfigLevel(getDOConfigLevel);
+        System.out.println("GetDOConfigLevel rtn is " + rtn + ", value is " + 
+            getDOConfigLevel[0] + " " + getDOConfigLevel[1] + " " + getDOConfigLevel[2] + " " + getDOConfigLevel[3] + " " + 
+            getDOConfigLevel[4] + " " + getDOConfigLevel[5] + " " + getDOConfigLevel[6] + " " + getDOConfigLevel[7]);
+
+        int[] setToolDIConfigLevel = new int[]{1, 0};
+        int[] getToolDIConfigLevel = new int[2];
+        rtn = robot.SetToolDIConfigLevel(setToolDIConfigLevel);
+        System.out.println("SetToolDIConfigLevel rtn is " + rtn);
+        rtn = robot.GetToolDIConfigLevel(getToolDIConfigLevel);
+        System.out.println("GetToolDIConfigLevel rtn is " + rtn + ", value is " + getToolDIConfigLevel[0] + " " + getToolDIConfigLevel[1]);
+
+        int[] setStandardDILevel = new int[]{1, 1, 1, 1, 0, 0, 0, 0};
+        int[] getStandardDILevel = new int[8];
+        rtn = robot.SetStandardDILevel(setStandardDILevel);
+        System.out.println("SetStandardDILevel rtn is " + rtn);
+        rtn = robot.GetStandardDILevel(getStandardDILevel);
+        System.out.println("GetStandardDILevel rtn is " + rtn + ", value is " + 
+            getStandardDILevel[0] + " " + getStandardDILevel[1] + " " + getStandardDILevel[2] + " " + getStandardDILevel[3] + " " + 
+            getStandardDILevel[4] + " " + getStandardDILevel[5] + " " + getStandardDILevel[6] + " " + getStandardDILevel[7]);
+
+        int[] setStandardDOLevel = new int[]{0, 0, 0, 0, 1, 1, 1, 1};
+        int[] getStandardDOLevel = new int[8];
+        rtn = robot.SetStandardDOLevel(setStandardDOLevel);
+        System.out.println("SetStandardDOLevel rtn is " + rtn);
+        rtn = robot.GetStandardDOLevel(getStandardDOLevel);
+        System.out.println("GetStandardDOLevel rtn is " + rtn + ", value is " + 
+            getStandardDOLevel[0] + " " + getStandardDOLevel[1] + " " + getStandardDOLevel[2] + " " + getStandardDOLevel[3] + " " + 
+            getStandardDOLevel[4] + " " + getStandardDOLevel[5] + " " + getStandardDOLevel[6] + " " + getStandardDOLevel[7]);
+
+        robot.Sleep(2000);
+        return 0;
+    }
+
+    public static int TestUDPAxis(Robot robot) {
+        UDPComParam param = new UDPComParam("192.168.58.88", 2021, 2, 100, 3, 200, 1, 100, 5, 1);
+        int rtn = robot.ExtDevSetUDPComParam(param);
+        System.out.println("ExtDevSetUDPComParam rtn is " + rtn);
+
+        UDPComParam getParam = new UDPComParam();
+        rtn = robot.ExtDevGetUDPComParam(getParam);
+        String showParam = "\nip " + getParam.ip +
+                "\nport " + getParam.port +
+                "\nperiod  " + getParam.period +
+                "\nlossPkgTime " + getParam.lossPkgTime +
+                "\nlossPkgNum  " + getParam.lossPkgNum +
+                "\ndisConntime  " + getParam.disconnectTime +
+                "\nreconnecable  " + getParam.reconnectEnable +
+                "\nreconnperiod  " + getParam.reconnectPeriod +
+                "\nreconnnun  " + getParam.reconnectNum +
+                "\nselfConnect  " + getParam.selfConnect;
+        System.out.println("ExtDevGetUDPComParam rtn is " + rtn + showParam);
+
+        rtn = robot.ExtDevLoadUDPDriver();
+        System.out.println("ExtDevLoadUDPDriver rtn is " + rtn);
+
+        rtn = robot.SetExAxisCmdDoneTime(5000.0);
+        System.out.println("SetExAxisCmdDoneTime rtn is " + rtn);
+
+        rtn = robot.ExtAxisServoOn(1, 1);
+        System.out.println("ExtAxisServoOn axis id 1 rtn is " + rtn);
+        rtn = robot.ExtAxisServoOn(2, 1);
+        System.out.println("ExtAxisServoOn axis id 2 rtn is " + rtn);
+        robot.Sleep(2000);
+
+        rtn = robot.ExtAxisSetHoming(1, 0, 10.0, 2.0);
+        System.out.println("ExtAxisSetHoming axis id 1 rtn is " + rtn);
+        robot.Sleep(2000);
+        rtn = robot.ExtAxisSetHoming(2, 0, 10.0, 2.0);
+        System.out.println("ExtAxisSetHoming axis id 2 rtn is " + rtn);
+
+        robot.Sleep(4000);
+
+        rtn = robot.SetRobotPosToAxis(1);
+        System.out.println("SetRobotPosToAxis rtn is " + rtn);
+
+        rtn = robot.SetAxisDHParaConfig(10, 20.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        System.out.println("SetAxisDHParaConfig rtn is " + rtn);
+
+        rtn = robot.ExtAxisParamConfig(1, 1, 1, 1000.0, -1000.0, 1000.0, 1000.0, 1.905, 262144, 200.0, 1, 0, 0);
+        System.out.println("ExtAxisParamConfig axis 1 rtn is " + rtn);
+        rtn = robot.ExtAxisParamConfig(2, 1, 1, 1000.0, -1000.0, 1000.0, 1000.0, 4.444, 262144, 200.0, 1, 0, 0);
+        System.out.println("ExtAxisParamConfig axis 2 rtn is " + rtn);
+
+        robot.Sleep(1000 * 3);
+        rtn = robot.ExtAxisStartJog(1, 0, 10.0, 10.0, 30.0);
+        System.out.println("ExtAxisStartJog axis 1 rtn is " + rtn);
+        robot.Sleep(1000);
+        rtn = robot.ExtAxisStopJog(1);
+        System.out.println("ExtAxisStopJog axis 1 rtn is " + rtn);
+        robot.Sleep(1000 * 3);
+        rtn = robot.ExtAxisServoOn(1, 0);
+        System.out.println("ExtAxisServoOn axis id 1 disable rtn is " + rtn);
+
+        robot.Sleep(1000 * 3);
+        rtn = robot.ExtAxisStartJog(2, 0, 10.0, 10.0, 30.0);
+        System.out.println("ExtAxisStartJog axis 2 rtn is " + rtn);
+        robot.Sleep(1000);
+        rtn = robot.ExtAxisStopJog(2);
+        System.out.println("ExtAxisStopJog axis 2 rtn is " + rtn);
+        robot.Sleep(1000 * 3);
+        rtn = robot.ExtAxisServoOn(2, 0);
+        System.out.println("ExtAxisServoOn axis id 2 disable rtn is " + rtn);
+
+        rtn = robot.ExtDevUnloadUDPDriver();
+        System.out.println("ExtDevUnloadUDPDriver rtn is " + rtn);
+
+        return 0;
+    }
+
+    public static int TestCtrlOpenLuaOperate(Robot robot) {
+        int rtn;
+
+        rtn = robot.OpenLuaUpload("D://zUP/openlua/CtrlDev_WELDING_A.lua");
+        System.out.println("OpenLuaUpload rtn is " + rtn);
+        rtn = robot.OpenLuaUpload("D://zUP/openlua/CtrlDev_SWDPOLISH.lua");
+        System.out.println("OpenLuaUpload rtn is " + rtn);
+        rtn = robot.OpenLuaDownload("CtrlDev_WELDING_A.lua", "D://zDOWN/");
+        System.out.println("OpenLuaDownload rtn is " + rtn);
+        rtn = robot.OpenLuaDownload("CtrlDev_SWDPOLISH.lua", "D://zDOWN/");
+        System.out.println("OpenLuaDownload rtn is " + rtn);
+
+        rtn = robot.SetCtrlOpenLUAName(0, "CtrlDev_WELDING_A.lua");
+        System.out.println("SetCtrlOpenLUAName rtn is " + rtn);
+        rtn = robot.SetCtrlOpenLUAName(1, "CtrlDev_SWDPOLISH.lua");
+        System.out.println("SetCtrlOpenLUAName rtn is " + rtn);
+
+        String[] names = new String[4];
+        rtn = robot.GetCtrlOpenLUAName(names);
+        System.out.println("GetCtrlOpenLUAName rtn is " + rtn + ", names: " +
+                names[0] + ", " + names[1] + ", " + names[2] + ", " + names[3]);
+
+        rtn = robot.LoadCtrlOpenLUA(1);
+        System.out.println("LoadCtrlOpenLUA rtn is " + rtn);
+        robot.Sleep(2000);
+        rtn = robot.UnloadCtrlOpenLUA(1);
+        System.out.println("UnloadCtrlOpenLUA rtn is " + rtn);
+
+        rtn = robot.OpenLuaDelete("CtrlDev_WELDING_A.lua");
+        System.out.println("OpenLuaDelete rtn is " + rtn);
+        rtn = robot.AllOpenLuaDelete();
+        System.out.println("AllOpenLuaDelete rtn is " + rtn);
+
+        robot.Sleep(1000);
+        return 0;
     }
 }
 

@@ -22,7 +22,7 @@ public class Main {
             System.out.println("rpc连接 fail");
             return;
         }
-        TestCtrlOpenLuaOperate(robot);
+        // TestCtrlOpenLuaOperate(robot);
         // TestUDPAxis(robot);
         // TestIOConfig(robot);
 //         TestOriginPointWeave(robot);
@@ -9701,49 +9701,49 @@ public class Main {
         }
     }
 
-    public static void TestTPD2(Robot robot)
-    {
-        int rtn = 0;
-        int type = 1;
-        String name = "tpd2025";
-        int period_ms = 4;
-        int di_choose = 0;
-        int do_choose = 0;
+public static void TestTPD2(Robot robot)
+{
+    int rtn = 0;
+    int type = 1;
+    String name = "tpd2025";
+    int period_ms = 4;
+    int di_choose = 0;
+    int do_choose = 0;
 
-        robot.SetTPDParam(type, name, period_ms, di_choose, do_choose);
+    robot.SetTPDParam(type, name, period_ms, di_choose, do_choose);
 
-        robot.Mode(1);
-        robot.Sleep(1000);
-        robot.DragTeachSwitch(1);
-        robot.SetTPDStart(type, name, period_ms, di_choose, do_choose);
-        robot.Sleep(3000);
-        robot.SetWebTPDStop();
-        robot.DragTeachSwitch(0);
+    robot.Mode(1);
+    robot.Sleep(1000);
+    robot.DragTeachSwitch(1);
+    robot.SetTPDStart(type, name, period_ms, di_choose, do_choose);
+    robot.Sleep(3000);
+    robot.SetWebTPDStop();
+    robot.DragTeachSwitch(0);
 
-        robot.Sleep(1000);
-        double ovl = 100.0;
-        int blend = 0;
-        DescPose start_pose = new DescPose();
-        rtn = robot.LoadTPD(name);
-        System.out.printf("LoadTPD rtn is: %d\n", rtn);
+    robot.Sleep(1000);
+    double ovl = 100.0;
+    int blend = 0;
+    DescPose start_pose = new DescPose();
+    rtn = robot.LoadTPD(name);
+    System.out.printf("LoadTPD rtn is: %d\n", rtn);
 
-        robot.GetTPDStartPose(name, start_pose);
-        System.out.printf("start pose, xyz is: %f %f %f. rpy is: %f %f %f \n", start_pose.tran.x, start_pose.tran.y, start_pose.tran.z, start_pose.rpy.rx, start_pose.rpy.ry, start_pose.rpy.rz);
-        //robot.MoveCart(&start_pose, 0, 0, 100, 100, ovl, -1, -1);
-        //robot.Sleep(1000);
+    robot.GetTPDStartPose(name, start_pose);
+    System.out.printf("start pose, xyz is: %f %f %f. rpy is: %f %f %f \n", start_pose.tran.x, start_pose.tran.y, start_pose.tran.z, start_pose.rpy.rx, start_pose.rpy.ry, start_pose.rpy.rz);
+    //robot.MoveCart(&start_pose, 0, 0, 100, 100, ovl, -1, -1);
+    //robot.Sleep(1000);
 
-        rtn = robot.MoveToTPDStart(name, 0, 100);
-        System.out.printf("MoveToTPDStart rtn is: %d\n", rtn);
+    rtn = robot.MoveToTPDStart(name, 0, 100);
+    System.out.printf("MoveToTPDStart rtn is: %d\n", rtn);
 
-        rtn = robot.MoveTPD(name, blend, ovl);
-        System.out.printf("MoveTPD rtn is: %d\n", rtn);
+    rtn = robot.MoveTPD(name, blend, ovl);
+    System.out.printf("MoveTPD rtn is: %d\n", rtn);
 
-        robot.Sleep(5000);
+    robot.Sleep(5000);
 
-        robot.SetTPDDelete(name);
+    robot.SetTPDDelete(name);
 
-        return ;
-    }
+    return ;
+}
 
     public static void testAxleGenCom(Robot robot) {
         int[] led_on = {0xAB, 0xBA, 0x12, 0x01, 0x01, 0x79};
@@ -9943,6 +9943,60 @@ public static void TestRobotUDP (Robot robot) {
         robot.OriginPointWeaveStart(0, 1, refPoint, 3);
         robot.MoveStationary();
         robot.OriginPointWeaveEnd();
+
+        robot.Sleep(1000);
+        return 0;
+    }
+
+    public static int TestOriginPointWeave2(Robot robot) {
+        JointPos j = new JointPos(39.886, -98.580, -124.032, -47.393, 90.000, 40.842);
+        ExaxisPos epos1 = new ExaxisPos(0, 0, 0, 0);
+        DescPose offset_pos = new DescPose(0, 0, 0, 0, 0, 0);
+        ExaxisPos epos2 = new ExaxisPos(5, 0, 0, 0);
+        DescPose refPoint = new DescPose(400.021, 300.022, 299.996, 179.997, -0.003, -90.956);
+
+        int rtn = 0;
+        robot.LaserTrackingSensorConfig("192.168.58.20", 5020);
+        robot.LaserTrackingSensorSamplePeriod(20);
+        robot.LoadPosSensorDriver(101);
+
+        // 加载 UDP 驱动
+        robot.ExtDevLoadUDPDriver();
+
+        // 设置外部轴命令完成时间
+        rtn = robot.SetExAxisCmdDoneTime(5000.0);
+        System.out.println("SetExAxisCmdDoneTime rtn is " + rtn);
+        // 使能外部轴 1 和 2
+        rtn = robot.ExtAxisServoOn(1, 1);
+        System.out.println("ExtAxisServoOn axis id 1 rtn is " + rtn);
+        rtn = robot.ExtAxisServoOn(2, 1);
+        System.out.println("ExtAxisServoOn axis id 2 rtn is " + rtn);
+        robot.Sleep(2000);
+
+        // 设置外部轴回零
+        robot.ExtAxisSetHoming(1, 0, 10, 2);
+        robot.LaserTrackingLaserOnOff(1,0);
+
+
+        //// 1---不带扩展轴
+        robot.LaserTrackingTrackOnOff(1, 4);
+        robot.Sleep(200);
+        // 启动定点摆动
+        robot.OriginPointWeaveStart(0, 0, refPoint, 10);
+        robot.MoveStationary();   // 执行固定运动（假设该方法存在）
+        robot.OriginPointWeaveEnd();
+        robot.LaserTrackingTrackOnOff(0, 4);
+
+        robot.Sleep(2000);         // 等待2秒
+
+        //// 2----带扩展轴
+        robot.ExtAxisMove(epos1, 100, -1);
+        robot.LaserTrackingTrackOnOff(1, 4);
+        // 启动定点摆动
+        robot.OriginPointWeaveStart(0, 0, refPoint, 20);
+        robot.ExtAxisMove(epos2, 100, -1);
+        robot.OriginPointWeaveEnd();
+        robot.LaserTrackingTrackOnOff(0, 4);
 
         robot.Sleep(1000);
         return 0;

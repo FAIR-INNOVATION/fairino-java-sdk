@@ -133,6 +133,9 @@ public class TCPClient
 
     public void Close()
     {
+        // 禁用重连，防止主动关闭后触发重连机制
+        reconnEnable = false;
+
         if (this.mSocket != null) {
             try
             {

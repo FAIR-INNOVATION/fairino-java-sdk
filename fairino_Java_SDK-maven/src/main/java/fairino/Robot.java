@@ -40,7 +40,6 @@ public class Robot
     XmlRpcClient client;
     FRLog log;
 
-    RobotStateRoutineThread robotStateRoutineThread;
     int sockErr = RobotError.ERR_SUCCESS;
 
     TCPClient clientCmd;
@@ -48,6 +47,94 @@ public class Robot
     FrameHandle frameHandle;
 
     int cmdFrameCnt = 0; //帧计数
+
+    // 机器人实时状态反馈配置
+    private List<RobotState> robotRealtimeStateList = new ArrayList<>();  // 存储状态列表
+    private int robotRealtimeStatePeriod = 8;  // 状态反馈周期，默认8ms，范围8-1000
+
+    // 初始化默认状态配置
+    {
+        initDefaultRobotRealtimeStateConfig();
+    }
+
+    private void initDefaultRobotRealtimeStateConfig() {
+        robotRealtimeStateList.add(RobotState.ProgramState);
+        robotRealtimeStateList.add(RobotState.RobotState);
+        robotRealtimeStateList.add(RobotState.MainCode);
+        robotRealtimeStateList.add(RobotState.SubCode);
+        robotRealtimeStateList.add(RobotState.RobotMode);
+        robotRealtimeStateList.add(RobotState.JointCurPos);
+        robotRealtimeStateList.add(RobotState.ToolCurPos);
+        robotRealtimeStateList.add(RobotState.FlangeCurPos);
+        robotRealtimeStateList.add(RobotState.ActualJointVel);
+        robotRealtimeStateList.add(RobotState.ActualJointAcc);
+        robotRealtimeStateList.add(RobotState.TargetTCPCmpSpeed);
+        robotRealtimeStateList.add(RobotState.TargetTCPSpeed);
+        robotRealtimeStateList.add(RobotState.ActualTCPCmpSpeed);
+        robotRealtimeStateList.add(RobotState.ActualTCPSpeed);
+        robotRealtimeStateList.add(RobotState.ActualJointTorque);
+        robotRealtimeStateList.add(RobotState.Tool);
+        robotRealtimeStateList.add(RobotState.User);
+        robotRealtimeStateList.add(RobotState.ClDgtOutputH);
+        robotRealtimeStateList.add(RobotState.ClDgtOutputL);
+        robotRealtimeStateList.add(RobotState.TlDgtOutputL);
+        robotRealtimeStateList.add(RobotState.ClDgtInputH);
+        robotRealtimeStateList.add(RobotState.ClDgtInputL);
+        robotRealtimeStateList.add(RobotState.TlDgtInputL);
+        robotRealtimeStateList.add(RobotState.ClAnalogInput);
+        robotRealtimeStateList.add(RobotState.TlAnglogInput);
+        robotRealtimeStateList.add(RobotState.FtSensorRawData);
+        robotRealtimeStateList.add(RobotState.FtSensorData);
+        robotRealtimeStateList.add(RobotState.FtSensorActive);
+        robotRealtimeStateList.add(RobotState.EmergencyStop);
+        robotRealtimeStateList.add(RobotState.MotionDone);
+        robotRealtimeStateList.add(RobotState.GripperMotiondone);
+        robotRealtimeStateList.add(RobotState.McQueueLen);
+        robotRealtimeStateList.add(RobotState.CollisionState);
+        robotRealtimeStateList.add(RobotState.TrajectoryPnum);
+        robotRealtimeStateList.add(RobotState.SafetyStop0State);
+        robotRealtimeStateList.add(RobotState.SafetyStop1State);
+        robotRealtimeStateList.add(RobotState.GripperFaultId);
+        robotRealtimeStateList.add(RobotState.GripperFault);
+        robotRealtimeStateList.add(RobotState.GripperActive);
+        robotRealtimeStateList.add(RobotState.GripperPosition);
+        robotRealtimeStateList.add(RobotState.GripperCurrent);
+        robotRealtimeStateList.add(RobotState.GripperTemp);
+        robotRealtimeStateList.add(RobotState.GripperVoltage);
+        robotRealtimeStateList.add(RobotState.AuxState);
+         robotRealtimeStateList.add(RobotState.ExtAxisStatus);
+        robotRealtimeStateList.add(RobotState.ExtDIState);
+        robotRealtimeStateList.add(RobotState.ExtDOState);
+        robotRealtimeStateList.add(RobotState.ExtAIState);
+        robotRealtimeStateList.add(RobotState.ExtAOState);
+        robotRealtimeStateList.add(RobotState.RbtEnableState);
+        robotRealtimeStateList.add(RobotState.JointDriverTorque);
+        robotRealtimeStateList.add(RobotState.JointDriverTemperature);
+        robotRealtimeStateList.add(RobotState.RobotTime);
+        robotRealtimeStateList.add(RobotState.SoftwareUpgradeState);
+        robotRealtimeStateList.add(RobotState.EndLuaErrCode);
+        robotRealtimeStateList.add(RobotState.ClAnalogOutput);
+        robotRealtimeStateList.add(RobotState.TlAnalogOutput);
+        robotRealtimeStateList.add(RobotState.GripperRotNum);
+        robotRealtimeStateList.add(RobotState.GripperRotSpeed);
+        robotRealtimeStateList.add(RobotState.GripperRotTorque);
+        robotRealtimeStateList.add(RobotState.WeldingBreakOffState);
+        robotRealtimeStateList.add(RobotState.TargetJointTorque);
+        robotRealtimeStateList.add(RobotState.SmartToolState);
+        robotRealtimeStateList.add(RobotState.WideVoltageCtrlBoxTemp);
+        robotRealtimeStateList.add(RobotState.WideVoltageCtrlBoxFanCurrent);
+        robotRealtimeStateList.add(RobotState.ToolCoord);
+        robotRealtimeStateList.add(RobotState.WobjCoord);
+        robotRealtimeStateList.add(RobotState.ExtoolCoord);
+        robotRealtimeStateList.add(RobotState.ExAxisCoord);
+        robotRealtimeStateList.add(RobotState.Load);
+        robotRealtimeStateList.add(RobotState.LoadCog);
+        robotRealtimeStateList.add(RobotState.LastServoTarget);
+        robotRealtimeStateList.add(RobotState.ServoJCmdNum);
+    }
+
+    // CNDE 客户端 (用于自定义状态上报)
+    private FRCNDEClient cndeClient;
 //
 //            private void RobotTaskRoutineThread()
 //            {
@@ -114,21 +201,18 @@ public class Robot
             client.setConfig(config);
 
             sockErr = RobotError.ERR_SUCCESS;
-            robotStateRoutineThread = new RobotStateRoutineThread(robotIp);//状态获取线程
-            robotStateRoutineThread.start();
 
-            Sleep(1000);
+            // 创建 CNDE 客户端并连接到 20005 端口
+            cndeClient = new FRCNDEClient(robotIp, 20005);
+            // 设置CNDE重连参数（与20004端口保持一致）
+            cndeClient.SetReconnectParam(reconnEnable, reconnTimes, reconnPeriod);
+            // 同步之前配置的状态列表和周期
+            cndeClient.SetCNDERobotStatePeriod(robotRealtimeStatePeriod);
+            cndeClient.SetStateConfig(robotRealtimeStateList);
 
-            if(robotStateRoutineThread != null)
-            {
-                //设置默认重连
-                robotStateRoutineThread.SetReconnectParam(reconnEnable, reconnTimes, reconnPeriod);
-                robotStateRoutineThread.clientRobotState.SetLog(log);
-            }
-
-            if (IsSockComError())
-            {
-                return sockErr;
+            int cndeConnectResult = cndeClient.Connect(robotIp, 20005);
+            if (cndeConnectResult != 0) {
+                sockErr = RobotError.ERR_SOCKET_COM_FAILED;
             }
 
             clientCmd = new TCPClient(robotIp, ROBOT_CMD_PORT);//机械臂cmd指令端口
@@ -159,8 +243,6 @@ public class Robot
      */
     public int CloseRPC()
     {
-        robotStateRoutineThread.getRobotRealTimeFlag = false;
-        robotStateRoutineThread.interrupt();
         sockErr = RobotError.ERR_SUCCESS;
 
         if(clientCmd != null)
@@ -176,6 +258,11 @@ public class Robot
         if (log != null)
         {
             log.LogClose();
+        }
+
+        // 关闭 CNDE 客户端连接
+        if (cndeClient != null) {
+            cndeClient.Close();
         }
 
         return 0;
@@ -208,11 +295,6 @@ public class Robot
             reconnEnable = enable;
             reconnTimes = times;
             reconnPeriod = period;
-
-            if(robotStateRoutineThread != null)
-            {
-                robotStateRoutineThread.SetReconnectParam(enable, times, period);
-            }
 
             if (log != null)
             {
@@ -2958,6 +3040,11 @@ public class Robot
      */
     public int GetAI(int id, int block, double[] persent)
     {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+
         try
         {
             Object[] params = new Object[] {};
@@ -3001,6 +3088,11 @@ public class Robot
      */
     public int GetToolAI(int id, int block, double[] persent)
     {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+        
         try
         {
             ROBOT_STATE_PKG robot_state_pkg = GetRobotRealTimeState();
@@ -3036,6 +3128,11 @@ public class Robot
      */
     public int GetAxlePointRecordBtnState(int[] state)
     {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+        
         int errcode = 0;
         ROBOT_STATE_PKG robot_state_pkg = GetRobotRealTimeState();
 
@@ -3063,6 +3160,11 @@ public class Robot
      */
     public int GetToolDO(int[] do_state)
     {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+        
         int errcode = 0;
         ROBOT_STATE_PKG robot_state_pkg = GetRobotRealTimeState();
 
@@ -3090,6 +3192,11 @@ public class Robot
      */
     public int GetDO(int[] do_state_h, int[] do_state_l)
     {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+        
         int errcode = 0;
         ROBOT_STATE_PKG robot_state_pkg = GetRobotRealTimeState();
 
@@ -4894,12 +5001,12 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            jPos.J1 = robotStateRoutineThread.pkg.jt_cur_pos[0];
-            jPos.J2 = robotStateRoutineThread.pkg.jt_cur_pos[1];
-            jPos.J3 = robotStateRoutineThread.pkg.jt_cur_pos[2];
-            jPos.J4 = robotStateRoutineThread.pkg.jt_cur_pos[3];
-            jPos.J5 = robotStateRoutineThread.pkg.jt_cur_pos[4];
-            jPos.J6 = robotStateRoutineThread.pkg.jt_cur_pos[5];
+            jPos.J1 = cndeClient.GetStatePkg().jt_cur_pos[0];
+            jPos.J2 = cndeClient.GetStatePkg().jt_cur_pos[1];
+            jPos.J3 = cndeClient.GetStatePkg().jt_cur_pos[2];
+            jPos.J4 = cndeClient.GetStatePkg().jt_cur_pos[3];
+            jPos.J5 = cndeClient.GetStatePkg().jt_cur_pos[4];
+            jPos.J6 = cndeClient.GetStatePkg().jt_cur_pos[5];
         }
         else
         {
@@ -4968,7 +5075,7 @@ public class Robot
         {
             for (i = 0; i < 6; i++)
             {
-                speed[i] = robotStateRoutineThread.pkg.actual_qd[i];
+                speed[i] = cndeClient.GetStatePkg().actual_qd[i];
             }
         }
         else
@@ -4998,7 +5105,7 @@ public class Robot
         {
             for (i = 0; i < 6; i++)
             {
-                acc[i] = robotStateRoutineThread.pkg.actual_qdd[i];
+                acc[i] = cndeClient.GetStatePkg().actual_qdd[i];
             }
         }
         else
@@ -5026,8 +5133,8 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            tcp_speed = (double)robotStateRoutineThread.pkg.target_TCP_CmpSpeed[0];
-            ori_speed = (double)robotStateRoutineThread.pkg.target_TCP_CmpSpeed[1];
+            tcp_speed = (double)cndeClient.GetStatePkg().target_TCP_CmpSpeed[0];
+            ori_speed = (double)cndeClient.GetStatePkg().target_TCP_CmpSpeed[1];
         }
         else
         {
@@ -5053,8 +5160,8 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            tcp_speed = (double)robotStateRoutineThread.pkg.actual_TCP_CmpSpeed[0];
-            ori_speed = (double)robotStateRoutineThread.pkg.actual_TCP_CmpSpeed[1];
+            tcp_speed = (double)cndeClient.GetStatePkg().actual_TCP_CmpSpeed[0];
+            ori_speed = (double)cndeClient.GetStatePkg().actual_TCP_CmpSpeed[1];
         }
         else
         {
@@ -5083,7 +5190,7 @@ public class Robot
         {
             for (i = 0; i < 6; i++)
             {
-                speed[i] = (double)robotStateRoutineThread.pkg.target_TCP_Speed[i];
+                speed[i] = (double)cndeClient.GetStatePkg().target_TCP_Speed[i];
             }
         }
         else
@@ -5112,7 +5219,7 @@ public class Robot
         {
             for (i = 0; i < 6; i++)
             {
-                speed[i] = (double)robotStateRoutineThread.pkg.actual_TCP_Speed[i];
+                speed[i] = (double)cndeClient.GetStatePkg().actual_TCP_Speed[i];
             }
         }
         else
@@ -5137,12 +5244,12 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            desc_pos.tran.x = robotStateRoutineThread.pkg.tl_cur_pos[0];
-            desc_pos.tran.y = robotStateRoutineThread.pkg.tl_cur_pos[1];
-            desc_pos.tran.z = robotStateRoutineThread.pkg.tl_cur_pos[2];
-            desc_pos.rpy.rx = robotStateRoutineThread.pkg.tl_cur_pos[3];
-            desc_pos.rpy.ry = robotStateRoutineThread.pkg.tl_cur_pos[4];
-            desc_pos.rpy.rz = robotStateRoutineThread.pkg.tl_cur_pos[5];
+            desc_pos.tran.x = cndeClient.GetStatePkg().tl_cur_pos[0];
+            desc_pos.tran.y = cndeClient.GetStatePkg().tl_cur_pos[1];
+            desc_pos.tran.z = cndeClient.GetStatePkg().tl_cur_pos[2];
+            desc_pos.rpy.rx = cndeClient.GetStatePkg().tl_cur_pos[3];
+            desc_pos.rpy.ry = cndeClient.GetStatePkg().tl_cur_pos[4];
+            desc_pos.rpy.rz = cndeClient.GetStatePkg().tl_cur_pos[5];
         }
         else
         {
@@ -5167,7 +5274,7 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            id[0] = robotStateRoutineThread.pkg.tool;
+            id[0] = cndeClient.GetStatePkg().tool;
         }
         else
         {
@@ -5192,7 +5299,7 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            id[0] = robotStateRoutineThread.pkg.user;
+            id[0] = cndeClient.GetStatePkg().user;
         }
         else
         {
@@ -5217,12 +5324,12 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            desc_pos.tran.x = robotStateRoutineThread.pkg.flange_cur_pos[0];
-            desc_pos.tran.y = robotStateRoutineThread.pkg.flange_cur_pos[1];
-            desc_pos.tran.z = robotStateRoutineThread.pkg.flange_cur_pos[2];
-            desc_pos.rpy.rx = robotStateRoutineThread.pkg.flange_cur_pos[3];
-            desc_pos.rpy.ry = robotStateRoutineThread.pkg.flange_cur_pos[4];
-            desc_pos.rpy.rz = robotStateRoutineThread.pkg.flange_cur_pos[5];
+            desc_pos.tran.x = cndeClient.GetStatePkg().flange_cur_pos[0];
+            desc_pos.tran.y = cndeClient.GetStatePkg().flange_cur_pos[1];
+            desc_pos.tran.z = cndeClient.GetStatePkg().flange_cur_pos[2];
+            desc_pos.rpy.rx = cndeClient.GetStatePkg().flange_cur_pos[3];
+            desc_pos.rpy.ry = cndeClient.GetStatePkg().flange_cur_pos[4];
+            desc_pos.rpy.rz = cndeClient.GetStatePkg().flange_cur_pos[5];
         }
         else
         {
@@ -5440,7 +5547,7 @@ public class Robot
         {
             for (i = 0; i < 6; i++)
             {
-                torques.set(i+1,(double)robotStateRoutineThread.pkg.jt_cur_tor[i]);
+                torques.set(i+1,(double)cndeClient.GetStatePkg().jt_cur_tor[i]);
             }
         }
         else
@@ -5809,7 +5916,7 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            state = (int)robotStateRoutineThread.pkg.motion_done;
+            state = (int)cndeClient.GetStatePkg().motion_done;
         }
         else
         {
@@ -5836,8 +5943,8 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            maincode[0] = robotStateRoutineThread.pkg.main_code;
-            subcode[0] = robotStateRoutineThread.pkg.sub_code;
+            maincode[0] = cndeClient.GetStatePkg().main_code;
+            subcode[0] = cndeClient.GetStatePkg().sub_code;
         }
         else
         {
@@ -5937,7 +6044,7 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            len[0]=robotStateRoutineThread.pkg.mc_queue_len;
+            len[0]=cndeClient.GetStatePkg().mc_queue_len;
         }
         else
         {
@@ -6445,7 +6552,7 @@ public class Robot
 
             if (sockErr == RobotError.ERR_SUCCESS)
             {
-                pnum = robotStateRoutineThread.pkg.trajectory_pnum;
+                pnum = cndeClient.GetStatePkg().trajectory_pnum;
             }
             else
             {
@@ -6473,8 +6580,36 @@ public class Robot
     /**
      * @brief  设置轨迹运行中的速度
      * @param  ovl 速度百分比
+     * @param  mode 模式；0-降速模式；1-直接切换
      * @return  错误码
      */
+    public int SetTrajectoryJSpeed(double ovl, int mode)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+
+        try
+        {
+            Object[] params = new Object[] {ovl,mode};
+            int rtn = (int)client.execute("SetTrajectoryJSpeed" , params);
+            if (log != null)
+            {
+                log.LogInfo("SetTrajectoryJSpeed(" + ovl + ") : " + rtn);
+            }
+            return rtn;
+        }
+        catch (Throwable e)
+        {
+            if (log != null)
+            {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
     public int SetTrajectoryJSpeed(double ovl)
     {
         if (IsSockComError())
@@ -6484,7 +6619,8 @@ public class Robot
 
         try
         {
-            Object[] params = new Object[] {ovl};
+            int mode = 0;
+            Object[] params = new Object[] {ovl,mode};
             int rtn = (int)client.execute("SetTrajectoryJSpeed" , params);
             if (log != null)
             {
@@ -7026,7 +7162,7 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            state[0] = robotStateRoutineThread.pkg.robot_state;
+            state[0] = cndeClient.GetStatePkg().robot_state;
         }
         else
         {
@@ -7250,8 +7386,8 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            rtnArray.set(1,robotStateRoutineThread.pkg.gripper_fault);
-            rtnArray.set(2,robotStateRoutineThread.pkg.gripper_active);
+            rtnArray.set(1,cndeClient.GetStatePkg().gripper_fault);
+            rtnArray.set(2,cndeClient.GetStatePkg().gripper_active);
         }
         else
         {
@@ -7278,8 +7414,8 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            rtnArray.set(1,robotStateRoutineThread.pkg.gripper_fault);
-            rtnArray.set(2,robotStateRoutineThread.pkg.gripper_position);
+            rtnArray.set(1,cndeClient.GetStatePkg().gripper_fault);
+            rtnArray.set(2,cndeClient.GetStatePkg().gripper_position);
         }
         else
         {
@@ -7307,8 +7443,8 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            rtnArray.set(1, robotStateRoutineThread.pkg.gripper_fault);
-            rtnArray.set(2, robotStateRoutineThread.pkg.gripper_speed);
+            rtnArray.set(1, cndeClient.GetStatePkg().gripper_fault);
+            rtnArray.set(2, cndeClient.GetStatePkg().gripper_speed);
         }
         else
         {
@@ -7334,8 +7470,8 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            rtnArray.set(1,robotStateRoutineThread.pkg.gripper_fault);
-            rtnArray.set(2,robotStateRoutineThread.pkg.gripper_current);
+            rtnArray.set(1,cndeClient.GetStatePkg().gripper_fault);
+            rtnArray.set(2,cndeClient.GetStatePkg().gripper_current);
         }
         else
         {
@@ -7362,8 +7498,8 @@ public class Robot
         rtnArray.add(1);
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            rtnArray.set(1,robotStateRoutineThread.pkg.gripper_fault);
-            rtnArray.set(2,robotStateRoutineThread.pkg.gripper_voltage);
+            rtnArray.set(1,cndeClient.GetStatePkg().gripper_fault);
+            rtnArray.set(2,cndeClient.GetStatePkg().gripper_voltage);
         }
         else
         {
@@ -7390,8 +7526,8 @@ public class Robot
         rtnArray.add(1);
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            rtnArray.set(1,robotStateRoutineThread.pkg.gripper_fault);
-            rtnArray.set(2, robotStateRoutineThread.pkg.gripper_tmp);
+            rtnArray.set(1,cndeClient.GetStatePkg().gripper_fault);
+            rtnArray.set(2, cndeClient.GetStatePkg().gripper_temp);
         }
         else
         {
@@ -7833,12 +7969,12 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            ft.fx = robotStateRoutineThread.pkg.ft_sensor_data[0];
-            ft.fy = robotStateRoutineThread.pkg.ft_sensor_data[1];
-            ft.fz = robotStateRoutineThread.pkg.ft_sensor_data[2];
-            ft.tx = robotStateRoutineThread.pkg.ft_sensor_data[3];
-            ft.ty = robotStateRoutineThread.pkg.ft_sensor_data[4];
-            ft.tz = robotStateRoutineThread.pkg.ft_sensor_data[5];
+            ft.fx = cndeClient.GetStatePkg().ft_sensor_data[0];
+            ft.fy = cndeClient.GetStatePkg().ft_sensor_data[1];
+            ft.fz = cndeClient.GetStatePkg().ft_sensor_data[2];
+            ft.tx = cndeClient.GetStatePkg().ft_sensor_data[3];
+            ft.ty = cndeClient.GetStatePkg().ft_sensor_data[4];
+            ft.tz = cndeClient.GetStatePkg().ft_sensor_data[5];
         }
         else
         {
@@ -7864,12 +8000,12 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            ft.fx = robotStateRoutineThread.pkg.ft_sensor_raw_data[0];
-            ft.fy = robotStateRoutineThread.pkg.ft_sensor_raw_data[1];
-            ft.fz = robotStateRoutineThread.pkg.ft_sensor_raw_data[2];
-            ft.tx = robotStateRoutineThread.pkg.ft_sensor_raw_data[3];
-            ft.ty = robotStateRoutineThread.pkg.ft_sensor_raw_data[4];
-            ft.tz = robotStateRoutineThread.pkg.ft_sensor_raw_data[5];
+            ft.fx = cndeClient.GetStatePkg().ft_sensor_raw_data[0];
+            ft.fy = cndeClient.GetStatePkg().ft_sensor_raw_data[1];
+            ft.fz = cndeClient.GetStatePkg().ft_sensor_raw_data[2];
+            ft.tx = cndeClient.GetStatePkg().ft_sensor_raw_data[3];
+            ft.ty = cndeClient.GetStatePkg().ft_sensor_raw_data[4];
+            ft.tz = cndeClient.GetStatePkg().ft_sensor_raw_data[5];
         }
         else
         {
@@ -8847,7 +8983,7 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            state[0] = robotStateRoutineThread.pkg.EmergencyStop;
+            state[0] = cndeClient.GetStatePkg().EmergencyStop;
         }
         else
         {
@@ -8895,8 +9031,8 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            si0_state[0] = robotStateRoutineThread.pkg.safety_stop0_state;
-            si1_state[0] = robotStateRoutineThread.pkg.safety_stop1_state;
+            si0_state[0] = cndeClient.GetStatePkg().safety_stop0_state;
+            si1_state[0] = cndeClient.GetStatePkg().safety_stop1_state;
         }
         else
         {
@@ -10392,13 +10528,19 @@ public class Robot
 
     private boolean IsSockComError()
     {
-        while(robotStateRoutineThread.clientRobotState.GetReconnState())
+        // 检查CNDE客户端连接状态
+        if (cndeClient == null || !cndeClient.isRunning())
         {
-            Sleep(10);
+            if (sockErr == RobotError.ERR_SUCCESS)
+            {
+                sockErr = RobotError.ERR_SOCKET_COM_FAILED;
+            }
+            return true;
         }
-        if (robotStateRoutineThread.GetSockErr() != RobotError.ERR_SUCCESS)
+
+        // 检查socket错误状态
+        if (sockErr != RobotError.ERR_SUCCESS)
         {
-            sockErr = robotStateRoutineThread.GetSockErr();
             if (log != null)
             {
                 log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "sdk socket error" + sockErr);
@@ -11423,19 +11565,18 @@ public class Robot
 
     /**
      * @brief 获取机器人实时状态结构体
-     * @return 错误码
+     * @return ROBOT_STATE_PKG 机器人状态包
      */
     public ROBOT_STATE_PKG GetRobotRealTimeState()
     {
-        if (IsSockComError())
+        if (IsSockComError() || cndeClient == null)
         {
             return new ROBOT_STATE_PKG();
         }
         else
         {
-            return robotStateRoutineThread.GetRobotRealTimeState();
+            return cndeClient.GetStatePkg();
         }
-
     }
 
     /**
@@ -16905,6 +17046,10 @@ public class Robot
      */
     public int AxleLuaUpload(String filePath)
     {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
         try
         {
             File fileInfo = new File(filePath);
@@ -17080,6 +17225,10 @@ public class Robot
      */
     public int TractorStop()
     {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
         int rtn =ProgramStop();
         return rtn;
     }
@@ -17152,6 +17301,10 @@ public class Robot
      */
     public int SetWeldMachineCtrlMode(int mode)
     {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
         return SetWeldMachineCtrlMode(mode, 1);
     }
 
@@ -17432,6 +17585,10 @@ public class Robot
 
     public int GetSafetyCode()
     {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
         ROBOT_STATE_PKG pkg = GetRobotRealTimeState();
         if (pkg.safety_stop0_state == 1 || pkg.safety_stop1_state == 1)
         {
@@ -19495,6 +19652,10 @@ public class Robot
      */
     public int GetWObjCoordWithID(int id, DescPose coord)
     {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
         int errcode = 0;
 
         if (id < 0 || id > 14)
@@ -22053,7 +22214,6 @@ public int SendUDPFrame(String frame) {
         }
     }
 
-
     /**
      * @brief 获取可配置CO端口功能
      * @param config CO0-CO7功能编码；
@@ -22560,42 +22720,42 @@ public int SendUDPFrame(String frame) {
         }
     }
 
-/**
- * @brief 下载开放协议Lua文件
- * @param fileName 开放协议文件名称"CtrlDev_XXX.lua"
- * @param savePath 开放协议保存文件路径
- * @return 错误码
- */
-public int OpenLuaDownload(String fileName, String savePath) {
-    if (IsSockComError()) {
-        return sockErr;
-    }
-
-    if (fileName == null || fileName.isEmpty()) {
-        if (log != null) {
-            log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
-                    Thread.currentThread().getStackTrace()[1].getLineNumber(),
-                    "file name can not be empty.");
+    /**
+     * @brief 下载开放协议Lua文件
+     * @param fileName 开放协议文件名称"CtrlDev_XXX.lua"
+     * @param savePath 开放协议保存文件路径
+     * @return 错误码
+     */
+    public int OpenLuaDownload(String fileName, String savePath) {
+        if (IsSockComError()) {
+            return sockErr;
         }
-        return RobotError.ERR_UPLOAD_FILE_NOT_FOUND;
-    }
 
-    String[] fileParts = fileName.split("\\.");
-    if (fileParts.length != 2 || !"lua".equals(fileParts[1])) {
-        if (log != null) {
-            log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
-                    Thread.currentThread().getStackTrace()[1].getLineNumber(),
-                    "can not download " + fileName + ", file name should be xxx.lua");
+        if (fileName == null || fileName.isEmpty()) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "file name can not be empty.");
+            }
+            return RobotError.ERR_UPLOAD_FILE_NOT_FOUND;
         }
-        return RobotError.ERR_FILE_NAME;
-    }
 
-    if (log != null) {
-        log.LogInfo("download open lua.");
-    }
+        String[] fileParts = fileName.split("\\.");
+        if (fileParts.length != 2 || !"lua".equals(fileParts[1])) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "can not download " + fileName + ", file name should be xxx.lua");
+            }
+            return RobotError.ERR_FILE_NAME;
+        }
 
-    return FileDownLoad(11, fileName, savePath);
-}
+        if (log != null) {
+            log.LogInfo("download open lua.");
+        }
+
+        return FileDownLoad(11, fileName, savePath);
+    }
 
     /**
      * @brief 设置用户自定义机器人末端灯色
@@ -22655,5 +22815,277 @@ public int OpenLuaDownload(String fileName, String savePath) {
         int rtn = FileDelete(12, "openluas");
         return rtn;
     }
+
+    /**
+     * @brief 配置机器人状态反馈，将state列表和period暂时存储起来
+     * @param state 机器人状态枚举列表，如 RobotState.ProgramState, RobotState.RobotState 等
+     * @param period 状态反馈周期，范围8-1000
+     * @return 错误码，正常-0，参数异常-4，状态字段不存在-18，字节总数超过4K-20
+     */
+    public int SetRobotRealtimeStateConfig(List<RobotState> state, int period)
+    {
+        if (period < 8 || period > 1000)
+        {
+            return 4; // 参数异常
+        }
+
+        // 检查所有状态字段是否存在
+        if (state != null)
+        {
+            for (RobotState s : state)
+            {
+                if (s == null || RobotStateParser.getStateType(s) == null)
+                {
+                    return -18; // 状态字段不存在
+                }
+            }
+
+            // 检查字节总数是否超过4K
+            int totalSize = RobotStateParser.calculateTotalSize(state);
+            if (totalSize > 4096)
+            {
+                return -20; // 字节总数超过4K
+            }
+        }
+
+        robotRealtimeStateList.clear();
+        if (state != null)
+        {
+            robotRealtimeStateList.addAll(state);
+        }
+        robotRealtimeStatePeriod = period;
+        return 0;
+    }
+
+    /**
+     * @brief 添加一个机器人状态到配置列表
+     * @param state 机器人状态枚举，如 RobotState.ProgramState, RobotState.RobotState, RobotState.JtCurPos 等
+     * @return 错误码，正常-0，状态已存在-17，状态字段不存在-18，超过4K-20
+     */
+    public int AddRobotRealtimeState(RobotState state)
+    {
+        if (state == null || RobotStateParser.getStateType(state) == null)
+        {
+            return -18; // 状态字段不存在
+        }
+
+        // 检查状态是否已存在
+        if (robotRealtimeStateList.contains(state))
+        {
+            return -17; // 状态已存在
+        }
+
+        // 检查添加后是否超过4K
+        int currentSize = RobotStateParser.calculateTotalSize(robotRealtimeStateList);
+        int stateSize = RobotStateParser.getStateSize(state);
+        if (currentSize + stateSize > 4096)
+        {
+            return -20; // 超过4K
+        }
+
+        robotRealtimeStateList.add(state);
+        return 0;
+    }
+
+    /**
+     * @brief 从配置列表删除一个机器人状态
+     * @param state 机器人状态枚举，如 RobotState.ProgramState, RobotState.RobotState, RobotState.JtCurPos 等
+     * @return 错误码，正常-0，状态不存在-18，至少保留一个状态-19
+     */
+    public int DeleteRobotRealtimeState(RobotState state)
+    {
+        if (state == null)
+        {
+            return -18; // 状态不存在
+        }
+
+        // 检查状态是否存在列表中
+        if (!robotRealtimeStateList.contains(state))
+        {
+            return -18; // 状态不存在
+        }
+
+        // 检查是否至少保留一个状态
+        if (robotRealtimeStateList.size() <= 1)
+        {
+            return -19; // 至少保留一个状态
+        }
+
+        robotRealtimeStateList.remove(state);
+        return 0;
+    }
+
+    /**
+     * @brief 设置状态反馈周期
+     * @param period 状态反馈周期，范围8-1000
+     * @return 错误码，正常-0，参数异常-4
+     */
+    public int SetRobotRealtimeStatePeriod(int period)
+    {
+        if (period < 8 || period > 1000)
+        {
+            return 4; // 参数异常
+        }
+        robotRealtimeStatePeriod = period;
+        return 0;
+    }
+
+    /**
+     * 配置结果类，包含状态列表和周期
+     */
+    public static class StateConfigResult {
+        public final List<RobotState> stateList;
+        public final int period;
+
+        public StateConfigResult(List<RobotState> stateList, int period) {
+            this.stateList = stateList;
+            this.period = period;
+        }
+
+        @Override
+        public String toString() {
+            return "StateConfigResult{stateCount=" + stateList.size() + ", period=" + period + "ms}";
+        }
+    }
+
+    /**
+     * @brief 获取当前所有状态集合和周期
+     * @return 包含状态列表和周期的配置结果
+     */
+    public StateConfigResult GetRobotRealtimeStateConfig()
+    {
+        return new StateConfigResult(new ArrayList<>(robotRealtimeStateList), robotRealtimeStatePeriod);
+    }
+
+    /**
+     * @brief 连接 CNDE 服务
+     * @param ip 机器人 IP
+     * @param port 机器人 CNDE 端口 (默认 20005)
+     * @return 0-成功，其他-错误码
+     */
+    public int CNDEConnect(String ip, int port)
+    {
+        // 创建新的CNDE客户端，使用内部状态包
+        cndeClient = new FRCNDEClient(ip, port);
+        return cndeClient.Connect(ip, port);
+    }
+
+    /**
+     * @brief 关闭 CNDE 连接
+     * @return 0-成功
+     */
+    public int CNDEClose()
+    {
+        if (cndeClient != null)
+        {
+            return cndeClient.Close();
+        }
+        return 0;
+    }
+
+    /**
+     * @brief 启动 CNDE 状态上报
+     * @return 0-成功，其他-错误码
+     */
+    public int CNDEStart()
+    {
+        if (cndeClient != null)
+        {
+            return cndeClient.SetCNDEStart();
+        }
+        return -1;
+    }
+
+    /**
+     * @brief 停止 CNDE 状态上报
+     * @return 0-成功，其他-错误码
+     */
+    public int CNDEStop()
+    {
+        if (cndeClient != null)
+        {
+            return cndeClient.SetCNDEStop();
+        }
+        return -1;
+    }
+
+    /**
+     * @brief 设置 CNDE 状态反馈周期
+     * @param period 周期 (ms)，范围 8-1000
+     * @return 错误码，正常-0，参数异常-4
+     */
+    public int CNDESetRobotStatePeriod(int period)
+    {
+        if (cndeClient != null)
+        {
+            return cndeClient.SetCNDERobotStatePeriod(period);
+        }
+        return -1;
+    }
+
+    /**
+     * @brief 获取 CNDE 状态反馈周期
+     * @return 周期 (ms)，未连接返回-1
+     */
+    public int CNDEGetRobotStatePeriod()
+    {
+        if (cndeClient != null)
+        {
+            return cndeClient.getRobotStatePeriod();
+        }
+        return -1;
+    }
+
+    /**
+     * @brief 设置 CNDE 状态配置
+     * @param configList 状态配置列表
+     */
+    public void CNDESetStateConfig(List<RobotState> configList)
+    {
+        if (cndeClient != null)
+        {
+            cndeClient.SetStateConfig(configList);
+        }
+    }
+
+    /**
+     * @brief 发送 CNDE 状态配置到服务器
+     * @return 0-成功，-1-失败
+     */
+    public int CNDESendStateConfig()
+    {
+        if (cndeClient != null)
+        {
+            return cndeClient.SendStateConfig();
+        }
+        return -1;
+    }
+
+    /**
+     * @brief 获取 CNDE 状态配置
+     * @return 状态配置列表
+     */
+    public List<RobotState> CNDEGetStateConfig()
+    {
+        if (cndeClient != null)
+        {
+            return cndeClient.GetStateConfig();
+        }
+        return null;
+    }
+    
+    /**
+     * @brief 获取 CNDE 状态数据
+     * @return 状态数据结构体
+     */
+    public ROBOT_STATE_PKG CNDEGetStateData()
+    {
+        if (cndeClient != null)
+        {
+            return cndeClient.GetStatePkg();
+        }
+        return null;
+    }
+
 
 }

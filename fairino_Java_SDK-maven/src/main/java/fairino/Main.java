@@ -5,6 +5,7 @@ import sun.security.krb5.internal.crypto.Des;
 
 import java.util.Arrays;
 import java.util.List;
+import java.io.Console;
 import java.util.ArrayList;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
@@ -15,13 +16,42 @@ public class Main {
         Robot robot = new Robot();
         robot.SetReconnectParam(true, 100, 50);//设置重连次数、间隔
         robot.LoggerInit(FrLogType.DIRECT, FrLogLevel.INFO, "D://log", 10, 10);
-        int rtn = robot.RPC("192.168.58.2");
-        if (rtn == 0) {
-            System.out.println("rpc连接 success");
-        } else {
-            System.out.println("rpc连接 fail");
-            return;
-        }
+
+//       int rtn = robot.RPC("192.168.58.2");
+//       if (rtn == 0) {
+//           System.out.println("rpc连接 success");
+//       } else {
+//           System.out.println("rpc连接 fail");
+//           return;
+//       }
+
+    //    TestSetTrajectoryJSpeed(robot);
+
+        // 测试新增CNDE状态配置
+//        TestCNDEStarte(robot);
+        // 测试读取默认的状态值
+//        TestReadBasicStates(robot);
+
+        // 测试参数异常
+//        TestCNDEParamError(robot);
+        // 测试默认值打印
+//          TestDefault(robot);
+        // 验证SDK配置和获取机器人关节位置、笛卡尔位置、关节力矩等机器人本体相关状态数据正常生效
+        // TestExtendedStates(robot);
+        // TestExtendedStates2(robot);
+        
+//        TestAlarmStates(robot);
+//        TestSensorGripperStates(robot);
+//        TestExtAxisStates(robot);
+        // 稳定性测试
+        // MoveRectangleMove(robot);
+
+        // TestAxleGenComData(robot);
+//        testCndeServoJ(robot);
+        
+        // 测试实时状态配置接口
+        TestRealtimeStateConfig(robot);
+
         // TestCtrlOpenLuaOperate(robot);
         // TestUDPAxis(robot);
         // TestIOConfig(robot);
@@ -6483,14 +6513,14 @@ public class Main {
         while (true) {
             ROBOT_STATE_PKG pkg = new ROBOT_STATE_PKG();
             pkg = robot.GetRobotRealTimeState();
-            System.out.println("welding breakoff state is " + pkg.weldingBreakOffstate.breakOffState);
-            if (pkg.weldingBreakOffstate.breakOffState == 1) {
-                System.out.println("welding breakoff !");
-                robot.Sleep(2000);
-                rtn = robot.WeldingStartReWeldAfterBreakOff();
-                System.out.println("WeldingStartReWeldAfterBreakOff: " + rtn);
-                break;
-            }
+//            System.out.println("welding breakoff state is " + pkg.weldingBreakOffstate.breakOffState);
+//            if (pkg.weldingBreakOffstate.breakOffState == 1) {
+//                System.out.println("welding breakoff !");
+//                robot.Sleep(2000);
+//                rtn = robot.WeldingStartReWeldAfterBreakOff();
+//                System.out.println("WeldingStartReWeldAfterBreakOff: " + rtn);
+//                break;
+//            }
             robot.Sleep(100);
         }
     }
@@ -10192,5 +10222,1563 @@ public static void TestRobotUDP (Robot robot) {
         robot.Sleep(1000);
         return 0;
     }
-}
 
+    public static void TestReadBasicStates(Robot robot) throws InterruptedException {
+        int ret = 0;
+//        List<RobotState> state = new ArrayList<>();
+//        state.add(RobotState.RobotTime);
+//        state.add(RobotState.JointCurPos);
+//        state.add(RobotState.ToolCurPos);
+////        state.add(RobotState.OtherStat);
+//        ret = robot.SetRobotRealtimeStateConfig(state, 2000);
+//        System.out.println("SetRobotRealtimeStateConfig rtn : " + ret);
+
+        int rtn = robot.RPC("192.168.58.2");
+        if (rtn == 0) {
+            System.out.println("rpc连接 success");
+        } else {
+            System.out.println("rpc连接 fail");
+            return;
+        }
+
+        Robot.StateConfigResult configResult = robot.GetRobotRealtimeStateConfig();
+        System.out.println("[DEBUG] Current state config: " + configResult);
+        System.out.println("[DEBUG] State list: " + configResult.stateList);
+
+        System.out.println("\n===== 测试读取字段值 =====");
+
+        // 等待状态数据更新
+        robot.Sleep(1000);
+        while(true) {
+        robot.Sleep(200);
+        // 通过 CNDE 获取状态数据
+        ROBOT_STATE_PKG pkg = robot.CNDEGetStateData();
+        if (pkg == null) {
+            System.out.println("状态数据为空，请检查 CNDE 连接");
+            return;
+        }
+
+        // 1. 帧信息
+        System.out.println("\n--- 帧信息 ---");
+        System.out.println("frame_head: 0x" + Integer.toHexString(pkg.frame_head));
+        System.out.println("frame_cnt: " + pkg.frame_cnt);
+        System.out.println("data_len: " + pkg.data_len);
+
+        // 2. 程序与机器人状态
+        System.out.println("\n--- 程序与机器人状态 ---");
+        System.out.println("program_state: " + pkg.program_state);
+        System.out.println("robot_state: " + pkg.robot_state);
+        System.out.println("main_code: " + pkg.main_code);
+        System.out.println("sub_code: " + pkg.sub_code);
+        System.out.println("robot_mode: " + pkg.robot_mode);
+
+        // 3. 位置数据
+        System.out.println("\n--- 位置数据 ---");
+        printArray("jt_cur_pos", pkg.jt_cur_pos);
+        printArray("tl_cur_pos", pkg.tl_cur_pos);
+        printArray("flange_cur_pos", pkg.flange_cur_pos);
+
+        // // 4. 速度与加速度
+         System.out.println("\n--- 速度与加速度 ---");
+         printArray("target_tcp_cmp_speed", pkg.target_TCP_CmpSpeed);
+         printArray("target_tcp_speed", pkg.target_TCP_Speed);
+         printArray("actual_tcp_cmp_speed", pkg.actual_TCP_CmpSpeed);
+         printArray("actual_TCP_Speed", pkg.actual_TCP_Speed);
+
+        // // 5. 力矩数据
+        // System.out.println("\n--- 力矩数据 ---");
+         printArray("jt_cur_tor", pkg.jt_cur_tor);
+         printArray("actual_joint_torque", pkg.jt_cur_tor);
+
+        // 6. 工具与用户坐标系
+        System.out.println("\n--- 坐标系 ---");
+        System.out.println("tool: " + pkg.tool);
+        System.out.println("user: " + pkg.user);
+        printArray("tool_coord", pkg.toolCoord);
+        printArray("wobjCoord", pkg.wobjCoord);
+        printArray("extoolCoord", pkg.extoolCoord);
+        printArray("exAxisCoord", pkg.exAxisCoord);
+
+        // 7. 数字IO
+        System.out.println("\n--- 数字IO ---");
+        System.out.println("cl_dgt_output_h: " + pkg.cl_dgt_output_h);
+        System.out.println("cl_dgt_output_l: " + pkg.cl_dgt_output_l);
+        System.out.println("tl_dgt_output_l: " + pkg.tl_dgt_output_l);
+        System.out.println("cl_dgt_input_h: " + pkg.cl_dgt_input_h);
+        System.out.println("cl_dgt_input_l: " + pkg.cl_dgt_input_l);
+        System.out.println("tl_dgt_input_l: " + pkg.tl_dgt_input_l);
+
+        // 8. 模拟IO
+        System.out.println("\n--- 模拟IO ---");
+        printArray("cl_analog_input", pkg.cl_analog_input);
+        System.out.println("tl_anglog_input: " + pkg.tl_anglog_input);
+        printArray("cl_analog_output", pkg.cl_analog_output);
+        System.out.println("tl_analog_output: " + pkg.tl_analog_output);
+
+        // 9. 力传感器
+        System.out.println("\n--- 力传感器 ---");
+        printArray("ft_sensor_raw_data", pkg.ft_sensor_raw_data);
+        printArray("ft_sensor_data", pkg.ft_sensor_data);
+        System.out.println("ft_sensor_active: " + pkg.ft_sensor_active);
+
+        // 10. 安全与状态标志
+        System.out.println("\n--- 安全与状态标志 ---");
+        System.out.println("motion_done: " + pkg.motion_done);
+        System.out.println("mc_queue_len: " + pkg.mc_queue_len);
+        System.out.println("collisionState: " + pkg.collisionState);
+        System.out.println("trajectory_pnum: " + pkg.trajectory_pnum);
+        System.out.println("safety_stop0_state: " + pkg.safety_stop0_state);
+        System.out.println("safety_stop1_state: " + pkg.safety_stop1_state);
+
+        // 11. 夹爪状态
+        System.out.println("\n--- 夹爪状态 ---");
+        System.out.println("gripper_fault_id: " + pkg.gripper_fault_id);
+        System.out.println("gripper_fault: " + pkg.gripper_fault);
+        System.out.println("gripper_active: " + pkg.gripper_active);
+        System.out.println("gripper_position: " + pkg.gripper_position);
+        System.out.println("gripper_speed: " + pkg.gripper_speed);
+        System.out.println("gripper_current: " + pkg.gripper_current);
+        System.out.println("gripper_temp: " + pkg.gripper_temp);
+        System.out.println("gripper_voltage: " + pkg.gripper_voltage);
+        System.out.println("gripperRotNum: " + pkg.gripperRotNum);
+        System.out.println("gripperRotSpeed: " + pkg.gripperRotSpeed);
+        System.out.println("gripperRotTorque: " + pkg.gripperRotTorque);
+
+        // 12. 辅助轴状态
+        System.out.println("\n--- 辅助轴状态 ---");
+        if (pkg.aux_state != null) {
+            System.out.println("aux_state: servoId=" + pkg.aux_state.servoId +
+                ", errCode=" + pkg.aux_state.servoErrCode +
+                ", state=" + pkg.aux_state.servoState +
+                ", pos=" + pkg.aux_state.servoPos +
+                ", vel=" + pkg.aux_state.servoVel +
+                ", Torque=" + pkg.aux_state.servoTorque);
+        }
+        if (pkg.extAxisStatus != null) {
+            for (int i = 0; i < pkg.extAxisStatus.length; i++) {
+                System.out.println("extAxisStatus[" + i + "]: pos=" + pkg.extAxisStatus[i].pos +
+                    ", vel=" + pkg.extAxisStatus[i].vel + ", ready=" + pkg.extAxisStatus[i].ready);
+            }
+        }
+
+        // 13. 扩展IO
+//        System.out.println("\n--- 扩展IO ---");
+//        printShortArray("extDIState", pkg.extDIState);
+//        printShortArray("extDOState", pkg.extDOState);
+//        printShortArray("extAIState", pkg.extAIState);
+//        printShortArray("extAOState", pkg.extAOState);
+
+        // 14. 机器人时间
+        System.out.println("\n--- 机器人时间 ---");
+        if (pkg.robotTime != null) {
+            System.out.println("robotTime: " + pkg.robotTime.year + "-" + pkg.robotTime.month + "-" + pkg.robotTime.day +
+                " " + pkg.robotTime.hour + ":" + pkg.robotTime.minute + ":" + pkg.robotTime.second +
+                "." + pkg.robotTime.millisecond);
+        }
+        System.out.println("softwareUpgradeState: " + pkg.softwareUpgradeState);
+
+         // 15. 焊接状态
+        System.out.println("\n--- 焊接状态 ---");
+        if (pkg.weldingBreakOffState != null) {
+            System.out.println("weldingBreakOffState: breakOffState=" + pkg.weldingBreakOffState.breakOffState +
+                ", weldArcState=" + pkg.weldingBreakOffState.weldArcState);
+        }
+
+        // 16. 其他状态
+        System.out.println("\n--- 其他状态 ---");
+        System.out.println("endLuaErrCode: " + pkg.endLuaErrCode);
+        System.out.println("smartToolState: " + pkg.smartToolState);
+        System.out.println("wideVoltageCtrlBoxTemp: " + pkg.wideVoltageCtrlBoxTemp);
+        System.out.println("wideVoltageCtrlBoxFanCurrent: " + pkg.wideVoltageCtrlBoxFanCurrent);
+        System.out.println("rbtEnableState: " + pkg.rbtEnableState);
+
+        // 17. 负载信息
+        System.out.println("\n--- 负载信息 ---");
+        System.out.println("load: " + pkg.load);
+        printArray("loadCog", pkg.loadCog);
+
+        // 18. 驱动器信息
+        System.out.println("\n--- 驱动器信息 ---");
+        printArray("jointDriverTorque", pkg.jointDriverTorque);
+        printArray("jointDriverTemperature", pkg.jointDriverTemperature);
+
+        // 19. 伺服命令
+        System.out.println("\n--- 伺服命令 ---");
+        System.out.println("servoJCmdNum: " + pkg.servoJCmdNum);
+
+        // 20. 校验和
+        System.out.println("\n--- 校验和 ---");
+        System.out.println("check_sum: 0x" + Integer.toHexString(pkg.check_sum));
+
+        System.out.println("speedScaleManual: " + pkg.speedScaleManual);
+        System.out.println("speedScaleAuto: " + pkg.speedScaleAuto);
+
+        // collisionLevel
+        printArray("collisionLevel: " , pkg.collisionLevel);
+
+//        System.out.println("\n===== ROBOT_STATE_PKG 所有字段值读取完成 =====\n");
+        }
+    }
+
+    // 辅助方法：打印double数组
+    private static void printArray(String name, double[] arr) {
+        if (arr == null) return;
+        StringBuilder sb = new StringBuilder(name + ": [");
+        for (int i = 0; i < arr.length; i++) {
+            sb.append(String.format("%.3f", arr[i]));
+            if (i < arr.length - 1) sb.append(", ");
+        }
+        sb.append("]");
+        System.out.println(sb.toString());
+    }
+
+    // 辅助方法：打印int数组
+    private static void printArray(String name, int[] arr) {
+        if (arr == null) return;
+        StringBuilder sb = new StringBuilder(name + ": [");
+        for (int i = 0; i < arr.length; i++) {
+            sb.append(arr[i]);
+            if (i < arr.length - 1) sb.append(", ");
+        }
+        sb.append("]");
+        System.out.println(sb.toString());
+    }
+
+
+    public static void TestCRUD(Robot robot) {
+       List<RobotState> state = new ArrayList<>();
+       state.add(RobotState.ProgramState);
+       state.add(RobotState.RobotState);
+       state.add(RobotState.MainCode);
+       state.add(RobotState.SubCode);
+       state.add(RobotState.RobotMode);
+//       state.add(RobotState.RobotTime);
+      robot.SetRobotRealtimeStateConfig(state, 100);
+
+//        robot.AddRobotRealtimeState(RobotState.CollisionLevel);
+//        robot.AddRobotRealtimeState(RobotState.Load);
+//        robot.AddRobotRealtimeState(RobotState.LoadCog);
+//        robot.DeleteRobotRealtimeState(RobotState.RobotTime);
+            Robot.StateConfigResult configResult = robot.GetRobotRealtimeStateConfig();
+            System.out.println("[DEBUG] Current state config: " + configResult);
+            System.out.println("[DEBUG] State list: " + configResult.stateList);
+
+            int rtn = robot.RPC("192.168.58.2");
+            if (rtn == 0) {
+                System.out.println("rpc连接 success");
+            } else {
+                System.out.println("rpc连接 fail");
+                return;
+            }
+
+
+
+
+    }
+
+    // 辅助方法：打印short数组
+    private static void printShortArray(String name, short[] arr) {
+        if (arr == null) return;
+        StringBuilder sb = new StringBuilder(name + ": [");
+        for (int i = 0; i < arr.length; i++) {
+            sb.append(arr[i]);
+            if (i < arr.length - 1) sb.append(", ");
+        }
+        sb.append("]");
+        System.out.println(sb.toString());
+    }
+
+    private static void TestCNDEParamError(Robot robot) {
+        int ret = 0;
+        List<RobotState> state = new ArrayList<>();
+        state.add(RobotState.RobotTime);
+        state.add(RobotState.JointCurPos);
+        state.add(RobotState.ToolCurPos);
+//        state.add(RobotState.OtherStat);
+        ret = robot.SetRobotRealtimeStateConfig(state, 2000);
+        System.out.println("SetRobotRealtimeStateConfig rtn : " + ret);
+
+        ret = robot.SetRobotRealtimeStatePeriod(7);
+        System.out.println("SetRobotRealtimeStatePeriod 7ms rtn : " + ret);
+        ret = robot.SetRobotRealtimeStatePeriod(8);
+        System.out.println("SetRobotRealtimeStatePeriod 8ms rtn : " + ret);
+
+        ret = robot.AddRobotRealtimeState(RobotState.JointCurPos);
+        System.out.println("AddRobotRealtimeState JointCurPos rtn : " + ret);
+
+
+        ret = robot.DeleteRobotRealtimeState(RobotState.CtrlBoxError);
+        System.out.println("DeleteRobotRealtimeState CtrlBoxError rtn : " + ret);
+
+        ret = robot.SetRobotRealtimeStatePeriod(1001);
+        System.out.println("SetRobotRealtimeStatePeriod 1001ms rtn : " + ret);
+
+
+        int rtn = robot.RPC("192.168.58.2");
+        if (rtn == 0) {
+            System.out.println("rpc连接 success");
+        } else {
+            System.out.println("rpc连接 fail");
+            return;
+        }
+
+        Robot.StateConfigResult configResult = robot.GetRobotRealtimeStateConfig();
+        System.out.println("[DEBUG] Current state config: " + configResult);
+        System.out.println("[DEBUG] State list: " + configResult.stateList);
+    }
+
+    private static void TestDefault(Robot robot) {
+         List<RobotState> state = new ArrayList<>();
+         state.add(RobotState.RobotTime);
+         robot.SetRobotRealtimeStateConfig(state, 100);
+
+        
+        int rtn = robot.RPC("192.168.58.2");
+        if (rtn == 0) {
+            System.out.println("rpc连接 success");
+        } else {
+            System.out.println("rpc连接 fail");
+            return;
+        }
+        // 等待CNDE连接建立
+        System.out.println("等待CNDE连接建立...");
+        while (robot.CNDEGetStateData() == null) {
+            robot.Sleep(100);
+        }
+        System.out.println("CNDE连接已建立，开始接收数据...");
+
+        while(true) {
+            robot.Sleep(1000);
+            // 通过 CNDE 获取状态数据
+            ROBOT_STATE_PKG pkg = robot.CNDEGetStateData();
+            if (pkg == null) {
+                System.out.println("状态数据为空，CNDE连接断开，等待重连");
+                continue;  // 连接断开时继续循环，等待重连
+            }
+
+           System.out.println("\n--- 位置数据 ---");
+           printArray("jt_cur_pos", pkg.jt_cur_pos);
+           printArray("tl_cur_pos", pkg.tl_cur_pos);
+           printArray("flange_cur_pos", pkg.flange_cur_pos);
+
+           System.out.println("\n--- 负载信息 ---");
+           System.out.println("load: " + pkg.load);
+           printArray("loadCog", pkg.loadCog);
+
+            System.out.println("\n--- 机器人时间 ---");
+            if (pkg.robotTime != null) {
+                System.out.println("robotTime: " + pkg.robotTime.year + "-" + pkg.robotTime.month + "-" + pkg.robotTime.day +
+                        " " + pkg.robotTime.hour + ":" + pkg.robotTime.minute + ":" + pkg.robotTime.second +
+                        "." + pkg.robotTime.millisecond);
+            }
+
+           System.out.println("\n--- 关节指令位置 ---");
+           printArray("targetJointPos", pkg.targetJointPos);
+
+            // --- 扩展轴状态 ---
+            System.out.println("--- 扩展轴状态 (ExtAxisStatus[4]) ---");
+            if (pkg.extAxisStatus != null) {
+                for (int i = 0; i < pkg.extAxisStatus.length; i++) {
+                    EXT_AXIS_STATUS axis = pkg.extAxisStatus[i];
+                    System.out.printf("Axis[%d]: pos=%.3f, vel=%.3f, errorCode=%d, ready=%d, inPos=%d, alarm=%d%n",
+                            i, axis.pos, axis.vel, axis.errorCode, axis.ready, axis.inPos, axis.alarm);
+                    System.out.printf("         flerr=%d, nlimit=%d, pLimit=%d, mdbsOffLine=%d, mdbsTimeout=%d, homingStatus=%d%n",
+                            axis.flerr, axis.nlimit, axis.pLimit, axis.mdbsOffLine, axis.mdbsTimeout, axis.homingStatus);
+                }
+            } else {
+                System.out.println("extAxisStatus: null");
+            }
+        }
+    }
+    
+    private static void TestCNDEStarte(Robot robot) {
+         List<RobotState> state = new ArrayList<>();
+         state.add(RobotState.RobotTime);
+         state.add(RobotState.SocketConnTimeout);
+         state.add(RobotState.SocketReadTimeout);
+         state.add(RobotState.TsWebStateComErr);
+         robot.SetRobotRealtimeStateConfig(state, 100);
+
+
+        int rtn = robot.RPC("192.168.58.2");
+        if (rtn == 0) {
+            System.out.println("rpc连接 success");
+        } else {
+            System.out.println("rpc连接 fail");
+            return;
+        }
+        // 等待CNDE连接建立
+        System.out.println("等待CNDE连接建立...");
+        while (robot.CNDEGetStateData() == null) {
+            robot.Sleep(100);
+        }
+        System.out.println("CNDE连接已建立，开始接收数据...");
+
+        while(true) {
+            robot.Sleep(1000);
+            // 通过 CNDE 获取状态数据
+            ROBOT_STATE_PKG pkg = robot.CNDEGetStateData();
+            if (pkg == null) {
+                System.out.println("状态数据为空，CNDE连接断开，等待重连");
+                continue;  // 连接断开时继续循环，等待重连
+            }
+//
+//            System.out.println("\n--- 位置数据 ---");
+//            printArray("jt_cur_pos", pkg.jt_cur_pos);
+//            printArray("tl_cur_pos", pkg.tl_cur_pos);
+//            printArray("flange_cur_pos", pkg.flange_cur_pos);
+//
+//            System.out.println("\n--- 负载信息 ---");
+//            System.out.println("load: " + pkg.load);
+//            printArray("loadCog", pkg.loadCog);
+//
+            System.out.println("\n--- 机器人时间 ---");
+            if (pkg.robotTime != null) {
+                System.out.println("robotTime: " + pkg.robotTime.year + "-" + pkg.robotTime.month + "-" + pkg.robotTime.day +
+                        " " + pkg.robotTime.hour + ":" + pkg.robotTime.minute + ":" + pkg.robotTime.second +
+                        "." + pkg.robotTime.millisecond);
+            }
+
+            System.out.println("\n--- Socket状态 ---");
+            System.out.println("socketConnTimeout: " + pkg.socketConnTimeout);
+            System.out.println("socketReadTimeout: " + pkg.socketReadTimeout);
+            System.out.println("tsWebStateComErr: " + pkg.tsWebStateComErr);
+//
+//            System.out.println("\n--- 关节指令位置 ---");
+//            printArray("targetJointPos", pkg.targetJointPos);
+//
+//            // --- 扩展轴状态 ---
+//            System.out.println("--- 扩展轴状态 (ExtAxisStatus[4]) ---");
+//            if (pkg.extAxisStatus != null) {
+//                for (int i = 0; i < pkg.extAxisStatus.length; i++) {
+//                    EXT_AXIS_STATUS axis = pkg.extAxisStatus[i];
+//                    System.out.printf("Axis[%d]: pos=%.3f, vel=%.3f, errorCode=%d, ready=%d, inPos=%d, alarm=%d%n",
+//                            i, axis.pos, axis.vel, axis.errorCode, axis.ready, axis.inPos, axis.alarm);
+//                    System.out.printf("         flerr=%d, nlimit=%d, pLimit=%d, mdbsOffLine=%d, mdbsTimeout=%d, homingStatus=%d%n",
+//                            axis.flerr, axis.nlimit, axis.pLimit, axis.mdbsOffLine, axis.mdbsTimeout, axis.homingStatus);
+//                }
+//            } else {
+//                System.out.println("extAxisStatus: null");
+//            }
+
+
+        }
+    }
+    /**
+     * 测试扩展状态配置 - 配置并打印指定的状态列表
+     */
+    private static void TestExtendedStates(Robot robot) {
+        int ret = 0;
+
+        List<RobotState> state = new ArrayList<>();
+        state.add(RobotState.JointCurPos);
+        state.add(RobotState.ToolCurPos);
+        state.add(RobotState.FlangeCurPos);
+        state.add(RobotState.ActualJointVel);
+        state.add(RobotState.ActualJointAcc);
+        state.add(RobotState.TargetTCPCmpSpeed);
+        state.add(RobotState.TargetTCPSpeed);
+        state.add(RobotState.ActualTCPCmpSpeed);
+        state.add(RobotState.ActualTCPSpeed);
+        state.add(RobotState.ActualJointTorque);
+        state.add(RobotState.SafetyStop0State);
+        state.add(RobotState.SafetyStop1State);
+        state.add(RobotState.JointDriverTorque);
+        state.add(RobotState.JointDriverTemperature);
+        state.add(RobotState.RobotTime);
+        state.add(RobotState.TargetJointTorque);
+        state.add(RobotState.WideVoltageCtrlBoxTemp);
+        state.add(RobotState.WideVoltageCtrlBoxFanCurrent);
+        state.add(RobotState.TargetJointPos);
+        state.add(RobotState.TargetJointVel);
+        state.add(RobotState.TargetJointAcc);
+        state.add(RobotState.TargetJointCurrent);
+        state.add(RobotState.ActualJointCurrent);
+        state.add(RobotState.ActualTCPForce);
+        state.add(RobotState.TargetTCPPos);
+        state.add(RobotState.SafetyBoxSingal);
+        state.add(RobotState.BtnBoxStopSignal);
+        // 新增状态
+        state.add(RobotState.ProgramState);
+        state.add(RobotState.RobotState);
+        state.add(RobotState.RobotMode);
+        state.add(RobotState.MotionDone);
+        state.add(RobotState.McQueueLen);
+        state.add(RobotState.TrajectoryPnum);
+        state.add(RobotState.Tool);
+        state.add(RobotState.User);
+        state.add(RobotState.ClDgtOutputH);
+        state.add(RobotState.ClDgtOutputL);
+        state.add(RobotState.TlDgtOutputL);
+        state.add(RobotState.ClDgtInputH);
+        state.add(RobotState.ClDgtInputL);
+        state.add(RobotState.TlDgtInputL);
+        state.add(RobotState.ClAnalogInput);
+        state.add(RobotState.TlAnglogInput);
+        state.add(RobotState.RbtEnableState);
+        state.add(RobotState.SoftwareUpgradeState);
+        state.add(RobotState.WeldingBreakOffState);
+        state.add(RobotState.ClAnalogOutput);
+        state.add(RobotState.TlAnalogOutput);
+        state.add(RobotState.ToolCoord);
+        state.add(RobotState.WobjCoord);
+        state.add(RobotState.ExtoolCoord);
+        state.add(RobotState.ExAxisCoord);
+        state.add(RobotState.Load);
+        state.add(RobotState.LoadCog);
+        state.add(RobotState.LastServoTarget);
+        state.add(RobotState.ServoJCmdNum);
+        state.add(RobotState.CollisionLevel);
+        state.add(RobotState.SpeedScaleManual);
+        state.add(RobotState.SpeedScaleAuto);
+        state.add(RobotState.LuaLineNum);
+        state.add(RobotState.AbnomalStop);
+        state.add(RobotState.CurrentLuaFileName);
+        state.add(RobotState.ProgramTotalLine);
+        state.add(RobotState.WeldVoltage);
+        state.add(RobotState.WeldCurrent);
+        state.add(RobotState.WeldTrackVel);
+        state.add(RobotState.UdpCmdState);
+        state.add(RobotState.WeldReadyState);
+        ret = robot.SetRobotRealtimeStateConfig(state, 200);
+        System.out.println("SetRobotRealtimeStateConfig rtn : " + ret);
+
+        
+        int rtn = robot.RPC("192.168.58.2");
+        if (rtn == 0) {
+            System.out.println("rpc连接 success");
+        } else {
+            System.out.println("rpc连接 fail");
+            return;
+        }
+
+        // 等待CNDE连接建立
+        System.out.println("等待CNDE连接建立...");
+        while (robot.CNDEGetStateData() == null) {
+            robot.Sleep(100);
+        }
+        System.out.println("CNDE连接已建立，开始接收数据...");
+
+        while(true) {
+            robot.Sleep(1000);
+            ROBOT_STATE_PKG pkg = robot.CNDEGetStateData();
+            if (pkg == null) {
+                System.out.println("状态数据为空，CNDE连接断开，等待重连");
+                continue;
+            }
+
+            // --- 位置数据 ---
+            System.out.println("--- 位置数据 ---");
+            printArray("jt_cur_pos (关节当前位置)", pkg.jt_cur_pos);
+            printArray("tl_cur_pos (工具当前位置)", pkg.tl_cur_pos);
+            printArray("flange_cur_pos (法兰当前位置)", pkg.flange_cur_pos);
+
+            // --- 速度与加速度 ---
+            System.out.println("--- 速度与加速度 ---");
+            printArray("actualJointVel (实际关节速度)", pkg.actual_qd);
+            printArray("actualJointAcc (实际关节加速度)", pkg.actual_qdd);
+            printArray("target_TCP_CmpSpeed (目标TCP合成速度)", pkg.target_TCP_CmpSpeed);
+            printArray("targetTCPSpeed (目标TCP速度)", pkg.target_TCP_Speed);
+            printArray("actual_TCP_CmpSpeed (实际TCP合成速度)", pkg.actual_TCP_CmpSpeed);
+            printArray("actualTCPSpeed (实际TCP速度)", pkg.actual_TCP_Speed);
+
+            // --- 力矩 ---
+            System.out.println("--- 力矩 ---");
+            printArray("actualJointTorque (实际关节力矩)", pkg.jt_cur_tor);
+            printArray("targetJointTorque (目标关节力矩)", pkg.jt_tgt_tor);
+            printArray("actualTCPForce (实际TCP力)", pkg.actualTCPForce);
+
+            // --- 驱动器信息 ---
+            System.out.println("--- 驱动器信息 ---");
+            printArray("jointDriverTorque (关节驱动力矩)", pkg.jointDriverTorque);
+            printArray("jointDriverTemperature (关节驱动温度)", pkg.jointDriverTemperature);
+            printArray("actualJointCurrent (实际关节电流)", pkg.actualJointCurrent);
+            printArray("targetJointCurrent (目标关节电流)", pkg.targetJointCurrent);
+
+            // --- 目标位置与速度 ---
+            System.out.println("--- 目标位置与速度 ---");
+            printArray("targetJointPos (目标关节位置)", pkg.targetJointPos);
+            printArray("targetJointVel (目标关节速度)", pkg.targetJointVel);
+            printArray("targetJointAcc (目标关节加速度)", pkg.targetJointAcc);
+            printArray("targetTCPPos (目标TCP位置)", pkg.targetTCPPos);
+
+            // --- 安全状态 ---
+            System.out.println("--- 安全状态 ---");
+            System.out.println("safetyStop0State: " + pkg.safety_stop0_state);
+            System.out.println("safetyStop1State: " + pkg.safety_stop1_state);
+            printArray("safetyBoxSingal (安全箱信号)", pkg.safetyBoxSingal);
+            System.out.println("btnBoxStopSignal (按钮盒停止信号): " + pkg.btnBoxStopSignal);
+
+            // --- 控制箱状态 ---
+            System.out.println("--- 控制箱状态 ---");
+            System.out.println("wideVoltageCtrlBoxTemp (控制箱温度): " + pkg.wideVoltageCtrlBoxTemp);
+            System.out.println("wideVoltageCtrlBoxFanCurrent (控制箱风扇电流): " + pkg.wideVoltageCtrlBoxFanCurrent);
+
+            // --- 机器人时间 ---
+            System.out.println("--- 机器人时间 ---");
+            if (pkg.robotTime != null) {
+                System.out.println("robotTime: " + pkg.robotTime.year + "-" + pkg.robotTime.month + "-" + pkg.robotTime.day +
+                        " " + pkg.robotTime.hour + ":" + pkg.robotTime.minute + ":" + pkg.robotTime.second +
+                        "." + pkg.robotTime.millisecond);
+            } else {
+                System.out.println("robotTime: null");
+            }
+            System.out.println("------------------------------------------------------------------------------------------");
+        }
+    }
+
+    /**
+     * 测试扩展状态配置2 - 配置并打印新增的状态列表
+     */
+    private static void TestExtendedStates2(Robot robot) {
+        int ret = 0;
+
+        List<RobotState> state = new ArrayList<>();
+        state.add(RobotState.ProgramState);
+        state.add(RobotState.RobotState);
+        state.add(RobotState.RobotMode);
+        state.add(RobotState.MotionDone);
+        state.add(RobotState.McQueueLen);
+        state.add(RobotState.TrajectoryPnum);
+        state.add(RobotState.Tool);
+        state.add(RobotState.User);
+        state.add(RobotState.ClDgtOutputH);
+        state.add(RobotState.ClDgtOutputL);
+        state.add(RobotState.TlDgtOutputL);
+        state.add(RobotState.ClDgtInputH);
+        state.add(RobotState.ClDgtInputL);
+        state.add(RobotState.TlDgtInputL);
+        state.add(RobotState.ClAnalogInput);
+        state.add(RobotState.TlAnglogInput);
+        state.add(RobotState.RbtEnableState);
+        state.add(RobotState.SoftwareUpgradeState);
+        state.add(RobotState.WeldingBreakOffState);
+        state.add(RobotState.ClAnalogOutput);
+        state.add(RobotState.TlAnalogOutput);
+        state.add(RobotState.ToolCoord);
+        state.add(RobotState.WobjCoord);
+        state.add(RobotState.ExtoolCoord);
+        state.add(RobotState.ExAxisCoord);
+        state.add(RobotState.Load);
+        state.add(RobotState.LoadCog);
+        state.add(RobotState.LastServoTarget);
+        state.add(RobotState.ServoJCmdNum);
+        state.add(RobotState.CollisionLevel);
+        state.add(RobotState.SpeedScaleManual);
+        state.add(RobotState.SpeedScaleAuto);
+        state.add(RobotState.LuaLineNum);
+        state.add(RobotState.AbnomalStop);
+        state.add(RobotState.CurrentLuaFileName);
+        state.add(RobotState.ProgramTotalLine);
+        state.add(RobotState.WeldVoltage);
+        state.add(RobotState.WeldCurrent);
+        state.add(RobotState.WeldTrackVel);
+        state.add(RobotState.UdpCmdState);
+        state.add(RobotState.WeldReadyState);
+        ret = robot.SetRobotRealtimeStateConfig(state, 100);
+        System.out.println("SetRobotRealtimeStateConfig rtn : " + ret);
+
+
+        int rtn = robot.RPC("192.168.58.2");
+        if (rtn == 0) {
+            System.out.println("rpc连接 success");
+        } else {
+            System.out.println("rpc连接 fail");
+            return;
+        }
+
+        // 等待CNDE连接建立
+        System.out.println("等待CNDE连接建立...");
+        while (robot.CNDEGetStateData() == null) {
+            robot.Sleep(100);
+        }
+        System.out.println("CNDE连接已建立，开始接收数据...");
+
+        while(true) {
+            robot.Sleep(1000);
+            ROBOT_STATE_PKG pkg = robot.CNDEGetStateData();
+            if (pkg == null) {
+                System.out.println("状态数据为空，CNDE连接断开，等待重连");
+                continue;
+            }
+
+            // --- 程序与运动状态 ---
+//            System.out.println("--- 程序与运动状态 ---");
+//            System.out.println("programState (程序状态): " + pkg.program_state);
+//            System.out.println("robotState (机器人状态): " + pkg.robot_state);
+//            System.out.println("robotMode (机器人模式): " + pkg.robot_mode);
+//            System.out.println("motionDone (运动完成): " + pkg.motion_done);
+//            System.out.println("mcQueueLen (MC队列长度): " + pkg.mc_queue_len);
+//            System.out.println("trajectoryPnum (轨迹点数量): " + pkg.trajectory_pnum);
+//
+//            // --- 工具与用户坐标系 ---
+            System.out.println("--- 工具与用户坐标系 ---");
+            System.out.println("tool (工具号): " + pkg.tool);
+            System.out.println("user (工件坐标系号): " + pkg.user);
+            printArray("toolCoord (工具坐标)", pkg.toolCoord);
+            printArray("wobjCoord (工件坐标)", pkg.wobjCoord);
+            printArray("extoolCoord (外轴工具坐标)", pkg.extoolCoord);
+            printArray("exAxisCoord (外轴坐标)", pkg.exAxisCoord);
+//
+//            // --- 数字IO ---
+//            System.out.println("--- 数字IO ---");
+//            System.out.println("clDgtOutputH (控制器数字输出高): " + pkg.cl_dgt_output_h);
+//            System.out.println("clDgtOutputL (控制器数字输出低): " + pkg.cl_dgt_output_l);
+//            System.out.println("tlDgtOutputL (工具数字输出低): " + pkg.tl_dgt_output_l);
+//            System.out.println("clDgtInputH (控制器数字输入高): " + pkg.cl_dgt_input_h);
+//            System.out.println("clDgtInputL (控制器数字输入低): " + pkg.cl_dgt_input_l);
+//            System.out.println("tlDgtInputL (工具数字输入低): " + pkg.tl_dgt_input_l);
+//
+//            // --- 模拟IO ---
+//            System.out.println("--- 模拟IO ---");
+//            printArray("clAnalogInput (控制器模拟输入)", pkg.cl_analog_input);
+//            System.out.println("TlAnglogInput (工具模拟输入)" + pkg.tl_anglog_input);
+//            printArray("clAnalogOutput (控制器模拟输出)", pkg.cl_analog_output);
+//            System.out.println("tlAnalogOutput (工具模拟输出)" + pkg.tl_analog_output);
+////
+//            // --- 状态标志 ---
+//            System.out.println("--- 状态标志 ---");
+//            System.out.println("rbtEnableState (机器人使能状态): " + pkg.rbtEnableState);
+//            System.out.println("softwareUpgradeState (软件升级状态): " + pkg.softwareUpgradeState);
+//            System.out.println("weldingBreakOffState (焊接断弧状态),breakOffState:" + pkg.weldingBreakOffState.breakOffState + ",weldArcState:" + pkg.weldingBreakOffState.weldArcState);
+//
+//            printArray("collisionLevel (碰撞等级): ", pkg.collisionLevel);
+//            System.out.println("speedScaleManual (手动速度比例): " + pkg.speedScaleManual);
+//            System.out.println("speedScaleAuto (自动速度比例): " + pkg.speedScaleAuto);
+//            System.out.println("luaLineNum (Lua行号): " + pkg.luaLineNum);
+//            System.out.println("abnomalStop (异常停止): " + pkg.abnomalStop);
+//            System.out.println("udpCmdState (UDP命令状态): " + pkg.udpCmdState);
+//            System.out.println("weldReadyState (焊接就绪状态): " + pkg.weldReadyState);
+//
+////            // --- Lua程序 ---
+//            System.out.println("--- Lua程序 ---");
+//            System.out.println("currentLuaFileName (当前Lua文件名): " + pkg.currentLuaFileName);
+//            System.out.println("programTotalLine (程序总行数): " + pkg.programTotalLine);
+////
+////            // --- 负载信息 ---
+//            System.out.println("--- 负载信息 ---");
+//            System.out.println("load (负载): " + pkg.load);
+//            printArray("loadCog (负载重心)", pkg.loadCog);
+////
+////            // --- 伺服目标 ---
+//            System.out.println("--- 伺服目标 ---");
+//            printArray("lastServoTarget (最后伺服目标)", pkg.lastServoTarget);
+//            System.out.println("servoJCmdNum (ServoJ命令数): " + pkg.servoJCmdNum);
+////
+////            // --- 焊接数据 ---
+            System.out.println("--- 焊接数据 ---");
+            System.out.println("weldVoltage (焊接电压): " + pkg.weldVoltage);
+            System.out.println("weldCurrent (焊接电流): " + pkg.weldCurrent);
+            System.out.println("weldTrackVel (焊接跟踪速度): " + pkg.weldTrackVel);
+
+            System.out.println("------------------------------------------------------------------------------------------");
+        }
+    }
+
+    /**
+     * 测试报警和错误状态 - 配置并打印各类报警和错误状态
+     */
+    private static void TestAlarmStates(Robot robot) {
+        int ret = 0;
+
+        List<RobotState> state = new ArrayList<>();
+        state.add(RobotState.EmergencyStop);
+        state.add(RobotState.MainCode);
+        state.add(RobotState.SubCode);
+        state.add(RobotState.CollisionState);
+        state.add(RobotState.EndLuaErrCode);
+        state.add(RobotState.TpdException);
+        state.add(RobotState.AlarmRebootRobot);
+        state.add(RobotState.DragAlarm);
+        state.add(RobotState.SafetyDoorAlarm);
+        state.add(RobotState.SafetyPlaneAlarm);
+        state.add(RobotState.MotonAlarm);
+        state.add(RobotState.InterfaceAlarm);
+        state.add(RobotState.AlarmCheckEmergStopBtn);
+        state.add(RobotState.TsTmCmdComError);
+        state.add(RobotState.TsTmStateComError);
+        state.add(RobotState.CtrlBoxError);
+        state.add(RobotState.SafetyDataState);
+        state.add(RobotState.CtrlOpenLuaErrCode);
+        state.add(RobotState.StrangePosFlag);
+        state.add(RobotState.Alarm);
+        state.add(RobotState.DriverAlarm);
+        state.add(RobotState.AliveSlaveNumError);
+        state.add(RobotState.SlaveComError);
+        state.add(RobotState.CmdPointError);
+        state.add(RobotState.IOError);
+        state.add(RobotState.GripperError);
+        state.add(RobotState.FileError);
+        state.add(RobotState.ParaError);
+        state.add(RobotState.ExaxisOutLimitError);
+        state.add(RobotState.DriverComError);
+        state.add(RobotState.DriverError);
+        state.add(RobotState.OutSoftLimitError);
+
+        ret = robot.SetRobotRealtimeStateConfig(state, 100);
+        System.out.println("SetRobotRealtimeStateConfig rtn : " + ret);
+
+        int rtn = robot.RPC("192.168.58.2");
+        if (rtn == 0) {
+            System.out.println("rpc连接 success");
+        } else {
+            System.out.println("rpc连接 fail");
+            return;
+        }
+
+        // 等待CNDE连接建立
+        System.out.println("等待CNDE连接建立...");
+        while (robot.CNDEGetStateData() == null) {
+            robot.Sleep(100);
+        }
+        System.out.println("CNDE连接已建立，开始接收数据...");
+
+        while (true) {
+            robot.Sleep(1000);
+            ROBOT_STATE_PKG pkg = robot.CNDEGetStateData();
+            if (pkg == null) {
+                System.out.println("状态数据为空，CNDE连接断开，等待重连");
+                continue;
+            }
+
+            // --- 急停与安全状态 ---
+            System.out.println("--- 急停与安全状态 ---");
+            System.out.println("EmergencyStop (急停状态): " + pkg.EmergencyStop);
+            System.out.println("alarmCheckEmergStopBtn (报警检查急停按钮): " + pkg.alarmCheckEmergStopBtn);
+            System.out.println("safetyDataState (安全数据状态): " + pkg.safetyDataState);
+
+            // --- 故障码 ---
+            System.out.println("--- 故障码 ---");
+            System.out.println("mainCode (主故障码): " + pkg.main_code + ",subCode (子故障码): " + pkg.sub_code);
+
+            // --- 碰撞与干涉 ---
+//            System.out.println("--- 碰撞与干涉 ---");
+//            System.out.println("collisionState (碰撞状态): " + pkg.collisionState);
+//            System.out.println("motonAlarm (运动报警): " + pkg.motonAlarm);
+//            System.out.println("interfaceAlarm (干涉报警): " + pkg.interfaceAlarm);
+
+            // --- Lua相关错误 ---
+            System.out.println("--- Lua相关错误 ---");
+            System.out.println("endLuaErrCode (末端Lua错误码): " + pkg.endLuaErrCode);
+            System.out.println("tpdException (TPD异常): " + pkg.tpdException);
+            printArray("ctrlOpenLuaErrCode (控制打开Lua错误码)", pkg.ctrlOpenLuaErrCode);
+
+            // --- 系统报警 ---
+            System.out.println("--- 系统报警 ---");
+            System.out.println("alarm (报警): " + pkg.alarm);
+            System.out.println("alarmRebootRobot (报警重启机器人): " + pkg.alarmRebootRobot);
+            System.out.println("dragAlarm (拖动报警): " + pkg.dragAlarm);
+            System.out.println("safetyDoorAlarm (安全门报警): " + pkg.safetyDoorAlarm);
+            System.out.println("safetyPlaneAlarm (安全平面报警): " + pkg.safetyPlaneAlarm);
+
+            // --- 控制器与通信错误 ---
+            System.out.println("--- 控制器与通信错误 ---");
+            System.out.println("ctrlBoxError (控制箱错误): " + pkg.ctrlBoxError);
+            System.out.println("tsTmCmdComError (命令通信错误): " + pkg.tsTmCmdComError);
+            System.out.println("tsTmStateComError (状态通信错误): " + pkg.tsTmStateComError);
+
+            // --- 驱动器相关 ---
+//            System.out.println("--- 驱动器相关 ---");
+//            System.out.println("driverAlarm (驱动器报警): " + pkg.driverAlarm + ",driverError (驱动器错误): " + pkg.driverError);
+//            printArray("driverComError (驱动器通信错误)", pkg.driverComError);
+//            System.out.println("aliveSlaveNumError (存活从站数量错误): " + pkg.aliveSlaveNumError);
+//            printArray("slaveComError (从站通信错误)", pkg.slaveComError);
+
+            // --- 其他错误 ---
+            System.out.println("--- 其他错误 ---");
+            System.out.println("strangePosFlag (奇异位置标志): " + pkg.strangePosFlag);
+            System.out.println("cmdPointError (命令点错误): " + pkg.cmdPointError);
+            System.out.println("IOError (IO错误): " + pkg.IOError);
+            System.out.println("gripperError (夹爪错误): " + pkg.gripperError);
+            System.out.println("fileError (文件错误): " + pkg.fileError);
+            System.out.println("paraError (参数错误): " + pkg.paraError);
+            System.out.println("exaxisOutLimitError (扩展轴超出软限位错误): " + pkg.exaxisOutLimitError);
+            System.out.println("outSoftLimitError (超出软限位错误): " + pkg.outSoftLimitError);
+
+            System.out.println("------------------------------------------------------------------------------------------");
+        }
+    }
+
+    /**
+     * 测试传感器、夹爪和Modbus状态 - 配置并打印力传感器、夹爪和通信相关状态
+     */
+    private static void TestSensorGripperStates(Robot robot) {
+        int ret = 0;
+
+        List<RobotState> state = new ArrayList<>();
+        state.add(RobotState.FtSensorRawData);
+        state.add(RobotState.FtSensorData);
+        state.add(RobotState.FtSensorActive);
+        state.add(RobotState.GripperMotiondone);
+        state.add(RobotState.GripperFaultId);
+        state.add(RobotState.GripperFault);
+        state.add(RobotState.GripperActive);
+        state.add(RobotState.GripperPosition);
+        state.add(RobotState.GripperSpeed);
+        state.add(RobotState.GripperCurrent);
+        state.add(RobotState.GripperTemp);
+        state.add(RobotState.GripperVoltage);
+        state.add(RobotState.GripperRotNum);
+        state.add(RobotState.GripperRotSpeed);
+        state.add(RobotState.GripperRotTorque);
+        state.add(RobotState.SmartToolState);
+        state.add(RobotState.ModbusMasterConnect);
+        state.add(RobotState.ModbusSlaveConnect);
+
+        ret = robot.SetRobotRealtimeStateConfig(state, 100);
+        System.out.println("SetRobotRealtimeStateConfig rtn : " + ret);
+
+        int rtn = robot.RPC("192.168.58.2");
+        if (rtn == 0) {
+            System.out.println("rpc连接 success");
+        } else {
+            System.out.println("rpc连接 fail");
+            return;
+        }
+
+        // 等待CNDE连接建立
+        System.out.println("等待CNDE连接建立...");
+        while (robot.CNDEGetStateData() == null) {
+            robot.Sleep(100);
+        }
+        System.out.println("CNDE连接已建立，开始接收数据...");
+
+        while (true) {
+            robot.Sleep(1000);
+            ROBOT_STATE_PKG pkg = robot.CNDEGetStateData();
+            if (pkg == null) {
+                System.out.println("状态数据为空，CNDE连接断开，等待重连");
+                continue;
+            }
+
+            // --- 力传感器 ---
+            System.out.println("--- 力传感器 ---");
+            System.out.println("ftSensorActive (力传感器激活状态): " + pkg.ft_sensor_active);
+            printArray("ftSensorRawData (力传感器原始数据)", pkg.ft_sensor_raw_data);
+            printArray("ftSensorData (力传感器数据)", pkg.ft_sensor_data);
+
+            // --- 夹爪状态 ---
+//            System.out.println("--- 夹爪状态 ---");
+//            System.out.println("gripperMotiondone (夹爪运动完成): " + pkg.gripper_motiondone);
+//            System.out.println("gripperFaultId (夹爪故障ID): " + pkg.gripper_fault_id);
+//            System.out.println("gripperFault (夹爪故障): " + pkg.gripper_fault);
+//            System.out.println("gripperActive (夹爪激活): " + pkg.gripper_active);
+//            System.out.println("gripperPosition (夹爪位置): " + pkg.gripper_position);
+//            System.out.println("gripperSpeed (夹爪速度): " + pkg.gripper_speed);
+//            System.out.println("gripperCurrent (夹爪电流): " + pkg.gripper_current);
+//            System.out.println("gripperTemp (夹爪温度): " + pkg.gripper_temp);
+//            System.out.println("gripperVoltage (夹爪电压): " + pkg.gripper_voltage);
+//
+//            // --- 旋转夹爪 ---
+//            System.out.println("--- 旋转夹爪 ---");
+//            System.out.println("gripperRotNum (旋转夹爪圈数): " + pkg.gripperRotNum);
+//            System.out.println("gripperRotSpeed (旋转夹爪速度): " + pkg.gripperRotSpeed);
+//            System.out.println("gripperRotTorque (旋转夹爪力矩): " + pkg.gripperRotTorque);
+//
+//            // --- 智能工具与Modbus ---
+//            System.out.println("--- smarttool与Modbus ---");
+//            System.out.println("smartToolState: " + pkg.smartToolState);
+//            System.out.println("--- Modbus ---");
+//            System.out.println("modbusMasterConnect (Modbus主站连接): " + pkg.modbusMasterConnect);
+//            System.out.println("modbusSlaveConnect (Modbus从站连接): " + pkg.modbusSlaveConnect);
+
+            System.out.println("------------------------------------------------------------------------------------------");
+        }
+    }
+
+    /**
+     * 测试扩展轴和扩展IO状态 - 配置并打印辅助轴、扩展轴状态和扩展IO状态
+     */
+    private static void TestExtAxisStates(Robot robot) {
+        int ret = 0;
+
+        List<RobotState> state = new ArrayList<>();
+        state.add(RobotState.AuxState);
+        state.add(RobotState.ExtAxisStatus);
+        state.add(RobotState.ExtDIState);
+        state.add(RobotState.ExtDOState);
+        state.add(RobotState.ExtAIState);
+        state.add(RobotState.ExtAOState);
+
+        ret = robot.SetRobotRealtimeStateConfig(state, 100);
+        System.out.println("SetRobotRealtimeStateConfig rtn : " + ret);
+
+        int rtn = robot.RPC("192.168.58.2");
+        if (rtn == 0) {
+            System.out.println("rpc连接 success");
+        } else {
+            System.out.println("rpc连接 fail");
+            return;
+        }
+
+        // 等待CNDE连接建立
+        System.out.println("等待CNDE连接建立...");
+        while (robot.CNDEGetStateData() == null) {
+            robot.Sleep(100);
+        }
+        System.out.println("CNDE连接已建立，开始接收数据...");
+
+        while (true) {
+            robot.Sleep(1000);
+            ROBOT_STATE_PKG pkg = robot.CNDEGetStateData();
+            if (pkg == null) {
+                System.out.println("状态数据为空，CNDE连接断开，等待重连");
+                continue;
+            }
+
+            // --- 辅助轴状态 ---
+            System.out.println("--- 辅助轴状态 (AuxState) ---");
+            if (pkg.aux_state != null) {
+                System.out.println("servoId (伺服ID): " + pkg.aux_state.servoId);
+                System.out.println("servoErrCode (伺服错误码): " + pkg.aux_state.servoErrCode);
+                System.out.println("servoState (伺服状态): " + pkg.aux_state.servoState);
+                System.out.println("servoPos (伺服位置): " + pkg.aux_state.servoPos);
+                System.out.println("servoVel (伺服速度): " + pkg.aux_state.servoVel);
+                System.out.println("servoTorque (伺服力矩): " + pkg.aux_state.servoTorque);
+            } else {
+                System.out.println("aux_state: null");
+            }
+
+            // --- 扩展轴状态 ---
+            System.out.println("--- 扩展轴状态 (ExtAxisStatus[4]) ---");
+            if (pkg.extAxisStatus != null) {
+                for (int i = 0; i < pkg.extAxisStatus.length; i++) {
+                    EXT_AXIS_STATUS axis = pkg.extAxisStatus[i];
+                    System.out.printf("Axis[%d]: pos=%.3f, vel=%.3f, errorCode=%d, ready=%d, inPos=%d, alarm=%d%n",
+                        i, axis.pos, axis.vel, axis.errorCode, axis.ready, axis.inPos, axis.alarm);
+                    System.out.printf("         flerr=%d, nlimit=%d, pLimit=%d, mdbsOffLine=%d, mdbsTimeout=%d, homingStatus=%d%n",
+                        axis.flerr, axis.nlimit, axis.pLimit, axis.mdbsOffLine, axis.mdbsTimeout, axis.homingStatus);
+                }
+            } else {
+                System.out.println("extAxisStatus: null");
+            }
+
+            // --- 扩展IO状态 ---
+            System.out.println("--- 扩展IO状态 ---");
+            System.out.print("extDIState (扩展数字输入): ");
+            for (int i = 0; i < pkg.extDIState.length; i++) {
+                System.out.print(pkg.extDIState[i] + " ");
+            }
+            System.out.println();
+
+            System.out.print("extDOState (扩展数字输出): ");
+            for (int i = 0; i < pkg.extDOState.length; i++) {
+                System.out.print(pkg.extDOState[i] + " ");
+            }
+            System.out.println();
+
+            System.out.print("extAIState (扩展模拟输入): ");
+            for (int i = 0; i < pkg.extAIState.length; i++) {
+                System.out.print(pkg.extAIState[i] + " ");
+            }
+            System.out.println();
+
+            System.out.print("extAOState (扩展模拟输出): ");
+            for (int i = 0; i < pkg.extAOState.length; i++) {
+                System.out.print(pkg.extAOState[i] + " ");
+            }
+            System.out.println();
+
+            System.out.println("------------------------------------------------------------------------------------------");
+        }
+    }
+
+    /**
+     * 正方形运动测试 - 使用MoveL执行正方形轨迹
+     */
+    private static int MoveRectangleMove(Robot robot)
+    {
+        List<RobotState> states = new ArrayList<>();
+        states.add(RobotState.JointCurPos);
+        states.add(RobotState.ToolCurPos);
+        states.add(RobotState.MotionDone);
+        int periodMs = 20;
+        int ret = robot.SetRobotRealtimeStateConfig(states, periodMs);
+        System.out.println("配置状态结果: " + ret);
+        ROBOT_STATE_PKG pkg = new ROBOT_STATE_PKG();
+        int rtn = 0;
+        robot.SetReconnectParam(true, 30000, 500);
+        rtn = robot.RPC("192.168.58.2");
+        if (rtn != 0)
+        {
+            System.out.printf("robot RPC failed%n");
+            return 0;
+        }
+
+        robot.Sleep(3000);
+        int tool = 0;
+        int user = 0;
+        float vel = 100.0f;
+        float acc = 100.0f;
+        float ovl = 100.0f;
+        float blendR = -1.0f;   // 运动到位（阻塞）
+        ExaxisPos epos = new ExaxisPos(0, 0, 0, 0);
+        int search = 0;
+        int offset_flag = 0;
+        DescPose offset_pos = new DescPose(0, 0, 0, 0, 0, 0);
+        float oacc = 100.0f;
+        int motionDone = 0;
+        double step = 100.0;  // 边长 100mm
+        int cycle = 1;
+        while (true)
+        {
+            System.out.printf("%n========== 第 %d 次正方形运动 ==========%n", cycle);
+
+            // 获取当前 TCP 位姿作为起点
+            pkg = robot.CNDEGetStateData();
+            if (pkg == null) {
+                System.out.println("获取实时状态失败，等待重连...");
+                robot.Sleep(100);
+                continue;
+            }
+
+            double startX = pkg.tl_cur_pos[0];
+            double startY = pkg.tl_cur_pos[1];
+            double startZ = pkg.tl_cur_pos[2];
+            double startRX = pkg.tl_cur_pos[3];
+            double startRY = pkg.tl_cur_pos[4];
+            double startRZ = pkg.tl_cur_pos[5];
+
+            // 定义四个目标点（相对起点）
+            DescPose target1 = new DescPose(startX + step, startY, startZ, startRX, startRY, startRZ);
+            DescPose target2 = new DescPose(startX + step, startY + step, startZ, startRX, startRY, startRZ);
+            DescPose target3 = new DescPose(startX, startY + step, startZ, startRX, startRY, startRZ);
+            DescPose target4 = new DescPose(startX, startY, startZ, startRX, startRY, startRZ);
+
+            JointPos jpos = new JointPos(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+
+            JointPos jposRef1 = new JointPos(pkg.jt_cur_pos[0], pkg.jt_cur_pos[1], pkg.jt_cur_pos[2], pkg.jt_cur_pos[3], pkg.jt_cur_pos[4], pkg.jt_cur_pos[5]);
+            JointPos refResult1 = new JointPos();
+            robot.GetInverseKinRef(0, target1, jposRef1, refResult1);
+            rtn = robot.MoveL(refResult1, target1, tool, user, vel, acc, ovl, blendR, epos, search, offset_flag, offset_pos, 0, 0);
+            System.out.printf("movel errcode:%d%n", rtn);
+            robot.Sleep(500);
+            motionDone = 0;
+            while (motionDone == 0)
+            {
+                pkg = robot.CNDEGetStateData();
+                motionDone = pkg.motion_done;
+                robot.Sleep(100);
+            }
+            System.out.println("movel 1 motion done\n");
+
+            pkg = robot.CNDEGetStateData();
+            if (pkg == null) {
+                System.out.println("获取实时状态失败，跳过本次循环");
+                continue;
+            }
+            JointPos jposRef2 = new JointPos(pkg.jt_cur_pos[0], pkg.jt_cur_pos[1], pkg.jt_cur_pos[2], pkg.jt_cur_pos[3], pkg.jt_cur_pos[4], pkg.jt_cur_pos[5]);
+            JointPos refResult2 = new JointPos();
+            robot.GetInverseKinRef(0, target2, jposRef2, refResult2);
+            rtn = robot.MoveL(refResult2, target2, tool, user, vel, acc, ovl, blendR, epos, search, offset_flag, offset_pos, 0, 0);
+            System.out.printf("movel errcode:%d%n", rtn);
+            robot.Sleep(500);
+            motionDone = 0;
+            while (motionDone == 0)
+            {
+                pkg = robot.CNDEGetStateData();
+                motionDone = pkg.motion_done;
+                robot.Sleep(100);
+            }
+            System.out.println("movel 2 motion done\n");
+
+            pkg = robot.CNDEGetStateData();
+            if (pkg == null) {
+                System.out.println("获取实时状态失败，跳过本次循环");
+                continue;
+            }
+            JointPos jposRef3 = new JointPos(pkg.jt_cur_pos[0], pkg.jt_cur_pos[1], pkg.jt_cur_pos[2], pkg.jt_cur_pos[3], pkg.jt_cur_pos[4], pkg.jt_cur_pos[5]);
+            JointPos refResult3 = new JointPos();
+            robot.GetInverseKinRef(0, target3, jposRef3, refResult3);
+            rtn = robot.MoveL(refResult3, target3, tool, user, vel, acc, ovl, blendR, epos, search, offset_flag, offset_pos, 0, 0);
+            System.out.printf("movel errcode:%d%n", rtn);
+            robot.Sleep(500);
+            motionDone = 0;
+            while (motionDone == 0)
+            {
+                pkg = robot.CNDEGetStateData();
+                motionDone = pkg.motion_done;
+                robot.Sleep(100);
+            }
+            System.out.println("movel 3 motion done\n");
+
+            pkg = robot.CNDEGetStateData();
+            if (pkg == null) {
+                System.out.println("获取实时状态失败，跳过本次循环");
+                continue;
+            }
+            JointPos jposRef4 = new JointPos(pkg.jt_cur_pos[0], pkg.jt_cur_pos[1], pkg.jt_cur_pos[2], pkg.jt_cur_pos[3], pkg.jt_cur_pos[4], pkg.jt_cur_pos[5]);
+            JointPos refResult4 = new JointPos();
+            robot.GetInverseKinRef(0, target4, jposRef4, refResult4);
+            rtn = robot.MoveL(refResult4, target4, tool, user, vel, acc, ovl, blendR, epos, search, offset_flag, offset_pos, 0, 0);
+            System.out.printf("movel errcode:%d%n", rtn);
+            robot.Sleep(500);
+            motionDone = 0;
+            while (motionDone == 0)
+            {
+                pkg = robot.CNDEGetStateData();
+                motionDone = pkg.motion_done;
+                robot.Sleep(100);
+            }
+            System.out.println("movel 4 motion done\n");
+            System.out.printf("第 %d 次正方形运动完成%n", cycle);
+            cycle++;
+        }
+    }
+    
+
+    /**
+     * 测试通用轴通信数据 - 配置AxleGenComData状态并解析倍益康艾灸头协议
+     */
+    private static int TestAxleGenComData(Robot robot) {
+        int ret = 0;
+        int frameCount = 0;
+
+        // 配置AxleGenComData状态
+        List<RobotState> state = new ArrayList<>();
+        state.add(RobotState.AxleGenComData);
+        ret = robot.SetRobotRealtimeStateConfig(state, 100);
+        System.out.println("SetRobotRealtimeStateConfig rtn : " + ret);
+
+        // RPC连接
+        int rtn = robot.RPC("192.168.58.3");
+        if (rtn == 0) {
+            System.out.println("rpc连接 success");
+        } else {
+            System.out.println("rpc连接 fail");
+            return -1;
+        }
+
+        // 等待CNDE连接建立
+        System.out.println("等待CNDE连接建立...");
+        while (robot.CNDEGetStateData() == null) {
+            robot.Sleep(100);
+        }
+        System.out.println("CNDE连接已建立，开始接收数据...");
+
+        // 定义发送数据数组
+        int[] version = new int[]{0x01, 0x00, 0x00, 0x00, 0x01};  // 读取版本号命令
+        int[] stateCmd = new int[]{0x01, 0x00, 0x00, 0x00, 0x02}; // 读取状态命令
+        int[] rcvdata = new int[10];
+
+        while (true) {
+            robot.Sleep(1000);
+            ROBOT_STATE_PKG pkg = robot.CNDEGetStateData();
+            if (pkg == null) {
+                System.out.println("状态数据为空，CNDE连接断开，等待重连");
+                continue;
+            }
+//
+//            frameCount++;
+//            System.out.printf("\n========== 帧 %d ==========%n", frameCount);
+//
+//            // 读取版本号
+//            ret = robot.SndRcvAxleGenComCmdData(5, version, 10, rcvdata);
+//            if (ret == 0) {
+//                System.out.printf(" hard version : %d, hard code:%d, soft version:%d %d, soft code:%d%n",
+//                        rcvdata[4], rcvdata[5], rcvdata[6], rcvdata[7], rcvdata[8]);
+//            } else {
+//                System.out.println("SndRcvAxleGenComCmdData version fail: " + ret);
+//                continue;
+//            }
+//            robot.Sleep(1000);
+//
+//            // 读取艾灸头在位状态
+//            ret = robot.SndRcvAxleGenComCmdData(6, stateCmd, 6, rcvdata);
+//            if (ret == 0) {
+//                System.out.printf(" state : %d%n", rcvdata[4]);
+//            }
+//            robot.Sleep(1000);
+
+            // 解析axleGenComData数据
+            int errorcode = pkg.axleGenComData[0];
+            int datalen = pkg.axleGenComData[1];
+
+            // 过滤异常包
+            if ((errorcode != 0) || (datalen == 0) ||
+                (pkg.axleGenComData[2] != (byte)0xAB) ||
+                (pkg.axleGenComData[3] != (byte)0xBA)) {
+                System.out.printf("################################rcv data is error, errorcode:%d%n", pkg.axleGenComData[0]);
+                // 打印16进制数据
+                StringBuilder hexString = new StringBuilder();
+                for (int i = 0; i < pkg.axleGenComData.length; i++) {
+                    hexString.append(String.format("%02X", pkg.axleGenComData[i] & 0xFF));
+                    if (i < pkg.axleGenComData.length - 1) {
+                        hexString.append("-");
+                    }
+                }
+                System.out.println(hexString.toString());
+                continue;
+            }
+
+            // 按照倍益康艾灸头协议进行组包
+            int curTem = pkg.axleGenComData[6] & 0xFF;
+            int targetTem = pkg.axleGenComData[7] & 0xFF;
+            int genData1 = ((pkg.axleGenComData[8] & 0xFF) << 8) | (pkg.axleGenComData[9] & 0xFF);
+            int genData2 = ((pkg.axleGenComData[10] & 0xFF) << 8) | (pkg.axleGenComData[11] & 0xFF);
+            int genData3 = ((pkg.axleGenComData[12] & 0xFF) << 8) | (pkg.axleGenComData[13] & 0xFF);
+            int genData4 = ((pkg.axleGenComData[14] & 0xFF) << 8) | (pkg.axleGenComData[15] & 0xFF);
+            int genData5 = ((pkg.axleGenComData[16] & 0xFF) << 8) | (pkg.axleGenComData[17] & 0xFF);
+            int genData6 = ((pkg.axleGenComData[18] & 0xFF) << 8) | (pkg.axleGenComData[19] & 0xFF);
+
+            System.out.printf("the data is errorcode %d; datalen %d curTem %d; targetTem %d genData1 %d genData2 %d genData3 %d genData4 %d genData5 %d genData6 %d%n",
+                    errorcode, datalen, curTem, targetTem, genData1, genData2, genData3, genData4, genData5, genData6);
+        }
+    }
+
+    private static int testCndeServoJ(Robot robot) {
+
+        ROBOT_STATE_PKG pkg = new ROBOT_STATE_PKG();
+        int rtn = 0;
+        robot.LoggerInit(FrLogType.DIRECT, FrLogLevel.INFO, "D://log", 10, 10);
+        robot.SetReconnectParam(true, 30000, 500);
+
+        List<RobotState> states = Arrays.asList(
+            RobotState.JointCurPos,
+            RobotState.MotionDone,
+            RobotState.McQueueLen,
+            RobotState.LastServoTarget,
+            RobotState.ServoJCmdNum
+        );
+        rtn = robot.SetRobotRealtimeStateConfig(states, 20);
+
+        rtn = robot.RPC("192.168.58.2");
+        if (rtn != 0)
+        {
+            System.out.printf("robot RPC failed %d%n", rtn);
+            return 0;
+        }
+        
+        JointPos j = new JointPos(0, 0, 0, 0, 0, 0);
+        ExaxisPos epos = new ExaxisPos(0, 0, 0, 0);
+
+        double vel = 0.0;
+        double acc = 0.0;
+        double cmdT = 0.008;
+        double filterT = 0.0;
+        double gain = 0.0;
+        int flag = 0;
+        int count = 500;
+        double dt = 0.1;
+        int cmdID = 0;
+        int comType = 0;  // RPC方式
+
+        // 等待CNDE连接建立
+        System.out.println("等待CNDE连接建立...");
+        while (robot.CNDEGetStateData() == null) {
+            robot.Sleep(100);
+        }
+        System.out.println("CNDE连接已建立");
+        robot.Sleep(2000);
+        int ret = robot.GetActualJointPosDegree(j);
+        if (ret == 0)
+        {
+            cmdID += 1;
+            robot.ServoMoveStart(comType);
+            while (count > 0)
+            {
+                robot.ServoJ(j, epos, acc, vel, cmdT, filterT, gain, cmdID, comType);
+                j.J5 += dt;
+                count--;
+
+                // 通过CNDE获取实时状态
+                pkg = robot.CNDEGetStateData();
+                if (pkg != null) {
+                    System.out.printf("Servoj Count %d;  last pos is %f %f %f %f %f %f%n", pkg.servoJCmdNum,
+                        pkg.lastServoTarget[0], pkg.lastServoTarget[1], pkg.lastServoTarget[2],
+                        pkg.lastServoTarget[3], pkg.lastServoTarget[4], pkg.lastServoTarget[5]);
+
+                    System.out.printf("motion queue len %d. motion done %d%n", pkg.mc_queue_len, pkg.motion_done);
+                }
+
+                if (count < 50)
+                {
+                    robot.MotionQueueClear();
+                    pkg = robot.CNDEGetStateData();
+                    if (pkg != null) {
+                        System.out.printf("After queue clear, Servoj Count %d;  last pos is %f %f %f %f %f %f%n", pkg.servoJCmdNum,
+                            pkg.lastServoTarget[0], pkg.lastServoTarget[1], pkg.lastServoTarget[2],
+                            pkg.lastServoTarget[3], pkg.lastServoTarget[4], pkg.lastServoTarget[5]);
+                    }
+                    break;
+                }
+
+                robot.WaitMs((int)(1000 * cmdT));
+            }
+            robot.ServoMoveEnd(comType);
+        }
+        else
+        {
+            System.out.printf("GetActualJointPosDegree errcode:%d%n", ret);
+        }
+       
+        robot.Sleep(1000);
+
+        robot.CloseRPC();
+
+        robot.Sleep(1000);
+        return 0;
+    }
+
+    private static int TestSetTrajectoryJSpeed(Robot robot) {
+        ROBOT_STATE_PKG pkg = new ROBOT_STATE_PKG();
+        int rtn;
+
+        robot.SetReconnectParam(true, 30000, 500);
+        rtn = robot.TrajectoryJUpLoad("D://zUP/trajHelix_aima_1.txt");
+        System.out.printf("Upload TrajectoryJ A %d%n", rtn);
+        String trajFileName = "/fruser/traj/trajHelix_aima_1.txt";
+        rtn = robot.LoadTrajectoryJ(trajFileName, 100, 1);
+        System.out.printf("LoadTrajectoryJ %s, rtn is: %d%n", trajFileName, rtn);
+        DescPose trajStartPose = new DescPose();
+        rtn = robot.GetTrajectoryStartPose(trajFileName, trajStartPose);
+        System.out.printf("GetTrajectoryStartPose is: %d%n", rtn);
+        System.out.printf("desc_pos:%f,%f,%f,%f,%f,%f%n", trajStartPose.tran.x, trajStartPose.tran.y, trajStartPose.tran.z, trajStartPose.rpy.rx, trajStartPose.rpy.ry, trajStartPose.rpy.rz);
+        robot.Sleep(1000);
+        robot.SetSpeed(50);
+        robot.MoveCart(trajStartPose, 0, 0, 100, 100, 100, -1, -1);
+        rtn = robot.GetTrajectoryPointNum(0);
+        pkg = robot.GetRobotRealTimeState();
+        int trajNum = pkg.trajectory_pnum;
+        System.out.printf("GetTrajectoryPointNum rtn is: %d, traj num is: %d%n", rtn, trajNum);
+
+        rtn = robot.MoveTrajectoryJ();
+        System.out.printf("MoveTrajectoryJ rtn is: %d%n", rtn);
+
+        robot.Sleep(1000);
+
+        pkg = robot.GetRobotRealTimeState();
+        int trajspeedMode = 1;
+        while (pkg.motion_done == 0)
+        {
+            pkg = robot.GetRobotRealTimeState();
+
+            rtn = robot.SetTrajectoryJSpeed(10.0, trajspeedMode);
+            System.out.printf("SetTrajectoryJSpeed is: %d%n", rtn);
+
+            robot.Sleep(1000);
+
+            rtn = robot.SetTrajectoryJSpeed(80.0, trajspeedMode);
+            System.out.printf("SetTrajectoryJSpeed is: %d%n", rtn);
+
+            robot.Sleep(1000);
+        }
+
+        return 0;
+    }
+    
+    /**
+     * @brief 测试实时状态配置接口
+     * 演示 SetRobotRealtimeStateConfig、AddRobotRealtimeState、
+     * SetRobotRealtimeStatePeriod、GetRobotRealtimeStateConfig 的使用
+     */
+    public static void TestRealtimeStateConfig(Robot robot)
+    {
+        System.out.println("========== TestRealtimeStateConfig Start ==========");
+        
+        // 1. 创建初始状态列表
+        List<RobotState> stateList1 = new ArrayList<>();
+        stateList1.add(RobotState.ProgramState);
+        stateList1.add(RobotState.RobotState);
+        stateList1.add(RobotState.JointCurPos);
+        stateList1.add(RobotState.ToolCurPos);
+        
+        // 2. 第一次调用 SetRobotRealtimeStateConfig 配置状态和周期
+        int period1 = 100;  // 100ms周期
+        int rtn = robot.SetRobotRealtimeStateConfig(stateList1, period1);
+        System.out.printf("1. SetRobotRealtimeStateConfig (initial list, period=%d) rtn: %d%n", period1, rtn);
+        
+        if (rtn == 0) {
+            // 3. 添加额外状态
+            rtn = robot.AddRobotRealtimeState(RobotState.RobotTime);
+            System.out.printf("2. AddRobotRealtimeState (RobotTime) rtn: %d%n", rtn);
+            
+            // 4. 再次调用 SetRobotRealtimeStateConfig 重新配置（不同状态列表）
+            List<RobotState> stateList2 = new ArrayList<>();
+            stateList2.add(RobotState.ProgramState);
+            stateList2.add(RobotState.RobotState);
+            stateList2.add(RobotState.MainCode);
+            stateList2.add(RobotState.SubCode);
+            stateList2.add(RobotState.JointCurPos);
+            stateList2.add(RobotState.ToolCurPos);
+            stateList2.add(RobotState.ActualJointTorque);
+            
+            int period2 = 50;  // 50ms周期
+            rtn = robot.SetRobotRealtimeStateConfig(stateList2, period2);
+            System.out.printf("3. SetRobotRealtimeStateConfig (updated list, period=%d) rtn: %d%n", period2, rtn);
+            
+            // 5. 修改周期
+            int newPeriod = 80;  // 80ms周期
+            rtn = robot.SetRobotRealtimeStatePeriod(newPeriod);
+            System.out.printf("4. SetRobotRealtimeStatePeriod (period=%d) rtn: %d%n", newPeriod, rtn);
+            
+            // 6. 获取当前配置并打印
+            Robot.StateConfigResult configResult = robot.GetRobotRealtimeStateConfig();
+            System.out.println("5. GetRobotRealtimeStateConfig result:");
+            System.out.printf("   - Period: %d ms%n", configResult.period);
+            System.out.println("   - Configured States:");
+            for (int i = 0; i < configResult.stateList.size(); i++) {
+                System.out.printf("     [%d] %s%n", i, configResult.stateList.get(i));
+            }
+            
+            rtn = robot.RPC("192.168.58.2");
+            if (rtn == 0) {
+                System.out.println("rpc连接 success");
+            } else {
+                System.out.println("rpc连接 fail");
+                return;
+            }
+            // 等待CNDE连接建立
+            System.out.println("等待CNDE连接建立...");
+            while (robot.CNDEGetStateData() == null) {
+                robot.Sleep(100);
+            }
+            System.out.println("CNDE连接已建立，开始接收数据...");
+
+
+            // 7. 循环读取实时状态验证配置是否生效
+            System.out.println("6. Reading real-time states for 5 seconds...");
+            while(true) {
+                robot.Sleep(1000);
+                // 通过 CNDE 获取状态数据
+                ROBOT_STATE_PKG pkg = robot.CNDEGetStateData();
+                if (pkg == null) {
+                    System.out.println("状态数据为空，CNDE连接断开，等待重连");
+                    continue;  // 连接断开时继续循环，等待重连
+                }
+                System.out.println("\n--- 机器人时间 ---");
+                if (pkg.robotTime != null) {
+                    System.out.println("robotTime: " + pkg.robotTime.year + "-" + pkg.robotTime.month + "-" + pkg.robotTime.day +
+                            " " + pkg.robotTime.hour + ":" + pkg.robotTime.minute + ":" + pkg.robotTime.second +
+                            "." + pkg.robotTime.millisecond);
+                }
+
+                System.out.println("   --- 状态信息 ---");
+                System.out.printf("   program_state: %d%n", pkg.program_state);
+                System.out.printf("   robot_state: %d%n", pkg.robot_state);
+                System.out.printf("   main_code: %d%n", pkg.main_code);
+                System.out.printf("   sub_code: %d%n", pkg.sub_code);
+                System.out.println("   --- 关节位置 (actual_joint_pos) ---");
+                System.out.printf("   jt_cur_pos[0-2]: %.2f, %.2f, %.2f%n",
+                    pkg.jt_cur_pos[0], pkg.jt_cur_pos[1], pkg.jt_cur_pos[2]);
+                System.out.printf("   jt_cur_pos[3-5]: %.2f, %.2f, %.2f%n",
+                    pkg.jt_cur_pos[3], pkg.jt_cur_pos[4], pkg.jt_cur_pos[5]);
+                System.out.println("   --- TCP位置 (actual_TCP_pos) ---");
+                System.out.printf("   tl_cur_pos[0-2]: %.2f, %.2f, %.2f%n",
+                    pkg.tl_cur_pos[0], pkg.tl_cur_pos[1], pkg.tl_cur_pos[2]);
+                System.out.printf("   tl_cur_pos[3-5]: %.2f, %.2f, %.2f%n",
+                    pkg.tl_cur_pos[3], pkg.tl_cur_pos[4], pkg.tl_cur_pos[5]);
+                System.out.println("   --- 关节力矩 (actual_joint_torque) ---");
+                System.out.printf("   jt_cur_tor[0-2]: %.2f, %.2f, %.2f%n",
+                    pkg.jt_cur_tor[0], pkg.jt_cur_tor[1], pkg.jt_cur_tor[2]);
+                System.out.printf("   jt_cur_tor[3-5]: %.2f, %.2f, %.2f%n",
+                    pkg.jt_cur_tor[3], pkg.jt_cur_tor[4], pkg.jt_cur_tor[5]);
+                robot.Sleep(500);
+            }
+        } else {
+            System.out.printf("SetRobotRealtimeStateConfig failed with error: %d%n", rtn);
+        }
+        
+        System.out.println("========== TestRealtimeStateConfig End ==========");
+    }
+}

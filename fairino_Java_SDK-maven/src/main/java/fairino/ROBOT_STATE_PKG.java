@@ -404,6 +404,9 @@ public class ROBOT_STATE_PKG {
     // TS Web状态通信错误 (UINT8)
     public int tsWebStateComErr;
 
+    // 扩展轴坐标系编号
+    public int exaxisCoordID;
+
     // ========== 辅助类定义 ==========
 
     /**

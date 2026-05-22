@@ -23087,5 +23087,874 @@ public int SendUDPFrame(String frame) {
         return null;
     }
 
+    /**
+     * @brief  关节空间速度伺服模式运动
+     * @param  joint_vel  6个目标关节速度,单位deg/s
+     * @param  exis_vel  4个外部轴速度,单位deg/s
+     * @param  acc  加速度百分比，范围[0~100],暂不开放，默认为0
+     * @param  vel  速度百分比，范围[0~100]，暂不开放，默认为0
+     * @param  cmdT  指令下发周期，单位s，建议范围[0.001~0.0016]
+     * @param  filterT 滤波时间，单位s，暂不开放，默认为0
+     * @param  gain  目标位置的比例放大器，暂不开放，默认为0
+     * @return  错误码
+     */
+    public int ServoJV(double[] joint_vel, double[] exis_vel, double acc, double vel, double cmdT, double filterT, double gain)
+    {
+        return ServoJV(joint_vel, exis_vel, acc, vel, cmdT, filterT, gain, 0, 0);
+    }
+
+    /**
+     * @brief  关节空间速度伺服模式运动
+     * @param  joint_vel  6个目标关节速度,单位deg/s
+     * @param  exis_vel  4个外部轴速度,单位deg/s
+     * @param  acc  加速度百分比，范围[0~100],暂不开放，默认为0
+     * @param  vel  速度百分比，范围[0~100]，暂不开放，默认为0
+     * @param  cmdT  指令下发周期，单位s，建议范围[0.001~0.0016]
+     * @param  filterT 滤波时间，单位s，暂不开放，默认为0
+     * @param  gain  目标位置的比例放大器，暂不开放，默认为0
+     * @param  id  servoJ指令ID,默认为0
+     * @param  comType 指令下发类型；0-xmlrpc；1-UDP(对应机器人20007端口)
+     * @return  错误码
+     */
+    public int ServoJV(double[] joint_vel, double[] exis_vel, double acc, double vel, double cmdT, double filterT, double gain, int id, int comType)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+        if (GetSafetyCode() != 0)
+        {
+            return GetSafetyCode();
+        }
+        try
+        {
+            if (comType == 0)
+            {
+                Object[] param_joint = new Object[]{joint_vel[0],joint_vel[1],
+                        joint_vel[2],joint_vel[3],joint_vel[4],joint_vel[5]};
+                Object[] param_exis = new Object[]{exis_vel[0],exis_vel[1],
+                        exis_vel[2],exis_vel[3]};
+                Object[] params = new Object[] {param_joint, param_exis, acc, vel, cmdT, filterT, gain, id};
+                int rtn = (int)client.execute("ServoJV", params);
+                if (log != null)
+                {
+                    log.LogInfo("111 ServoJV() : " + rtn);
+                }
+                return rtn;
+            }
+            else if (comType == 1)
+            {
+                // 格式化数组为字符串，保留3位小数
+                String jointVelStr = formatDoubleArray(joint_vel, 3);
+                String exisVelStr = formatDoubleArray(exis_vel, 3);
+
+                // 构建命令字符串
+                String cmdStr = String.format("ServoJ(%s,%s,%.3f,%.3f,%.3f,%.3f,%.3f,%d)",
+                        jointVelStr, exisVelStr, acc, vel, cmdT, filterT, gain, id);
+
+                Frame frame = new Frame(cmdFrameCnt++, 1337, cmdStr);
+                int sendResult = udpCmdClient.sendFrame(FrameHandle.packFrame(frame));
+                if (sendResult != 0)
+                {
+                    if (log != null)
+                    {
+                        log.LogError("ServoJV UDP send failed: " + sendResult);
+                    }
+                    return RobotError.ERR_SOCKET_SEND_FAILED;
+                }
+                return 0;
+            }
+            else
+            {
+                if (log != null)
+                {
+                    log.LogError("ServoJV invalid comType: " + comType);
+                }
+                return RobotError.ERR_PARAM_VALUE;
+            }
+        }
+        catch (Throwable e)
+        {
+            if (IsSockComError())
+            {
+                if (log != null)
+                {
+                    log.LogError("ServoJV RPC exception: " + e.getMessage());
+                }
+                return sockErr;
+            }
+            else
+            {
+                return RobotError.ERR_SUCCESS;
+            }
+        }
+    }
+
+    /**
+     * @brief 关节MIT控制开始
+     * @return  错误码
+     */
+    public int ServoMITStart()
+    {
+        return ServoMITStart(0);
+    }
+
+    /**
+     * @brief 关节MIT控制开始
+     * @param  comType 指令下发类型；0-xmlrpc；1-UDP(对应机器人20007端口)
+     * @return  错误码
+     */
+    public int ServoMITStart(int comType)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+        if (GetSafetyCode() != 0)
+        {
+            return GetSafetyCode();
+        }
+
+        try
+        {
+            if (comType == 0)
+            {
+                int rtn = (int)client.execute("ServoMITStart", new Object[]{});
+                if (log != null)
+                {
+                    log.LogInfo("ServoMITStart() : " + rtn);
+                }
+                return rtn;
+            }
+            else if (comType == 1)
+            {
+                String cmdStr = "ServoMITStart()";
+                Frame frame = new Frame(cmdFrameCnt++, 1334, cmdStr);
+                int sendResult = udpCmdClient.sendFrame(FrameHandle.packFrame(frame));
+                if (sendResult != 0)
+                {
+                    if (log != null)
+                    {
+                        log.LogError("ServoMITStart UDP send failed: " + sendResult);
+                    }
+                    return RobotError.ERR_SOCKET_SEND_FAILED;
+                }
+                return 0;
+            }
+            else
+            {
+                if (log != null)
+                {
+                    log.LogError("ServoMITStart invalid comType: " + comType);
+                }
+                return RobotError.ERR_PARAM_VALUE;
+            }
+        }
+        catch (Throwable e)
+        {
+            if (IsSockComError())
+            {
+                if (log != null)
+                {
+                    log.LogError("ServoMITStart RPC exception: " + e.getMessage());
+                }
+                return sockErr;
+            }
+            else
+            {
+                return RobotError.ERR_SUCCESS;
+            }
+        }
+    }
+
+    /**
+     * @brief 关节MIT控制结束
+     * @return  错误码
+     */
+    public int ServoMITEnd()
+    {
+        return ServoMITEnd(0);
+    }
+
+    /**
+     * @brief 关节MIT控制结束
+     * @param  comType 指令下发类型；0-xmlrpc；1-UDP(对应机器人20007端口)
+     * @return  错误码
+     */
+    public int ServoMITEnd(int comType)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+        if (GetSafetyCode() != 0)
+        {
+            return GetSafetyCode();
+        }
+
+        try
+        {
+            if (comType == 0)
+            {
+                int rtn = (int)client.execute("ServoMITEnd", new Object[]{});
+                if (log != null)
+                {
+                    log.LogInfo("ServoMITEnd() : " + rtn);
+                }
+                return rtn;
+            }
+            else if (comType == 1)
+            {
+                String cmdStr = "ServoMITEnd()";
+                Frame frame = new Frame(cmdFrameCnt++, 1335, cmdStr);
+                int sendResult = udpCmdClient.sendFrame(FrameHandle.packFrame(frame));
+                if (sendResult != 0)
+                {
+                    if (log != null)
+                    {
+                        log.LogError("ServoMITEnd UDP send failed: " + sendResult);
+                    }
+                    return RobotError.ERR_SOCKET_SEND_FAILED;
+                }
+                return 0;
+            }
+            else
+            {
+                if (log != null)
+                {
+                    log.LogError("ServoMITEnd invalid comType: " + comType);
+                }
+                return RobotError.ERR_PARAM_VALUE;
+            }
+        }
+        catch (Throwable e)
+        {
+            if (IsSockComError())
+            {
+                if (log != null)
+                {
+                    log.LogError("ServoMITEnd RPC exception: " + e.getMessage());
+                }
+                return sockErr;
+            }
+            else
+            {
+                return RobotError.ERR_SUCCESS;
+            }
+        }
+    }
+
+    /**
+     * @brief 关节MIT控制
+     * @param  posGain j1~j6关节位置增益
+     * @param  desPos j1~j6关节期望位置 单位:deg
+     * @param  velGain j1~j6关节速度增益
+     * @param  desVel j1~j6关节期望速度 单位:deg/s
+     * @param  torque_ff j1~j6前馈力矩 单位:Nm
+     * @param  interval 指令周期，单位s，范围[0.001~0.008]
+     * @return 错误码
+     */
+    public int ServoMIT(double[] posGain, double[] desPos, double[] velGain, double[] desVel, double[] torque_ff, double interval)
+    {
+        return ServoMIT(posGain, desPos, velGain, desVel, torque_ff, interval, 0);
+    }
+
+    /**
+     * @brief 关节MIT控制
+     * @param  posGain j1~j6关节位置增益
+     * @param  desPos j1~j6关节期望位置 单位:deg
+     * @param  velGain j1~j6关节速度增益
+     * @param  desVel j1~j6关节期望速度 单位:deg/s
+     * @param  torque_ff j1~j6前馈力矩 单位:Nm
+     * @param  interval 指令周期，单位s，范围[0.001~0.008]
+     * @param  comType 指令下发类型；0-xmlrpc；1-UDP(对应机器人20007端口)
+     * @return 错误码
+     */
+    public int ServoMIT(double[] posGain, double[] desPos, double[] velGain, double[] desVel, double[] torque_ff, double interval, int comType)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+
+        try
+        {
+            if (comType == 0)
+            {
+                // XML-RPC 方式
+                Object[] params = new Object[] {posGain, desPos, velGain, desVel, torque_ff, interval};
+                int rtn = (int)client.execute("ServoMIT", params);
+                if (log != null)
+                {
+                    log.LogInfo("ServoMIT() : " + rtn);
+                }
+                return rtn;
+            }
+            else if (comType == 1)
+            {
+                // UDP 方式
+                // 格式化数组为字符串，保留3位小数
+                String posGainStr = formatDoubleArray(posGain, 3);
+                String desPosStr = formatDoubleArray(desPos, 3);
+                String velGainStr = formatDoubleArray(velGain, 3);
+                String desVelStr = formatDoubleArray(desVel, 3);
+                String torqueStr = formatDoubleArray(torque_ff, 3);
+
+                String cmdStr = String.format("ServoMIT(%s,%s,%s,%s,%s,%.3f)",
+                        posGainStr, desPosStr, velGainStr, desVelStr, torqueStr, interval);
+
+                Frame frame = new Frame(cmdFrameCnt++, 1336, cmdStr);
+                int sendResult = udpCmdClient.sendFrame(FrameHandle.packFrame(frame));
+                if (sendResult != 0)
+                {
+                    if (log != null)
+                    {
+                        log.LogError("ServoMIT UDP send failed: " + sendResult);
+                    }
+                    return RobotError.ERR_SOCKET_SEND_FAILED;
+                }
+                return 0;
+            }
+            else
+            {
+                if (log != null)
+                {
+                    log.LogError("ServoMIT invalid comType: " + comType);
+                }
+                return RobotError.ERR_PARAM_VALUE;
+            }
+        }
+        catch (Throwable e)
+        {
+            if (IsSockComError())
+            {
+                if (log != null)
+                {
+                    log.LogError("ServoMIT RPC exception: " + e.getMessage());
+                }
+                return sockErr;
+            }
+            else
+            {
+                return RobotError.ERR_SUCCESS;
+            }
+        }
+    }
+
+    /**
+     * 辅助方法：将double数组格式化为字符串
+     * @param arr double数组
+     * @param precision 小数位精度
+     * @return 格式化后的字符串，如 "{1.234,2.345,3.456}"
+     */
+    private String formatDoubleArray(double[] arr, int precision)
+    {
+        if (arr == null || arr.length == 0)
+        {
+            return "{}";
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("{");
+        for (int i = 0; i < arr.length; i++)
+        {
+            if (i > 0)
+            {
+                sb.append(",");
+            }
+            sb.append(String.format("%." + precision + "f", arr[i]));
+        }
+        sb.append("}");
+        return sb.toString();
+    }
+
+    /**
+     * @brief 写入激光焊机10个工艺组中某一个的配置参数并配置给焊机
+     * @param io_type 通信类型 0-IO 1-UDP
+     * @param num 需要设置的组号（1~10）
+     * @param scanSpeed 扫描速度
+     * @param scanWidth 扫描宽度
+     * @param peakPower 峰值功率
+     * @param dutyCycle 占空比
+     * @param freq 频率
+     * @return 错误码
+     */
+    public int SetLaserWeldingParam(int io_type, int num, int scanSpeed, int scanWidth, int peakPower, int dutyCycle, int freq) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{io_type, num, scanSpeed, scanWidth, peakPower, dutyCycle, freq};
+            int rtn = (int) client.execute("SetLaserWeldingParam", params);
+            if (log != null) {
+                log.LogInfo("SetLaserWeldingParam(" + io_type + ", " + num + ", " + scanSpeed + ", " + scanWidth + ", " + peakPower + ", " + dutyCycle + ", " + freq + ") : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 设置激光焊机开启关闭
+     * @param io_type 通信类型 0-IO 1-UDP
+     * @param status 控制字 0-收光 1-出光
+     * @param max_waittime 最大等待时间
+     * @return 错误码
+     */
+    public int SetLaserWeldingStartEnd(int io_type, int status, int max_waittime) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{io_type, status, max_waittime};
+            int rtn = (int) client.execute("SetLaserWeldingStartEnd", params);
+            if (log != null) {
+                log.LogInfo("SetLaserWeldingStartEnd(" + io_type + ", " + status + ", " + max_waittime + ") : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 激光焊机使能去使能
+     * @param io_type 通信类型 0-IO 1-UDP
+     * @param status 0-去使能 1-使能
+     * @return 错误码
+     */
+    public int SetLaserWeldingEnable(int io_type, int status) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{io_type, status};
+            int rtn = (int) client.execute("SetLaserWeldingEnable", params);
+            if (log != null) {
+                log.LogInfo("SetLaserWeldingEnable(" + io_type + ", " + status + ") : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 激光焊机故障复位
+     * @param io_type 通信类型 0-IO 1-UDP
+     * @param status 控制字 0-无效 1-故障复位
+     * @return 错误码
+     */
+    public int ResetLaserWeldingErr(int io_type, int status) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{io_type, status};
+            int rtn = (int) client.execute("ResetLaserWeldingErr", params);
+            if (log != null) {
+                log.LogInfo("ResetLaserWeldingErr(" + io_type + ", " + status + ") : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取激光焊机运行状态
+     * @param io_type 通信类型 0-IO 1-UDP
+     * @param status 输出参数，控制字 0-停机 1-运行
+     * @return 错误码
+     */
+    public int GetLaserWeldingRunningState(int io_type, int[] status) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{io_type};
+            Object[] result = (Object[]) client.execute("GetLaserWeldingRunningState", params);
+            int errcode = (int) result[0];
+            if (errcode != 0) {
+                if (log != null) {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "Execute GetLaserWeldingRunningState fail: " + errcode);
+                }
+                return errcode;
+            } else {
+                if (status != null && status.length > 0) {
+                    status[0] = (int) result[1];
+                }
+                if (log != null) {
+                    log.LogInfo("GetLaserWeldingRunningState executed successfully: " + errcode);
+                }
+                return errcode;
+            }
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取激光焊机故障状态
+     * @param io_type 通信类型 0-IO 1-UDP
+     * @param status 输出参数，0-无故障 1-存在故障
+     * @return 错误码
+     */
+    public int GetLaserWeldingErrState(int io_type, int[] status) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{io_type};
+            Object[] result = (Object[]) client.execute("GetLaserWeldingErrState", params);
+            int errcode = (int) result[0];
+            if (errcode != 0) {
+                if (log != null) {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "Execute GetLaserWeldingErrState fail: " + errcode);
+                }
+                return errcode;
+            } else {
+                if (status != null && status.length > 0) {
+                    status[0] = (int) result[1];
+                }
+                if (log != null) {
+                    log.LogInfo("GetLaserWeldingErrState executed successfully: " + errcode);
+                }
+                return errcode;
+            }
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取激光焊机10个工艺组中某一个的配置参数
+     * @param num 需要设置的组号（1~10）
+     * @param params 输出参数数组：[scanSpeed, scanWidth, peakPower, dutyCycle, freq]
+     * @return 错误码
+     */
+    public int GetLaserWeldingParamTarget(int num, int[] params) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] rpcParams = new Object[]{num};
+            Object[] result = (Object[]) client.execute("GetLaserWeldingParamTarget", rpcParams);
+            int errcode = (int) result[0];
+            if (errcode != 0) {
+                if (log != null) {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "Execute GetLaserWeldingParamTarget fail: " + errcode);
+                }
+                return errcode;
+            } else {
+                if (params != null && params.length >= 5) {
+                    params[0] = (int) result[1]; // scanSpeed
+                    params[1] = (int) result[2]; // scanWidth
+                    params[2] = (int) result[3]; // peakPower
+                    params[3] = (int) result[4]; // dutyCycle
+                    params[4] = (int) result[5]; // freq
+                }
+                if (log != null) {
+                    log.LogInfo("GetLaserWeldingParamTarget executed successfully: " + errcode);
+                }
+                return errcode;
+            }
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取当前激光焊机生效的配置参数
+     * @param io_type 通信类型 0-IO 1-UDP
+     * @param params 输出参数数组：[scanSpeed, scanWidth, peakPower, dutyCycle, freq]
+     * @return 错误码
+     */
+    public int GetLaserWeldingParamActual(int io_type, int[] params) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] rpcParams = new Object[]{io_type};
+            Object[] result = (Object[]) client.execute("GetLaserWeldingParamActual", rpcParams);
+            int errcode = (int) result[0];
+            if (errcode != 0) {
+                if (log != null) {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "Execute GetLaserWeldingParamActual fail: " + errcode);
+                }
+                return errcode;
+            } else {
+                if (params != null && params.length >= 5) {
+                    params[0] = (int) result[1]; // scanSpeed
+                    params[1] = (int) result[2]; // scanWidth
+                    params[2] = (int) result[3]; // peakPower
+                    params[3] = (int) result[4]; // dutyCycle
+                    params[4] = (int) result[5]; // freq
+                }
+                if (log != null) {
+                    log.LogInfo("GetLaserWeldingParamActual executed successfully: " + errcode);
+                }
+                return errcode;
+            }
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 激光焊机设置扩展IO，使能的DO端口
+     * @param ctrlModeDONum 激光焊机使能的扩展DO端口号
+     * @return 错误码
+     */
+    public int SetLaserWeldingEnableExtDoNum(int ctrlModeDONum) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{ctrlModeDONum};
+            int rtn = (int) client.execute("SetLaserWeldingEnableExtDoNum", params);
+            if (log != null) {
+                log.LogInfo("SetLaserWeldingEnableExtDoNum(" + ctrlModeDONum + ") : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 激光焊机设置扩展IO，启动的DO端口
+     * @param ctrlModeDONum 激光焊机启动（出光收光）的扩展DO端口号
+     * @return 错误码
+     */
+    public int SetLaserWeldingStartExtDoNum(int ctrlModeDONum) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{ctrlModeDONum};
+            int rtn = (int) client.execute("SetLaserWeldingStartExtDoNum", params);
+            if (log != null) {
+                log.LogInfo("SetLaserWeldingStartExtDoNum(" + ctrlModeDONum + ") : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 激光焊机设置扩展IO，故障复位的DO端口
+     * @param ctrlModeDONum 激光焊机故障复位的扩展DO端口号
+     * @return 错误码
+     */
+    public int SetLaserWeldingErrResetExtDoNum(int ctrlModeDONum) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{ctrlModeDONum};
+            int rtn = (int) client.execute("SetLaserWeldingErrResetExtDoNum", params);
+            if (log != null) {
+                log.LogInfo("SetLaserWeldingErrResetExtDoNum(" + ctrlModeDONum + ") : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+
+    /**
+     * @brief UDP扩展轴参数获取
+     * @param axisID 扩展轴号[1-4]
+     * @param params 输出参数数组，长度为12，顺序为：
+     *               [0] axisType 扩展轴类型 0-平移；1-旋转
+     *               [1] axisDirection 扩展轴方向 0-正向；1-方向
+     *               [2] axisMax 扩展轴最大位置 mm
+     *               [3] axisMin 扩展轴最小位置 mm
+     *               [4] axisVel 速度mm/s
+     *               [5] axisAcc 加速度mm/s2
+     *               [6] axisLead 导程mm
+     *               [7] encResolution 编码器分辨率
+     *               [8] axisOffect 焊缝起始点扩展轴偏移量
+     *               [9] axisCompany 驱动器厂家 1-禾川；2-汇川；3-松下
+     *               [10] axisModel 驱动器型号
+     *               [11] axisEncType 编码器类型 0-增量；1-绝对值
+     * @return 错误码
+     */
+    public int ExtAxisGetParamConfig(int axisID, Object[] params) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] rpcParams = new Object[]{axisID};
+            Object[] result = (Object[]) client.execute("ExtAxisGetParamConfig", rpcParams);
+            int errcode = (int) result[0];
+            if (errcode != 0) {
+                if (log != null) {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "Execute ExtAxisGetParamConfig fail: " + errcode);
+                }
+                return errcode;
+            } else {
+                if (params != null && params.length >= 12) {
+                    params[0] = (int) result[1];     // axisType
+                    params[1] = (int) result[2];     // axisDirection
+                    params[2] = (double) result[3];   // axisMax
+                    params[3] = (double) result[4];   // axisMin
+                    params[4] = (double) result[5];   // axisVel
+                    params[5] = (double) result[6];   // axisAcc
+                    params[6] = (double) result[7];   // axisLead
+                    params[7] = (int) result[8];      // encResolution
+                    params[8] = (double) result[9];   // axisOffect
+                    params[9] = (int) result[10];     // axisCompany
+                    params[10] = (int) result[11];    // axisModel
+                    params[11] = (int) result[12];   // axisEncType
+                }
+                if (log != null) {
+                    log.LogInfo("ExtAxisGetParamConfig executed successfully: " + errcode);
+                }
+                return errcode;
+            }
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 配置激光焊机运行状态（出光状态）扩展DI
+     * @param diNum 配置激光焊机运行状态（出光状态）扩展DI端口
+     * @return 错误码
+     */
+    public int SetLaserWeldingRunningStateExtDiNum(int diNum) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{diNum};
+            int rtn = (int) client.execute("SetLaserWeldingRunningStateExtDiNum", params);
+            if (log != null) {
+                log.LogInfo("SetLaserWeldingRunningStateExtDiNum(" + diNum + ") : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 配置激光焊机故障状态扩展DI
+     * @param diNum 配置激光焊机故障状态 扩展DI端口
+     * @return 错误码
+     */
+    public int SetLaserWeldingErrStateExtDiNum(int diNum) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{diNum};
+            int rtn = (int) client.execute("SetLaserWeldingErrStateExtDiNum", params);
+            if (log != null) {
+                log.LogInfo("SetLaserWeldingErrStateExtDiNum(" + diNum + ") : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
 
 }

@@ -17,18 +17,22 @@ public class Main {
         robot.SetReconnectParam(true, 100, 50);//设置重连次数、间隔
         robot.LoggerInit(FrLogType.DIRECT, FrLogLevel.INFO, "D://log", 10, 10);
 
-//       int rtn = robot.RPC("192.168.58.2");
-//       if (rtn == 0) {
-//           System.out.println("rpc连接 success");
-//       } else {
-//           System.out.println("rpc连接 fail");
-//           return;
-//       }
+        int rtn = robot.RPC("192.168.58.2");
+        if (rtn == 0) {
+            System.out.println("rpc连接 success");
+        } else {
+            System.out.println("rpc连接 fail");
+            return;
+        }
 
+
+        TestUDPAxis_CPP(robot);
+        // testLsaerWeld(robot);
     //    TestSetTrajectoryJSpeed(robot);
 
         // 测试新增CNDE状态配置
-//        TestCNDEStarte(robot);
+//       TestCNDEStarte(robot);
+
         // 测试读取默认的状态值
 //        TestReadBasicStates(robot);
 
@@ -50,7 +54,9 @@ public class Main {
 //        testCndeServoJ(robot);
         
         // 测试实时状态配置接口
-        TestRealtimeStateConfig(robot);
+//         TestRealtimeStateConfig(robot);
+
+//        ServoJVtest(robot);
 
         // TestCtrlOpenLuaOperate(robot);
         // TestUDPAxis(robot);
@@ -4376,7 +4382,8 @@ public class Main {
 
     public static int TestLuaOp(Robot robot)
     {
-        String program_name = "/fruser/Text1.lua";
+//        String program_name = "/fruser/Text1.lua";
+        String program_name = "/usr/local/etc/controller/lua/Text1.lua";
         String[] loaded_name = new String[]{""};
         int[] state=new int[]{0};
         List<Integer> line=new ArrayList<>();
@@ -10110,7 +10117,7 @@ public static void TestRobotUDP (Robot robot) {
         return 0;
     }
 
-    public static int TestUDPAxis(Robot robot) {
+    public static int TestUDPAxis_CPP(Robot robot) {
         UDPComParam param = new UDPComParam("192.168.58.88", 2021, 2, 100, 3, 200, 1, 100, 5, 1);
         int rtn = robot.ExtDevSetUDPComParam(param);
         System.out.println("ExtDevSetUDPComParam rtn is " + rtn);
@@ -10594,11 +10601,9 @@ public static void TestRobotUDP (Robot robot) {
     private static void TestCNDEStarte(Robot robot) {
          List<RobotState> state = new ArrayList<>();
          state.add(RobotState.RobotTime);
-         state.add(RobotState.SocketConnTimeout);
-         state.add(RobotState.SocketReadTimeout);
-         state.add(RobotState.TsWebStateComErr);
+         state.add(RobotState.ExaxisCoordID);
+         state.add(RobotState.ExAxisCoord);
          robot.SetRobotRealtimeStateConfig(state, 100);
-
 
         int rtn = robot.RPC("192.168.58.2");
         if (rtn == 0) {
@@ -10638,11 +10643,19 @@ public static void TestRobotUDP (Robot robot) {
                         " " + pkg.robotTime.hour + ":" + pkg.robotTime.minute + ":" + pkg.robotTime.second +
                         "." + pkg.robotTime.millisecond);
             }
+            if (pkg.robotTime != null) {
+                System.out.println("robotTime: " + pkg.exaxisCoordID + "-" + pkg.exAxisCoord[0] + "-" + pkg.robotTime.day +
+                        " " + pkg.robotTime.hour + ":" + pkg.robotTime.minute + ":" + pkg.robotTime.second +
+                        "." + pkg.robotTime.millisecond);
+            }
 
-            System.out.println("\n--- Socket状态 ---");
-            System.out.println("socketConnTimeout: " + pkg.socketConnTimeout);
-            System.out.println("socketReadTimeout: " + pkg.socketReadTimeout);
-            System.out.println("tsWebStateComErr: " + pkg.tsWebStateComErr);
+        System.out.println("exaxisCoordID: " + pkg.exaxisCoordID);
+        printArray("exAxisCoord", pkg.exAxisCoord);
+        robot.Sleep(100);
+            // System.out.println("\n--- Socket状态 ---");
+            // System.out.println("socketConnTimeout: " + pkg.socketConnTimeout);
+            // System.out.println("socketReadTimeout: " + pkg.socketReadTimeout);
+            // System.out.println("tsWebStateComErr: " + pkg.tsWebStateComErr);
 //
 //            System.out.println("\n--- 关节指令位置 ---");
 //            printArray("targetJointPos", pkg.targetJointPos);
@@ -11781,4 +11794,282 @@ public static void TestRobotUDP (Robot robot) {
         
         System.out.println("========== TestRealtimeStateConfig End ==========");
     }
+
+    public static int ServoMITtest(Robot robot)
+    {
+            robot.udpCmdClient.SetUDPCmdRpyCallback((srcType, count, cmdID, dataLen, content) -> {
+            System.out.println("\n[Received UDP reply from robot]");
+            System.out.println("srcType: " + srcType);
+            System.out.println("count: " + count);
+            System.out.println("cmdID: " + cmdID);
+            System.out.println("dataLen: " + dataLen);
+            System.out.println("content: " + content);
+            return 0;
+        });
+        while (true)
+        {
+            robot.ResetAllError();
+            robot.Sleep(500);
+
+            double[] posGain = new double[] { 0, 0, 0, 0, 0, 0 };
+            double[] desPos = new double[] { 0, 0, 0, 0, 0, 0 };
+            double[] velGain = new double[] { 0, 0, 0, 0, 0, 0 };
+            double[] desVel = new double[] { 0, 0, 0, 0, 0, 0 };
+
+            List<Number> joint_toq=new ArrayList<>();
+            joint_toq=robot.GetJointTorques(1);
+            double[] torques=new double[]{(double)joint_toq.get(1),(double)joint_toq.get(2),(double)joint_toq.get(3),(double)joint_toq.get(4),(double)joint_toq.get(5),(double)joint_toq.get(6)};
+            System.out.println("111111");
+
+            robot.ServoMITStart(0);
+            System.out.println("ServoMITStart");
+
+            ROBOT_STATE_PKG pkg = robot.GetRobotRealTimeState();
+            robot.DragTeachSwitch(1);
+            System.out.println("DragTeachSwitch");
+
+            double intev = 0.008;
+            int error = 0;
+
+            while (true)
+            {
+                torques[5] = 0.03;
+                System.out.println("ServoMIT call");
+                error = robot.ServoMIT(posGain, desPos, velGain, desVel, torques, intev, 0);
+
+                System.out.println("ServoMIT111111 rtn is " + error);
+                robot.Sleep(1);
+
+                pkg = robot.GetRobotRealTimeState();
+                System.out.println("pkg.jt_cur_pos[5]:" + pkg.jt_cur_pos[5]);
+                if (pkg.jt_cur_pos[5] > 30)
+                {
+                    break;
+                }
+            }
+
+            while (true)
+            {
+                torques[5] = -0.03;
+                error = robot.ServoMIT(posGain, desPos, velGain, desVel, torques, intev, 0);
+
+                System.out.println("ServoJT222222 rtn is " + error);
+                robot.Sleep(1);
+
+                pkg = robot.GetRobotRealTimeState();
+                System.out.println("pkg.jt_cur_pos[5]:" + pkg.jt_cur_pos[5]);
+                if (pkg.jt_cur_pos[5] < 0)
+                {
+                    break;
+                }
+            }
+
+            robot.DragTeachSwitch(0);
+            error = robot.ServoMITEnd(0);
+        }
+        // return 0;
+    }
+
+    public static int ServoJVtest(Robot robot)
+    {
+        double[] joint_vel = new double[] { 10, 0, 0, 0, 0, 0 };
+        double[] exis_vel = new double[] { 0, 0, 0, 0 };
+        double acc = 0.0;
+        double vel = 0.0;
+        double cmdT = 0.008;
+        double filterT = 0.0;
+        double gain = 0.0;
+        int cnt = 0;
+        while (cnt < 200)
+        {
+            int error = robot.ServoJV(joint_vel, exis_vel, acc, vel, cmdT, filterT, gain);
+            System.out.println("MAIN ServoJV rtn is " + error);
+//            robot.Sleep(10);
+            cnt++;
+        }
+
+        return 0;
+    }
+
+    public static int testLsaerWeld(Robot robot) {
+        int rtn = -1;
+        // 加载UDP扩展轴驱动
+        rtn = robot.ExtDevLoadUDPDriver();
+        if (rtn != 0) {
+            System.out.println("Failed to load UDP driver, error code: " + rtn);
+        }
+        robot.Sleep(1000);
+
+        // 设置激光焊接参数: io_type=1, num=3, scanSpeed=2000, scanWidth=3, peakPower=1500, dutyCycle=100, freq=1000
+        rtn = robot.SetLaserWeldingParam(1, 3, 2000, 3, 1500, 100, 1000);
+        if (rtn != 0) {
+            System.out.println("SetLaserWeldingParam failed, error code: " + rtn);
+        } else {
+            System.out.println("SetLaserWeldingParam success");
+        }
+
+        // 设置启动的DO端口号
+        rtn = robot.SetLaserWeldingStartExtDoNum(1);
+        if (rtn != 0) {
+            System.out.println("SetLaserWeldingStartExtDoNum failed, error code: " + rtn);
+        }
+
+        // 设置为模式0（示教模式）
+        rtn = robot.Mode(0);
+        if (rtn != 0) {
+            System.out.println("Set mode 0 failed, error code: " + rtn);
+        }
+        robot.Sleep(1000);
+
+        // 创建点位对象
+        DescPose desc_pos1 = new DescPose(-303.721, -206.960, 297.105, 152.209, 19.857, 109.166);
+        DescPose desc_pos2 = new DescPose(-301.575, -254.888, 284.786, 155.919, 26.946, 111.629);
+        DescPose desc_safe = new DescPose(-344.386, -280.830, 435.073, 173.835, 15.333, 124.931);
+
+        JointPos jointPos1 = new JointPos(9.827, -99.740, 120.088, -78.900, -77.241, -17.904);
+        JointPos jointPos2 = new JointPos(15.251, -96.456, 120.138, -84.664, -68.542, -17.843);
+        JointPos jointSafe = new JointPos(19.142, -98.078, 101.493, -83.078, -77.070, -17.794);
+
+        ExaxisPos exaxis = new ExaxisPos(0.0, 0.0, 0.0, 0.0);
+        DescPose offset = new DescPose(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+
+        // 移动到第一个焊接点
+        int error = robot.MoveL(desc_pos1, 0, 0, 100, 100, 100, -1, 0, exaxis, 0, 0, offset, -1, 0,0,0);
+        System.out.println("MoveL to pos1 return: " + error);
+
+        // 开启激光（出光）
+        rtn = robot.SetLaserWeldingStartEnd(1, 1, 10000);
+        if (rtn != 0) {
+            System.out.println("SetLaserWeldingStartEnd (start) failed, error code: " + rtn);
+        } else {
+            System.out.println("Laser started");
+        }
+
+        // 移动到第二个焊接点（焊接过程中）
+        rtn = robot.MoveL(desc_pos2, 0, 0, 30, 100, 100, -1, 0, exaxis, 0, 0, offset, -1, 0,0, 0);
+        System.out.println("MoveL to pos2 return: " + rtn);
+
+        // 关闭激光（收光）
+        rtn = robot.SetLaserWeldingStartEnd(1, 0, 10000);
+        if (rtn != 0) {
+            System.out.println("SetLaserWeldingStartEnd (stop) failed, error code: " + rtn);
+        } else {
+            System.out.println("Laser stopped");
+        }
+        robot.Sleep(500);
+        // 移动到安全点
+        rtn = robot.MoveL(desc_safe, 0, 0, 100, 100, 100, -1, 0, exaxis, 0, 0, offset, -1, 0,0,0);
+        System.out.println("MoveL to safe_pos return: " + rtn);
+
+        // 设置为模式1（远程模式）
+        rtn = robot.Mode(1);
+        if (rtn != 0) {
+            System.out.println("Set mode 1 failed, error code: " + rtn);
+        }
+        robot.Sleep(1000);
+
+        // 关闭连接
+        robot.CloseRPC();
+        robot.Sleep(1000);
+
+        System.out.println("Test completed");
+
+        return 0;
+    }
+    public static int TestUDPAxis(Robot robot) {
+        int rtn = -1;
+        
+        // 设置UDP通信参数
+        UDPComParam param = new UDPComParam("192.168.58.88", 2021, 2, 100, 3, 200, 1, 100, 5, 1);
+        rtn = robot.ExtDevSetUDPComParam(param);
+        System.out.println("ExtDevSetUDPComParam rtn is " + rtn);
+        
+        // 获取UDP通信参数
+        UDPComParam getParam = new UDPComParam();
+        rtn = robot.ExtDevGetUDPComParam(getParam);
+        String paramStr = "\nip " + getParam.ip + "\nport " + getParam.port + "\nperiod " + getParam.period + 
+                "\nlossPkgTime " + getParam.lossPkgTime + "\nlossPkgNum " + getParam.lossPkgNum + 
+                "\ndisconnectTime " + getParam.disconnectTime + "\nreconnectEnable " + getParam.reconnectEnable + 
+                "\nreconnectPeriod " + getParam.reconnectPeriod + "\nreconnectNum " + getParam.reconnectNum + 
+                "\nselfConnect " + getParam.selfConnect;
+        System.out.println("ExtDevGetUDPComParam rtn is " + rtn + paramStr);
+
+        // 加载UDP驱动
+        robot.ExtDevLoadUDPDriver();
+
+        // 设置扩展轴命令完成时间
+        rtn = robot.SetExAxisCmdDoneTime(5000.0);
+        System.out.println("SetExAxisCmdDoneTime rtn is " + rtn);
+        
+        // 使能扩展轴
+        rtn = robot.ExtAxisServoOn(1, 1);
+        System.out.println("ExtAxisServoOn axis id 1 rtn is " + rtn);
+        rtn = robot.ExtAxisServoOn(2, 1);
+        System.out.println("ExtAxisServoOn axis id 2 rtn is " + rtn);
+        robot.Sleep(2000);
+
+        // 设置回零
+        robot.ExtAxisSetHoming(1, 0, 10, 2);
+        robot.Sleep(2000);
+        rtn = robot.ExtAxisSetHoming(2, 0, 10, 2);
+        System.out.println("ExtAxisSetHoming rtn is " + rtn);
+
+        robot.Sleep(4000);
+
+        // 设置机器人位置到轴
+        rtn = robot.SetRobotPosToAxis(1);
+        System.out.println("SetRobotPosToAxis rtn is " + rtn);
+        
+        // 设置轴DH参数配置
+        rtn = robot.SetAxisDHParaConfig(10, 20, 0, 0, 0, 0, 0, 0, 0);
+        System.out.println("SetAxisDHParaConfig rtn is " + rtn);
+
+        // 配置扩展轴参数
+        rtn = robot.ExtAxisParamConfig(1, 1, 1, 1000, -1000, 1000, 1000, 1.905, 262144, 200, 1, 0, 0);
+        System.out.println("ExtAxisParamConfig axis 1 rtn is " + rtn);
+        
+        // 获取扩展轴参数
+        Object[] params1 = new Object[12];
+        rtn = robot.ExtAxisGetParamConfig(1, params1);
+        System.out.printf("axis id 1 ExtAxisGetParamConfig : axisType %d, axisDirection %d, axisMax %.2f, axisMin %.2f, axisVel %.2f, axisAcc %.2f, axisLead %.2f, encResolution %d, axisOffect %.2f, axisCompany %d, axisModel %d, axisEncType %d\n",
+                (int)params1[0], (int)params1[1], (double)params1[2], (double)params1[3], 
+                (double)params1[4], (double)params1[5], (double)params1[6], (int)params1[7], 
+                (double)params1[8], (int)params1[9], (int)params1[10], (int)params1[11]);
+        
+        // 配置扩展轴2参数
+        rtn = robot.ExtAxisParamConfig(2, 1, 1, 1000, -1000, 1000, 1000, 4.444, 262144, 200, 1, 0, 0);
+        System.out.println("ExtAxisParamConfig axis 2 rtn is " + rtn);
+        
+        // 获取扩展轴2参数
+        Object[] params2 = new Object[12];
+        rtn = robot.ExtAxisGetParamConfig(2, params2);
+        System.out.printf("axis id 2 ExtAxisGetParamConfig : axisType %d, axisDirection %d, axisMax %.2f, axisMin %.2f, axisVel %.2f, axisAcc %.2f, axisLead %.2f, encResolution %d, axisOffect %.2f, axisCompany %d, axisModel %d, axisEncType %d\n",
+                (int)params2[0], (int)params2[1], (double)params2[2], (double)params2[3], 
+                (double)params2[4], (double)params2[5], (double)params2[6], (int)params2[7], 
+                (double)params2[8], (int)params2[9], (int)params2[10], (int)params2[11]);
+
+        robot.Sleep(3000);
+        
+        // 扩展轴1点动
+        robot.ExtAxisStartJog(1, 0, 10, 10, 30);
+        robot.Sleep(1000);
+        robot.ExtAxisStopJog(1);
+        robot.Sleep(3000);
+        robot.ExtAxisServoOn(1, 0);
+
+        robot.Sleep(3000);
+        
+        // 扩展轴2点动
+        robot.ExtAxisStartJog(2, 0, 10, 10, 30);
+        robot.Sleep(1000);
+        robot.ExtAxisStopJog(2);
+        robot.Sleep(3000);
+        robot.ExtAxisServoOn(2, 0);
+
+        // 卸载UDP驱动
+        robot.ExtDevUnloadUDPDriver();
+
+        return 0;
+    }
+    
 }

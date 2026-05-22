@@ -260,6 +260,10 @@ public class RobotStateParser {
 
         // 通用数据
         addMapping(RobotState.AxleGenComData, "axle_gen_com_data", "axleGenComData", DataType.UINT8_130, DataType.UINT8_130);
+
+        // 扩展轴
+        addMapping(RobotState.ExaxisCoordID, "exaxis_coord_id", "exaxisCoordID", DataType.UINT8, DataType.UINT8);
+
     }
 
     private static void addMapping(RobotState state, String serverName, String fieldName, DataType structType, DataType serverType) {

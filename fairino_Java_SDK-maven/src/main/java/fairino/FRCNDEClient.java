@@ -151,72 +151,80 @@ public class FRCNDEClient {
      * 发送状态配置帧到服务器
      * @return 0-成功，-1-发送失败
      */
-    public int SendStateConfig() {
-        if (stateConfigList.isEmpty()) {
-            System.err.println("State config is empty, please set config first");
-            
-            return -1;
-        }
+    public int SendStateConfig()
+    {
+        try {
+            if (stateConfigList.isEmpty()) {
+                System.err.println("State config is empty, please set config first");
 
-        synchronized (recvCNDEPkgMutex) {
-            // 生成配置数据内容（逗号分隔的状态名）
-            byte[] configData = RobotStateParser.generateConfigData(stateConfigList);
-            System.out.println("[DEBUG] Config data string: " + new String(configData));
-            // 组装最终数据：前2字节是period（小端序），后面是配置数据
-            byte[] finalData = new byte[2 + configData.length];
-            finalData[0] = (byte) (robotStatePeriod & 0xFF);         // period低字节
-            finalData[1] = (byte) ((robotStatePeriod >> 8) & 0xFF);  // period高字节
-            System.arraycopy(configData, 0, finalData, 2, configData.length);
-
-            CNDEPkg configPkg = new CNDEPkg();
-            configPkg.count = (sendCount++) & 0xFF;
-            // configPkg.type = CNDEPkg.CNDE_FRAME_TYPE_OUTPUT_STATE;  // 使用 OUTPUT_STATE 类型发送配置
-            configPkg.type = 1;
-            configPkg.len = finalData.length;  // 长度字段也改为2字节（在CNDEPkgToFrame中处理）
-
-            // 将数据添加到 pkg.data
-            for (byte b : finalData) {
-                configPkg.data.add(b);
+                return -1;
             }
 
-            List<Byte> configFrame = CNDEFrameHandle.CNDEPkgToFrame(configPkg);
-            byte[] sendData = CNDEFrameHandle.toByteArray(configFrame);
+            synchronized (recvCNDEPkgMutex) {
+                // 生成配置数据内容（逗号分隔的状态名）
+                byte[] configData = RobotStateParser.generateConfigData(stateConfigList);
+                System.out.println("[DEBUG] Config data string: " + new String(configData));
+                // 组装最终数据：前2字节是period（小端序），后面是配置数据
+                byte[] finalData = new byte[2 + configData.length];
+                finalData[0] = (byte) (robotStatePeriod & 0xFF);         // period低字节
+                finalData[1] = (byte) ((robotStatePeriod >> 8) & 0xFF);  // period高字节
+                System.arraycopy(configData, 0, finalData, 2, configData.length);
 
-            rtClient.Send(sendData);
+                CNDEPkg configPkg = new CNDEPkg();
+                configPkg.count = (sendCount++) & 0xFF;
+                // configPkg.type = CNDEPkg.CNDE_FRAME_TYPE_OUTPUT_STATE;  // 使用 OUTPUT_STATE 类型发送配置
+                configPkg.type = 1;
+                configPkg.len = finalData.length;  // 长度字段也改为2字节（在CNDEPkgToFrame中处理）
 
-            // 接收服务器响应
-            byte[] pkgBuf = new byte[CNDE_MAX_PKG_SIZE];
-            CNDEPkg recvPkg = new CNDEPkg();
+                // 将数据添加到 pkg.data
+                for (byte b : finalData) {
+                    configPkg.data.add(b);
+                }
 
-            int recvLen = RecvCNDEPkg(pkgBuf);
-            if (recvLen < 0) {
-                System.err.println("[CNDE] Failed to receive config response");
-                return -1;
-            } else if (recvLen > 0) {
-                List<Byte> frame = CNDEFrameHandle.toByteList(pkgBuf);
-                frame = frame.subList(0, recvLen);
-                int rtn = CNDEFrameHandle.FrameToCNDEPkg(frame, recvPkg);
+                List<Byte> configFrame = CNDEFrameHandle.CNDEPkgToFrame(configPkg);
+                byte[] sendData = CNDEFrameHandle.toByteArray(configFrame);
 
-                if (rtn == 0) {
-                    // 检查消息类型是否为消息帧 (CNDE_FRAME_TYPE_MESSAGE = 6)
-                    if (recvPkg.type == CNDEPkg.CNDE_FRAME_TYPE_MESSAGE) {
-                        // 将数据转换为字符串并检查是否包含 NOT_FOUND
-                        if (!recvPkg.data.isEmpty()) {
-                            byte[] dataBytes = CNDEFrameHandle.toByteArray(recvPkg.data);
-                            String responseStr = new String(dataBytes, java.nio.charset.StandardCharsets.UTF_8);
-                            System.out.println("[DEBUG] Server response: " + responseStr);
+                rtClient.Send(sendData);
 
-                            if (responseStr.contains("NOT_FOUND")) {
-                                System.err.println("[CNDE] Config error: State not found - " + responseStr);
-                                return -18;
+                // 接收服务器响应
+                byte[] pkgBuf = new byte[CNDE_MAX_PKG_SIZE];
+                CNDEPkg recvPkg = new CNDEPkg();
+
+                int recvLen = RecvCNDEPkg(pkgBuf);
+                if (recvLen < 0) {
+                    System.err.println("[CNDE] Failed to receive config response");
+                    return -1;
+                } else if (recvLen > 0) {
+                    List<Byte> frame = CNDEFrameHandle.toByteList(pkgBuf);
+                    frame = frame.subList(0, recvLen);
+                    int rtn = CNDEFrameHandle.FrameToCNDEPkg(frame, recvPkg);
+
+                    if (rtn == 0) {
+                        // 检查消息类型是否为消息帧 (CNDE_FRAME_TYPE_MESSAGE = 6)
+                        if (recvPkg.type == CNDEPkg.CNDE_FRAME_TYPE_MESSAGE) {
+                            // 将数据转换为字符串并检查是否包含 NOT_FOUND
+                            if (!recvPkg.data.isEmpty()) {
+                                byte[] dataBytes = CNDEFrameHandle.toByteArray(recvPkg.data);
+                                String responseStr = new String(dataBytes, java.nio.charset.StandardCharsets.UTF_8);
+                                System.out.println("[DEBUG] Server response: " + responseStr);
+
+                                if (responseStr.contains("NOT_FOUND")) {
+                                    System.err.println("[CNDE] Config error: State not found - " + responseStr);
+                                    return -18;
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            return 0;
+                return 0;
+            }
         }
+        catch (Throwable e)
+        {
+            System.err.println("[CNDE] Failed to receive config response");
+        }
+        return 0;
     }
 
     /**
@@ -436,49 +444,57 @@ public class FRCNDEClient {
             CNDEPkg pkg = new CNDEPkg();
 
             while (robotStateRunFlag) {
-                synchronized (recvCNDEPkgMutex) {
-                    int recvLen = RecvCNDEPkg(pkgBuf);
-                    if (recvLen < 0) {
-                        // 接收数据失败，检查是否仍在运行
-                        if (!robotStateRunFlag) {
-                            System.out.println("[CNDE] Reception stopped, not attempting reconnect");
-                            return;  // 已停止运行，直接退出线程
-                        }
-                        // 标记断开并触发重连
-                        isConnected = false;
-                        System.err.println("[CNDE] Connection lost, attempting to reconnect...");
-                        if (DoReconnect()) {
-                            System.out.println("[CNDE] Reconnect successful, resuming state reception");
-                            continue;  // 重连成功，继续接收循环
+                synchronized (recvCNDEPkgMutex)
+                {
+                    try {
+                        int recvLen = RecvCNDEPkg(pkgBuf);
+                        if (recvLen < 0) {
+                            // 接收数据失败，检查是否仍在运行
+                            if (!robotStateRunFlag) {
+                                System.out.println("[CNDE] Reception stopped, not attempting reconnect");
+                                return;  // 已停止运行，直接退出线程
+                            }
+                            // 标记断开并触发重连
+                            isConnected = false;
+                            System.err.println("[CNDE] Connection lost, attempting to reconnect...");
+                            if (DoReconnect()) {
+                                System.out.println("[CNDE] Reconnect successful, resuming state reception");
+                                continue;  // 重连成功，继续接收循环
+                            } else {
+                                System.err.println("[CNDE] Reconnect failed, stopping reception thread");
+                                return;  // 重连失败，结束线程
+                            }
+                        } else if (recvLen == 0) {
+                            // 未收到数据，继续循环
+                            continue;
                         } else {
-                            System.err.println("[CNDE] Reconnect failed, stopping reception thread");
-                            return;  // 重连失败，结束线程
-                        }
-                    } else if (recvLen == 0) {
-                        // 未收到数据，继续循环
-                        continue;
-                    } else {
-                        pkg.clear();
-                        List<Byte> frame = CNDEFrameHandle.toByteList(pkgBuf);
-                        frame = frame.subList(0, recvLen);
-                        int rtn = CNDEFrameHandle.FrameToCNDEPkg(frame, pkg);
+                            pkg.clear();
+                            List<Byte> frame = CNDEFrameHandle.toByteList(pkgBuf);
+                            frame = frame.subList(0, recvLen);
+                            int rtn = CNDEFrameHandle.FrameToCNDEPkg(frame, pkg);
 
-                        if (rtn == 0) {
-                            switch (pkg.type) {
-                                case CNDEPkg.CNDE_FRAME_TYPE_OUTPUT_STATE:
-                                    // 解析状态输出数据
-                                    if (!stateConfigList.isEmpty()) {
-                                        byte[] dataBytes = CNDEFrameHandle.toByteArray(pkg.data);
-                                        int parseRtn = RobotStateParser.parseData(dataBytes, stateConfigList, statePkg);
-                                        if (parseRtn != 0) {
-                                            System.err.println("Parse state data failed: " + parseRtn);
+                            if (rtn == 0) {
+                                switch (pkg.type) {
+                                    case CNDEPkg.CNDE_FRAME_TYPE_OUTPUT_STATE:
+                                        // 解析状态输出数据
+                                        if (!stateConfigList.isEmpty()) {
+                                            byte[] dataBytes = CNDEFrameHandle.toByteArray(pkg.data);
+                                            int parseRtn = RobotStateParser.parseData(dataBytes, stateConfigList, statePkg);
+                                            if (parseRtn != 0) {
+                                                System.err.println("Parse state data failed: " + parseRtn);
+                                            }
                                         }
-                                    }
-                                    break;
-                                default:
-                                    break;
+                                        break;
+                                    default:
+                                        break;
+                                }
                             }
                         }
+                    }
+                    catch(Throwable e)
+                    {
+                        //System.err.println("recv cnde exception " + e.getMessage());
+                        continue;
                     }
                 }
 

@@ -22,7 +22,7 @@ import org.apache.xmlrpc.client.XmlRpcClientConfigImpl;
 
 public class Robot
 {
-    String SDK_VERSION = "JavaSDK V1.1.2  WebApp V3.9.4";
+    String SDK_VERSION = "JavaSDK V1.1.2  WebApp V3.9.7";
     private String robotIp = "192.168.58.2";//机器人ip
     int ROBOT_CMD_PORT = 8080;
     int ROBOT_CMD_UDP_PORT = 20007;
@@ -12117,12 +12117,12 @@ public class Robot
         }
         try
         {
-            Object[] params = new Object[] {0, pos.axis1, pos.axis2, pos.axis3, pos.axis4, ovl};
+            Object[] params = new Object[] {0, pos.axis1, pos.axis2, pos.axis3, pos.axis4, ovl,-1.0};
             //单独调用时，默认异步运动
-            int rtn = (int)client.execute("ExtAxisMove" , params);
+            int rtn = (int)client.execute("ExtAxisMoveJ" , params);
             if (log != null)
             {
-                log.LogInfo("ExtAxisMove(" + pos.axis1 + ", " + pos.axis2 + ", " + pos.axis3 + ", " + pos.axis4 + ") : " + rtn);
+                log.LogInfo("ExtAxisMoveJ(" + pos.axis1 + ", " + pos.axis2 + ", " + pos.axis3 + ", " + pos.axis4 + ") : " + rtn);
             }
             return rtn;
         }
@@ -16279,9 +16279,10 @@ public class Robot
      * @param forceSensorEnable 力传感器启用状态，0-不启用；1-启用
      * @param gripperEnable 夹爪启用状态，0-不启用；1-启用
      * @param IOEnable IO设备启用状态，0-不启用；1-启用
+     * @param dexhandEnable 灵巧手启用状态，0-不启用；1-启用
      * @return  错误码
      */
-    public int SetAxleLuaEnableDeviceType(int forceSensorEnable, int gripperEnable, int IOEnable)
+    public int SetAxleLuaEnableDeviceType(int forceSensorEnable, int gripperEnable, int IOEnable, int dexhandEnable)
     {
         if (IsSockComError())
         {
@@ -16289,7 +16290,7 @@ public class Robot
         }
         try
         {
-            Object[] params = new Object[] {forceSensorEnable, gripperEnable, IOEnable};
+            Object[] params = new Object[] {forceSensorEnable, gripperEnable, IOEnable, dexhandEnable};
             int rtn = (int)client.execute("SetAxleLuaEnableDeviceType" , params);
             if (log != null)
             {
@@ -16313,6 +16314,7 @@ public class Robot
      * @param enable enable[0]:forceSensorEnable 力传感器启用状态，0-不启用；1-启用
      * @param enable enable[1]:gripperEnable 夹爪启用状态，0-不启用；1-启用
      * @param enable enable[2]:IOEnable IO设备启用状态，0-不启用；1-启用
+     * @param enable enable[3]:dexhandEnable 灵巧手启用状态，0-不启用；1-启用
      * @return  错误码
      */
     public int GetAxleLuaEnableDeviceType(int[] enable)
@@ -16331,6 +16333,7 @@ public class Robot
                 enable[0] = (int)result[1];
                 enable[1] = (int)result[2];
                 enable[2] = (int)result[3];
+                enable[3] = (int)result[4];
             }
             if (log != null)
             {
@@ -16353,9 +16356,10 @@ public class Robot
      * @param forceSensorEnable 力传感器启用设备编号 0-未启用；1-启用
      * @param gripperEnable 夹爪启用设备编号，0-不启用；1-启用
      * @param IODeviceEnable IO设备启用设备编号，0-不启用；1-启用
+     * @param dexhandEnable 灵巧手启用状态，0-不启用；1-启用
      * @return  错误码
      */
-    public int GetAxleLuaEnableDevice(int[] forceSensorEnable, int[] gripperEnable, int[] IODeviceEnable)
+    public int GetAxleLuaEnableDevice(int[] forceSensorEnable, int[] gripperEnable, int[] IODeviceEnable, int[] dexhandEnable)
     {
         if (IsSockComError())
         {
@@ -16370,7 +16374,7 @@ public class Robot
             {
                 paramStr = (String)result[1];
                 String[] parS = paramStr.split(",");
-                if (parS.length != 24)
+                if (parS.length != 40)
                 {
                     log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "get segment weld point fail");
                     return -1;
@@ -16401,6 +16405,10 @@ public class Robot
                 IODeviceEnable[5] = Integer.parseInt(parS[21]);
                 IODeviceEnable[6] = Integer.parseInt(parS[22]);
                 IODeviceEnable[7] = Integer.parseInt(parS[23]);
+
+                for(int i = 0; i < 16; i++) {
+                    dexhandEnable[i] = Integer.parseInt(parS[24 + i]);
+                }
             }
             if (log != null)
             {
@@ -16432,7 +16440,8 @@ public class Robot
         }
         try
         {
-            Object[] funcs = new Object[]{func[0], func[1], func[2], func[3], func[4], func[5], func[6], func[7], func[8], func[9], func[10], func[11], func[12], func[13], func[14], func[15]};
+            Object[] funcs = new Object[]{func[0], func[1], func[2], func[3], func[4], func[5], func[6], func[7], func[8], func[9], func[10], func[11], func[12], func[13], func[14], func[15]
+            , func[16], func[17], func[18], func[19], func[20], func[21], func[22], func[23], func[24], func[25], func[26], func[27], func[28], func[29], func[30], func[31]};
             Object[] params = new Object[] {id, funcs};
             int rtn = (int)client.execute("SetAxleLuaGripperFunc" , params);
             if (log != null)
@@ -16474,7 +16483,7 @@ public class Robot
             {
                 paramStr = (String)result[1];
                 String[] parS = paramStr.split(",");
-                if (parS.length != 16)
+                if (parS.length != 32)
                 {
                     log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "get segment weld point fail");
                     return -1;
@@ -16495,6 +16504,22 @@ public class Robot
                 func[13] = Integer.parseInt(parS[13]);
                 func[14] = Integer.parseInt(parS[14]);
                 func[15] = Integer.parseInt(parS[15]);
+                func[16] = Integer.parseInt(parS[16]);
+                func[17] = Integer.parseInt(parS[17]);
+                func[18] = Integer.parseInt(parS[18]);
+                func[19] = Integer.parseInt(parS[19]);
+                func[20] = Integer.parseInt(parS[20]);
+                func[21] = Integer.parseInt(parS[21]);
+                func[22] = Integer.parseInt(parS[22]);
+                func[23] = Integer.parseInt(parS[23]);
+                func[24] = Integer.parseInt(parS[24]);
+                func[25] = Integer.parseInt(parS[25]);
+                func[26] = Integer.parseInt(parS[26]);
+                func[27] = Integer.parseInt(parS[27]);
+                func[28] = Integer.parseInt(parS[28]);
+                func[29] = Integer.parseInt(parS[29]);
+                func[30] = Integer.parseInt(parS[30]);
+                func[31] = Integer.parseInt(parS[31]);
             }
             if (log != null)
             {
@@ -23100,7 +23125,7 @@ public int SendUDPFrame(String frame) {
      */
     public int ServoJV(double[] joint_vel, double[] exis_vel, double acc, double vel, double cmdT, double filterT, double gain)
     {
-        return ServoJV(joint_vel, exis_vel, acc, vel, cmdT, filterT, gain, 0, 0);
+        return ServoJV(joint_vel, exis_vel, acc, vel, cmdT, filterT, gain, 0, 1);
     }
 
     /**
@@ -23149,12 +23174,12 @@ public int SendUDPFrame(String frame) {
                 String exisVelStr = formatDoubleArray(exis_vel, 3);
 
                 // 构建命令字符串
-                String cmdStr = String.format("ServoJ(%s,%s,%.3f,%.3f,%.3f,%.3f,%.3f,%d)",
+                String cmdStr = String.format("ServoJV(%s,%s,%.3f,%.3f,%.3f,%.3f,%.3f,%d)",
                         jointVelStr, exisVelStr, acc, vel, cmdT, filterT, gain, id);
 
                 Frame frame = new Frame(cmdFrameCnt++, 1337, cmdStr);
                 int sendResult = udpCmdClient.sendFrame(FrameHandle.packFrame(frame));
-                if (sendResult != 0)
+                if (sendResult <= 0)
                 {
                     if (log != null)
                     {
@@ -23382,7 +23407,20 @@ public int SendUDPFrame(String frame) {
             if (comType == 0)
             {
                 // XML-RPC 方式
-                Object[] params = new Object[] {posGain, desPos, velGain, desVel, torque_ff, interval};
+                Object[] posGainP = new Object[]{posGain[0],posGain[1],
+                        posGain[2],posGain[3],posGain[4],posGain[5]};
+                Object[] desPosP = new Object[]{desPos[0],desPos[1],
+                        desPos[2],desPos[3],desPos[4],desPos[5]};
+                Object[] velGainP = new Object[]{velGain[0],velGain[1],
+                        velGain[2],velGain[3],velGain[4],velGain[5]};
+                Object[] desVelP = new Object[]{desVel[0],desVel[1],
+                        desVel[2],desVel[3],desVel[4],desVel[5]};
+                Object[] torque_ffP = new Object[]{torque_ff[0],torque_ff[1],
+                        torque_ff[2],torque_ff[3],torque_ff[4],torque_ff[5]};
+
+
+
+                Object[] params = new Object[] {posGainP, desPosP, velGainP, desVelP, torque_ffP, interval};
                 int rtn = (int)client.execute("ServoMIT", params);
                 if (log != null)
                 {
@@ -23405,7 +23443,7 @@ public int SendUDPFrame(String frame) {
 
                 Frame frame = new Frame(cmdFrameCnt++, 1336, cmdStr);
                 int sendResult = udpCmdClient.sendFrame(FrameHandle.packFrame(frame));
-                if (sendResult != 0)
+                if (sendResult <= 0)
                 {
                     if (log != null)
                     {
@@ -23957,4 +23995,420 @@ public int SendUDPFrame(String frame) {
         }
     }
 
+    /**
+     * @brief 设置启用灵巧手动作控制功能
+     * @param id 灵巧手从站编号
+     * @param func 功能数组，长度为32，Bit0-夹持触发、Bit1-夹爪初始化、Bit2-位置设置、Bit3-速度设置、Bit4-力矩设置、Bit6-读夹爪状态、Bit7-读初始化状态、Bit8-读故障码、Bit9-读位置、Bit10-读速度、Bit11-读力矩、Bit12-旋转圈数设置、Bit13-旋转速度设置、Bit14-旋转力矩设置、Bit15-读旋转夹爪状态、Bit16-读旋转初始化状态、Bit17-读旋转圈数、Bit18-读旋转速度、Bit19-读旋转力矩、Bit20-多轴同步运动设置、Bit21-故障清除指令、Bit22-单轴运行状态、Bit23-所有轴运行状态
+     * @return 错误码
+     */
+    public int SetDexterousHandsFunc(int id, int[] func) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{id, func};
+            int rtn = (int) client.execute("SetDexterousHandsFunc", params);
+            if (log != null) {
+                StringBuilder sb = new StringBuilder();
+                sb.append("SetDexterousHandsFunc(id:").append(id).append("; func:");
+                for (int i = 0; i < func.length; i++) {
+                    sb.append(func[i]);
+                    if (i < func.length - 1) sb.append(", ");
+                }
+                sb.append(") : ").append(rtn);
+                log.LogInfo(sb.toString());
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取启用灵巧手动作控制功能
+     * @param id 灵巧手设备编号
+     * @param func 输出参数数组，长度为32，Bit0-夹持触发、Bit1-夹爪初始化、Bit2-位置设置、Bit3-速度设置、Bit4-力矩设置、Bit6-读夹爪状态、Bit7-读初始化状态、Bit8-读故障码、Bit9-读位置、Bit10-读速度、Bit11-读力矩、Bit12-旋转圈数设置、Bit13-旋转速度设置、Bit14-旋转力矩设置、Bit15-读旋转夹爪状态、Bit16-读旋转初始化状态、Bit17-读旋转圈数、Bit18-读旋转速度、Bit19-读旋转力矩、Bit20-多轴同步运动设置、Bit21-故障清除指令、Bit22-单轴运行状态、Bit23-所有轴运行状态
+     * @return 错误码
+     */
+    public int GetDexterousHandsFunc(int id, int[] func) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{id};
+            Object[] result = (Object[]) client.execute("GetDexterousHandsFunc", params);
+            int errcode = (int) result[0];
+            if (errcode == 0) {
+                String resultStr = (String) result[1];
+                String[] parS = resultStr.split(",");
+                if (parS.length != 32) {
+                    if (log != null) {
+                        log.LogError("GetDexterousHandsFunc fail");
+                    }
+                    return -1;
+                }
+                for (int i = 0; i < 32; i++) {
+                    func[i] = Integer.parseInt(parS[i].trim());
+                }
+                if (log != null) {
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("GetDexterousHandsFunc(").append(id).append(",");
+                    for (int i = 0; i < func.length; i++) {
+                        sb.append(func[i]);
+                        if (i < func.length - 1) sb.append(", ");
+                    }
+                    sb.append(") : ").append(errcode);
+                    log.LogInfo(sb.toString());
+                }
+                return errcode;
+            }
+            if (log != null) {
+//                log.LogInfo("GetDexterousHandsFunc(ref " + resultStr + ") : " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 控制灵巧手运动
+     * @param idstart 起始从站号
+     * @param slaveNum 数量
+     * @param pos 位置数组，长度16，范围(-360~360)
+     * @param speed 速度百分比数组，长度16，范围[0~100]
+     * @param force 力矩百分比数组，长度16，范围[0~100]
+     * @param max_time 最大等待时间，范围[0~30000]，单位ms
+     * @return 错误码
+     */
+    public int SetDexterousHandsMove(int idstart, int slaveNum, double[] pos, int[] speed, int[] force, int max_time) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] posParam = new Object[]{pos[0], pos[1], pos[2], pos[3], pos[4], pos[5], pos[6], pos[7], pos[8], pos[9], pos[10], pos[11], pos[12], pos[13], pos[14], pos[15]};
+            Object[] speedParam = new Object[]{speed[0], speed[1], speed[2], speed[3], speed[4], speed[5], speed[6], speed[7], speed[8], speed[9], speed[10], speed[11], speed[12], speed[13], speed[14], speed[15]};
+            Object[] forceParam = new Object[]{force[0], force[1], force[2], force[3], force[4], force[5], force[6], force[7], force[8], force[9], force[10], force[11], force[12], force[13], force[14], force[15]};
+
+            Object[] params = new Object[]{idstart, slaveNum, posParam, speedParam, forceParam, max_time};
+            int rtn = (int) client.execute("SetDexterousHandsMove", params);
+            System.out.println("SetDexterousHandsMove(" + idstart + "," + slaveNum + "," + pos[0] + "," + speed[0] + "," + force[0] + "," + max_time + ") : " + rtn);
+
+            if (log != null) {
+                log.LogInfo("SetDexterousHandsMove(" + idstart + "," + slaveNum + "," + pos[0] + "," + speed[0] + "," + force[0] + "," + max_time + ") : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 控制灵巧手复位激活
+     * @param id 从站号
+     * @param act 0-复位 1-激活
+     * @return 错误码
+     */
+    public int SetDexterousHandsAct(int id, int act) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{id, act};
+            int rtn = (int) client.execute("SetDexterousHandsAct", params);
+            if (log != null) {
+                log.LogInfo("SetDexterousHandsAct(" + id + "," + act + ") : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 清除灵巧手错误
+     * @return 错误码
+     */
+    public int ClearDexterousHandsError() {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{};
+            int rtn = (int) client.execute("ClearDexterousHandsError", params);
+            if (log != null) {
+                log.LogInfo("ClearDexterousHandsError() : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+    /**
+     * @brief 直线插入
+     * @param rcs 参考坐标系，0-工具坐标系，1-基坐标系
+     * @param ft 力/扭矩阈值，fx,fy,fz,tx,ty,tz，范围[0~100]
+     * @param lin_v 直线速度，单位mm/s
+     * @param lin_a 直线加速度，单位mm/s^2，暂不使用
+     * @param max_dis 最大插入距离，单位mm
+     * @param linorn 插入方向，0-负方向，1-正方向
+     * @return 错误码
+     */
+    public int FT_LinInsertion(int rcs, double ft, double lin_v, double lin_a, double max_dis, int linorn) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{rcs, ft, lin_v, lin_a, max_dis, linorn};
+            int rtn = (int) client.execute("FT_LinInsertion", params);
+            if (log != null) {
+                log.LogInfo("FT_LinInsertion() : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+    /**
+     * @brief 表面定位
+     * @param rcs 参考坐标系，0-工具坐标系，1-基坐标系
+     * @param dir 移动方向，1-正方向，2-负方向
+     * @param axis 移动轴，1-x轴，2-y轴，3-z轴
+     * @param lin_v 探索直线速度，单位mm/s
+     * @param lin_a 探索直线加速度，单位mm/s^2，暂不使用，默认为0
+     * @param max_dis 最大探索距离，单位mm
+     * @param ft 动作终止力/扭矩阈值，fx,fy,fz,tx,ty,tz
+     * @return 错误码
+     */
+    public int FT_FindSurface(int rcs, int dir, int axis, double lin_v, double lin_a, double max_dis, double ft) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{rcs, dir, axis, lin_v, lin_a, max_dis, ft};
+            int rtn = (int) client.execute("FT_FindSurface", params);
+            if (log != null) {
+                log.LogInfo("FT_FindSurface() : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 计算中间平面位置开始
+     * @return 错误码
+     */
+    public int FT_CalCenterStart() {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{};
+            int rtn = (int) client.execute("FT_CalCenterStart", params);
+            if (log != null) {
+                log.LogInfo("FT_CalCenterStart() : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 计算中间平面位置结束
+     * @param pos 中间平面位姿（输出参数）
+     * @return 错误码
+     */
+    public int FT_CalCenterEnd(DescPose pos) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{};
+            Object[] result = (Object[]) client.execute("FT_CalCenterEnd", params);
+            int errcode = (int) result[0];
+            if (errcode == 0) {
+                // 解析返回的位姿数据
+                pos.tran.x = (double) result[1];
+                pos.tran.y = (double) result[2];
+                pos.tran.z = (double) result[3];
+                pos.rpy.rx = (double) result[4];
+                pos.rpy.ry = (double) result[5];
+                pos.rpy.rz = (double) result[6];
+            } else {
+                if (log != null) {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "execute FT_CalCenterEnd fail " + errcode);
+                }
+            }
+            if (log != null) {
+                log.LogInfo("FT_CalCenterEnd() : " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+
+    /**
+     * @brief 获取摆动结束回周期零点参数
+     * @param flag 摆动结束是否回周期零点；0-不回周期零点；1-回周期零点
+     * @return 错误码
+     */
+    public int GetWeaveBackCenterConfig(int[] flag) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{};
+            Object[] result = (Object[]) client.execute("GetWeaveBackCenterConfig", params);
+            int errcode = (int) result[0];
+            if (errcode == 0) {
+                flag[0] = (int) result[1];
+                if (log != null) {
+                    log.LogInfo("GetWeaveBackCenterConfig() : " + errcode + ", flag: " + flag[0]);
+                }
+            } else {
+                if (log != null) {
+                    log.LogError("GetWeaveBackCenterConfig fail: " + errcode);
+                }
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 设置摆动结束回周期零点
+     * @param flag 摆动结束是否回周期零点；0-不回周期零点；1-回周期零点
+     * @return 错误码
+     */
+    public int SetWeaveBackCenterConfig(int flag) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{flag};
+            int rtn = (int) client.execute("SetWeaveBackCenterConfig", params);
+            if (log != null) {
+                log.LogInfo("SetWeaveBackCenterConfig(" + flag + ") : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 设置速度(指令帧，低延迟)
+     * @param vel 速度百分比，范围[0~100]
+     * @return 错误码
+     */
+    public int SetSpeedInstant(int vel) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        while (isSendCmd) {
+            try {
+                Thread.sleep(10);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        String content = String.format("SetSpeed(%d)", vel);
+        sendBuf = String.format("/f/bIII%dIII983III%dIII%sIII/b/f",
+            cmdFrameCnt++, content.length(), content);
+
+        isSendCmd = true;
+        if (log != null) {
+            log.LogInfo("SetSpeedInstant(" + vel + ")");
+        }
+        return 0;
+    }
+    /**
+     * @brief 设置摆动实时偏移
+     * @param offset 实时偏移量[mm，°]
+     * @return 错误码
+     */
+    public int SetWeaveOffsetRT(DescPose offset) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        int errcode = 0;
+        sendBuf = String.format("/f/bIII%dIII1368III%dIIISetWeaveOffsetRT(%.6f,%.6f,%.6f,%.6f,%.6f,%.6f)III/b/f",
+            cmdFrameCnt++, 26,
+            offset.tran.x, offset.tran.y, offset.tran.z,
+            offset.rpy.rx, offset.rpy.ry, offset.rpy.rz);
+
+        isSendCmd = true;
+
+        if (log != null) {
+            log.LogInfo("SetWeaveOffsetRT().");
+        }
+
+        return errcode;
+    }
 }

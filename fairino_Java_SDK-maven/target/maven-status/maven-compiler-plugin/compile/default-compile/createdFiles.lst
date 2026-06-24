@@ -76,6 +76,7 @@ fairino\RobotStateParser$StateMapping.class
 fairino\DescTran.class
 fairino\Robot$10.class
 fairino\Main$8.class
+fairino\Main$15.class
 fairino\Robot$7.class
 fairino\ROBOT_STATE_PKG$AuxState.class
 fairino\UDPClient$1.class

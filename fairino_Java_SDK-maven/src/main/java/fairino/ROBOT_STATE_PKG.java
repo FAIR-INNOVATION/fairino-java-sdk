@@ -407,6 +407,8 @@ public class ROBOT_STATE_PKG {
     // 扩展轴坐标系编号
     public int exaxisCoordID;
 
+    public int ProgramRunState;
+
     // ========== 辅助类定义 ==========
 
     /**

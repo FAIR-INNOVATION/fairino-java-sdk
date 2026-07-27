@@ -261,11 +261,11 @@ public class FRCNDEClient {
 
     /**
      * 设置 CNDE 机器人状态周期
-     * @param period 周期 (ms)，范围 8-1000
+     * @param period 周期 (ms)，范围 4-1000
      * @return 0-成功，4-参数异常
      */
     public int SetCNDERobotStatePeriod(int period) {
-        if (period < 8 || period > 1000) {
+        if (period < 4 || period > 1000) {
             return 4;
         }
         robotStatePeriod = period;

@@ -134,5 +134,6 @@ public enum RobotState {
     DriverError,
     OutSoftLimitError,
     AxleGenComData,
-    ExaxisCoordID;
+    ExaxisCoordID,
+    ProgramRunState;
 }

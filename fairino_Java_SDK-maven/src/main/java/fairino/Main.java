@@ -16,21 +16,31 @@ public class Main {
         Robot robot = new Robot();
         robot.SetReconnectParam(true, 1000, 50);//设置重连次数、间隔
         robot.LoggerInit(FrLogType.DIRECT, FrLogLevel.INFO, "D://log", 10, 10);
+//
+//        int rtn = robot.RPC("192.168.58.2");
+//        if (rtn == 0) {
+//            System.out.println("rpc连接 success");
+//        } else {
+//            System.out.println("rpc连接 fail");
+//            return;
+//        }
+//        robot.Sleep(1000);
 
-        int rtn = robot.RPC("192.168.58.2");
-        if (rtn == 0) {
-            System.out.println("rpc连接 success");
-        } else {
-            System.out.println("rpc连接 fail");
-            return;
-        }
-        robot.Sleep(1000);
-        TestWeaveSpeedAndOffset(robot);
+
 //        TestSetWeldParam(robot);//焊接参数配置
+//        TestExtDIConfig(robot);//设置扩展IO焊接信号
+//        TestCoord(robot);
+
+//        TestStationaryTrack(robot);
+// TestWorkPieceTrsf(robot);
+//TestSetJointVelReducePara(robot);
+
+//        TestFiveDexterousHands(robot);
+
+//        TestWeaveSpeedAndOffset(robot);
 //        TestWelding(robot);//机器人焊接
 //        TestSegWeld(robot);//机器人段焊
 //        TestWeave(robot);// 机器人摆动渐变焊接
-//        TestExtDIConfig(robot);//设置扩展IO焊接信号
 //        TestArcWeldTrace(robot);//多层多道焊电弧跟踪
 //        WeldTraceControlWithCtrlBoxAI(robot);//电弧跟踪
 //        TestWireSearch(robot);//机器人焊丝寻位
@@ -123,7 +133,7 @@ public class Main {
     //    TestSetTrajectoryJSpeed(robot);
 
         // 测试新增CNDE状态配置
-//       TestCNDEStarte(robot);
+       TestCNDEStarte(robot);
 
         // 测试读取默认的状态值
 //        TestReadBasicStates(robot);
@@ -409,7 +419,6 @@ public class Main {
 //        TestGetStatus(robot);
 //        TestInverseKin(robot);
 //        TestGetTeachPoint(robot);
-//         TestCoord(robot);
 //        TestTPD(robot);
  //TestSetTrajectoryJSpeed(robot);
 //        TestTraj(robot);
@@ -509,7 +518,7 @@ public class Main {
 //                testLasertrack_xyz(robot);
 //        testLasertrack_point(robot);
 //        testLaserRecordAndReplay(robot);
-        testLasertrack(robot);
+//        testLasertrack(robot);
 //        testLasertrackandExitAxis(robot);
 //        TestImpedanceControl(robot);
 //        TestCustomWeaveSetPara(robot);
@@ -1500,266 +1509,6 @@ public class Main {
         robot.WeaveEnd(0);
 
         robot.CloseRPC();
-    }
-
-    public static void TestCoord(Robot robot)
-    {
-        int id = 1;
-        int rtn = 0;
-        DescPose toolCoord = new DescPose();
-        DescPose extoolCoord = new DescPose();
-        DescPose wobjCoord = new DescPose();
-        DescPose exAxisCoord = new DescPose();
-
-//        for(int i=0;i<100;++i){
-//            DescPose pos=new DescPose(0.1*i,0.2*i,0.3*i,0.4*i,0.5*i,0.6*i);
-//            rtn=robot.SetToolCoord(3,pos,0,0,1,0);
-//            rtn=robot.SetWObjCoord(1,pos,0);
-
-//            System.out.println("SetWObjCoord is "+i+",rtn is:"+rtn);
-
-
-//            DescPose etcp=new DescPose(0.1*i,0.2*i,0.3 *i,0.4*i,0.5 *i,0.6 *i);
-//            DescPose etool=new DescPose(0.01*i,0.02*i,0.03 *i,0.04*i,0.05 * i,0.06 * i);
-//            rtn = robot.SetExToolCoord(1,etcp,etool);
-//            System.out.println("SetExToolCoord "+i+","+rtn);
-//            robot.Sleep(200);
-
-//            DescPose pos=new DescPose(0.1*i,0.2*i,0.3*i,0.4*i,0.5*i,0.6*i);
-//            rtn=robot.ExtAxisActiveECoordSys(1, 1, pos, 1);
-//            System.out.println("ExtAxisActiveECoordSys "+i+","+rtn);
-
-//            DescTran cog = new DescTran();
-//            rtn = robot.SetLoadWeight(1, 0.01*i);
-//            cog.x=(double) i;
-//            cog.y=(double) i*2;
-//            cog.z=(double) i*3;
-//            rtn = robot.SetLoadCoord(1, cog);
-//            System.out.println("SetLoadCoord "+i+","+rtn);
-//            robot.Sleep(300);
-//        }
-
-
-
-
-//        for (int i = 0; i < 100; i++) {
-            DescPose coordSet0 = new DescPose(0, 0, 0, 0, 0, 0);
-            DescPose coordSet = new DescPose(1, 2, 3, 4, 5, 6);
-            DescPose etcp = new DescPose(10, 20, 30, 40, 50, 60);
-            DescPose etool = new DescPose(0.1, 0.2, 0.3, 0.4, 0.5, 0.6);
-            DescTran cog = new DescTran(1, 2, 3);
-//
-//            if (i % 2 == 0) {
-                robot.SetToolCoord(id, coordSet, 0, 0, 1, 0);
-                robot.Sleep(100);
-                robot.SetWObjCoord(id, coordSet, 0);
-                robot.Sleep(100);
-                robot.ExtAxisActiveECoordSys(id, 1, coordSet, 1); //将标定结果应用到扩展轴坐标系
-                robot.Sleep(100);
-                rtn = robot.SetExToolCoord(id, etcp, etool);
-                robot.Sleep(100);
-                rtn = robot.SetLoadWeight(id, 1.5);
-                robot.Sleep(500);
-                rtn = robot.SetLoadCoord(id, cog);
-                robot.Sleep(100);
-//            } else {
-//                robot.SetToolCoord(id, coordSet0, 0, 0, 1, 0);
-//                robot.Sleep(100);
-//                robot.SetWObjCoord(id, coordSet0, 0);
-//                robot.Sleep(100);
-//                robot.ExtAxisActiveECoordSys(id, 1, coordSet0, 1); //将标定结果应用到扩展轴坐标系
-//                robot.Sleep(100);
-//                rtn = robot.SetExToolCoord(id, coordSet0, coordSet0);
-//                robot.Sleep(500);
-//                rtn = robot.SetLoadWeight(id, 0);
-//                robot.Sleep(500);
-//                rtn = robot.SetLoadCoord(id, coordSet0.tran);
-//                robot.Sleep(100);
-//            }
-//
-            robot.GetCurToolCoord(toolCoord);//工具
-            System.out.println("GetToolCoord:"+id+","+
-                    toolCoord.tran.x+","+ toolCoord.tran.y+","+ toolCoord.tran.z+","+
-                    toolCoord.rpy.rx+","+ toolCoord.rpy.ry+","+ toolCoord.rpy.rz);
-
-
-            robot.GetCurWObjCoord(toolCoord);//工件
-            System.out.println("GetCurWObjCoord:"+id+","+
-                    toolCoord.tran.x+","+ toolCoord.tran.y+","+ toolCoord.tran.z+","+
-                    toolCoord.rpy.rx+","+ toolCoord.rpy.ry+","+ toolCoord.rpy.rz);
-
-            robot.GetCurExToolCoord(toolCoord);//外部工具
-            System.out.println("GetCurExToolCoord:"+id+","+
-                    toolCoord.tran.x+","+ toolCoord.tran.y+","+ toolCoord.tran.z+","+
-                    toolCoord.rpy.rx+","+ toolCoord.rpy.ry+","+ toolCoord.rpy.rz);
-
-
-            robot.GetCurExAxisCoord(toolCoord);//扩展轴
-            System.out.println("GetCurExToolCoord:"+id+","+
-                    toolCoord.tran.x+","+ toolCoord.tran.y+","+ toolCoord.tran.z+","+
-                    toolCoord.rpy.rx+","+ toolCoord.rpy.ry+","+ toolCoord.rpy.rz);
-
-
-            List<Number> weightT = new ArrayList<>();//质心
-            DescTran cogT=new DescTran();
-            weightT=robot.GetTargetPayload(0);
-            robot.GetTargetPayloadCog(0,cogT);
-            System.out.println("GetTargetPayload :"+weightT.get(1).doubleValue()+", "+
-                    cogT.x+", "+cogT.y+", "+cogT.z);
-
-
-            id=1;//工具
-            robot.GetToolCoordWithID(id, toolCoord);
-            System.out.println("GetToolCoordWithID:"+id+","+
-                    toolCoord.tran.x+","+ toolCoord.tran.y+","+ toolCoord.tran.z+","+
-                    toolCoord.rpy.rx+","+ toolCoord.rpy.ry+","+ toolCoord.rpy.rz);
-            id=2;
-            robot.GetToolCoordWithID(id, toolCoord);
-            System.out.println("GetToolCoordWithID:"+id+","+
-                    toolCoord.tran.x+","+ toolCoord.tran.y+","+ toolCoord.tran.z+","+
-                    toolCoord.rpy.rx+","+ toolCoord.rpy.ry+","+ toolCoord.rpy.rz);
-
-
-            id=1;//工件
-            robot.GetWObjCoordWithID(id, wobjCoord);
-            System.out.println("GetWObjCoordWithID "+id+", "+
-                    wobjCoord.tran.x+","+ wobjCoord.tran.y+","+ wobjCoord.tran.z+","+
-                    wobjCoord.rpy.rx+","+ wobjCoord.rpy.ry+","+ wobjCoord.rpy.rz);
-            id=2;
-            robot.GetWObjCoordWithID(id, wobjCoord);
-            System.out.println("GetWObjCoordWithID "+id+","+
-                    wobjCoord.tran.x+","+ wobjCoord.tran.y+","+ wobjCoord.tran.z+","+
-                    wobjCoord.rpy.rx+","+ wobjCoord.rpy.ry+","+ wobjCoord.rpy.rz);
-
-
-
-
-            robot.GetExToolCoordWithID(id, extoolCoord);//外部工具
-            System.out.println("GetExToolCoordWithID :"+ id+","+
-                    extoolCoord.tran.x+","+ extoolCoord.tran.y+","+ extoolCoord.tran.z+","+
-                    extoolCoord.rpy.rx+","+ extoolCoord.rpy.ry+","+ extoolCoord.rpy.rz);
-
-            ++id;
-            if(id>14){
-                id=1;
-            }
-
-
-            robot.GetExAxisCoordWithID(id, exAxisCoord);//扩展轴
-            System.out.println("GetExAxisCoordWithID "+id+","+
-                    exAxisCoord.tran.x+","+ exAxisCoord.tran.y+","+ exAxisCoord.tran.z+","+
-                    exAxisCoord.rpy.rx+","+ exAxisCoord.rpy.ry+","+ exAxisCoord.rpy.rz);
-
-            ++id;
-            if(id>4){
-                id=1;
-            }
-
-
-
-            double[] weight = new double[1];//负载质心
-            DescTran getCog = new DescTran();
-            robot.GetTargetPayloadWithID(id, weight, getCog);
-            System.out.println("GetTargetPayloadWithID :"+ id+","+ weight[0]+","+
-                    getCog.x+","+ getCog.y+","+ getCog.z);
-//            ++id;
-//            if(id>19){
-//                id=1;
-//            }
-
-//            robot.Sleep(500);
-//            System.out.println("times "+ i);
-//
-//        }
-    }
-
-    public static void TestCoord11(Robot robot)
-    {
-        int id = 1;
-        int rtn = 0;
-        DescPose toolCoord = new DescPose();
-        DescPose extoolCoord = new DescPose();
-        DescPose wobjCoord = new DescPose();
-        DescPose exAxisCoord = new DescPose();
-
-
-        robot.GetCurToolCoord(toolCoord);//工具
-        System.out.println("GetToolCoord:"+id+","+
-                toolCoord.tran.x+","+ toolCoord.tran.y+","+ toolCoord.tran.z+","+
-                toolCoord.rpy.rx+","+ toolCoord.rpy.ry+","+ toolCoord.rpy.rz);
-
-
-        robot.GetCurWObjCoord(toolCoord);//工件
-        System.out.println("GetCurWObjCoord:"+id+","+
-                toolCoord.tran.x+","+ toolCoord.tran.y+","+ toolCoord.tran.z+","+
-                toolCoord.rpy.rx+","+ toolCoord.rpy.ry+","+ toolCoord.rpy.rz);
-
-        robot.GetCurExToolCoord(toolCoord);//外部工具
-        System.out.println("GetCurExToolCoord:"+id+","+
-                toolCoord.tran.x+","+ toolCoord.tran.y+","+ toolCoord.tran.z+","+
-                toolCoord.rpy.rx+","+ toolCoord.rpy.ry+","+ toolCoord.rpy.rz);
-
-
-        robot.GetCurExAxisCoord(toolCoord);//扩展轴
-        System.out.println("GetCurExToolCoord:"+id+","+
-                toolCoord.tran.x+","+ toolCoord.tran.y+","+ toolCoord.tran.z+","+
-                toolCoord.rpy.rx+","+ toolCoord.rpy.ry+","+ toolCoord.rpy.rz);
-
-
-        List<Number> weightT = new ArrayList<>();//质心
-        DescTran cogT=new DescTran();
-        weightT=robot.GetTargetPayload(0);
-        robot.GetTargetPayloadCog(0,cogT);
-        System.out.println("GetTargetPayload :"+weightT.get(1).doubleValue()+", "+
-                cogT.x+", "+cogT.y+", "+cogT.z);
-
-
-        robot.GetToolCoordWithID(id, toolCoord);
-        System.out.println("GetToolCoordWithID:"+id+","+
-                toolCoord.tran.x+","+ toolCoord.tran.y+","+ toolCoord.tran.z+","+
-                toolCoord.rpy.rx+","+ toolCoord.rpy.ry+","+ toolCoord.rpy.rz);
-
-        robot.GetWObjCoordWithID(id, wobjCoord);
-        System.out.println("GetWObjCoordWithID "+id+", "+
-                wobjCoord.tran.x+","+ wobjCoord.tran.y+","+ wobjCoord.tran.z+","+
-                wobjCoord.rpy.rx+","+ wobjCoord.rpy.ry+","+ wobjCoord.rpy.rz);
-
-
-        robot.GetExToolCoordWithID(id, extoolCoord);//外部工具
-        System.out.println("GetExToolCoordWithID :"+ id+","+
-                extoolCoord.tran.x+","+ extoolCoord.tran.y+","+ extoolCoord.tran.z+","+
-                extoolCoord.rpy.rx+","+ extoolCoord.rpy.ry+","+ extoolCoord.rpy.rz);
-
-        robot.GetExAxisCoordWithID(id, exAxisCoord);//扩展轴
-        System.out.println("GetExAxisCoordWithID "+id+","+
-                exAxisCoord.tran.x+","+ exAxisCoord.tran.y+","+ exAxisCoord.tran.z+","+
-                exAxisCoord.rpy.rx+","+ exAxisCoord.rpy.ry+","+ exAxisCoord.rpy.rz);
-
-
-        double[] weight = new double[1];//负载质心
-        DescTran getCog = new DescTran();
-        robot.GetTargetPayloadWithID(id, weight, getCog);
-        System.out.println("GetTargetPayloadWithID :"+ id+","+ weight[0]+","+
-                getCog.x+","+ getCog.y+","+ getCog.z);
-
-        DescPose coordSet0 = new DescPose(0, 0, 0, 0, 0, 0);
-        DescPose coordSet = new DescPose(1, 2, 3, 4, 5, 6);
-        DescPose etcp = new DescPose(10, 20, 30, 40, 50, 60);
-        DescPose etool = new DescPose(0.1, 0.2, 0.3, 0.4, 0.5, 0.6);
-        DescTran cog = new DescTran(1, 2, 3);
-
-        robot.SetToolCoord(id, coordSet, 0, 0, 1, 0);
-        robot.Sleep(100);
-        robot.SetWObjCoord(id, coordSet, 0);
-        robot.Sleep(100);
-        robot.ExtAxisActiveECoordSys(id, 1, coordSet, 1); //将标定结果应用到扩展轴坐标系
-        robot.Sleep(100);
-        rtn = robot.SetExToolCoord(id, etcp, etool);
-        robot.Sleep(100);
-        rtn = robot.SetLoadWeight(id, 1.5);
-        robot.Sleep(500);
-        rtn = robot.SetLoadCoord(id, cog);
-        robot.Sleep(100);
     }
 
     public static int TestImpedanceControl(Robot robot)
@@ -4788,81 +4537,122 @@ public class Main {
 
     }
 
-    public static int TestSetWeldParam(Robot robot)
-    {
-        WeldingProcessParam para1=new WeldingProcessParam(177, 27, 1000, 178, 28, 176, 26, 1000);
-        WeldingProcessParam para2=new WeldingProcessParam(188, 28, 555, 199, 29, 133, 23, 333);
-
+    public static int TestSetWeldParam(Robot robot) {
+        // 1. 设置焊接工艺参数
+        WeldingProcessParam para1 = new WeldingProcessParam(177, 27, 1000, 178, 28, 176, 26, 1000);
+        WeldingProcessParam para2 = new WeldingProcessParam(188, 28, 555, 199, 29, 133, 23, 333);
         robot.WeldingSetProcessParam(1, para1);
         robot.WeldingSetProcessParam(2, para2);
 
-        double startCurrent = 0;
-        double startVoltage = 0;
-        int startTime = 0;
-        double weldCurrent = 0;
-        double weldVoltage = 0;
-        double endCurrent = 0;
-        double endVoltage = 0;
-        int endTime = 0;
+        // 2. 获取并打印第1组参数
+        WeldingProcessParam param = new WeldingProcessParam(0, 0, 0, 0, 0, 0, 0, 0);
+        robot.WeldingGetProcessParam(1, param);
+        System.out.println("the Num 1 process param is "
+                + param.startCurrent + " " + param.startVoltage + " "
+                + param.startTime + " " + param.weldCurrent + " "
+                + param.weldVoltage + " " + param.endCurrent + " "
+                + param.endVoltage + " " + param.endTime);
 
-        WeldingProcessParam param=new WeldingProcessParam( startCurrent, startVoltage, startTime, weldCurrent, weldVoltage, endCurrent, endVoltage, endTime);
-        robot.WeldingGetProcessParam(1,param);
-        robot.WeldingGetProcessParam(2,param);
+        // 3. 获取并打印第2组参数
+        robot.WeldingGetProcessParam(2, param);
+        System.out.println("the Num 2 process param is "
+                + param.startCurrent + " " + param.startVoltage + " "
+                + param.startTime + " " + param.weldCurrent + " "
+                + param.weldVoltage + " " + param.endCurrent + " "
+                + param.endVoltage + " " + param.endTime);
 
-        WeldCurrentAORelation rela1=new WeldCurrentAORelation(0,400,0,10,0);
+        // 4. 设置电流/电压关系并打印返回值
+        WeldCurrentAORelation rela1 = new WeldCurrentAORelation(0, 400, 0, 10, 0);
         int rtn = robot.WeldingSetCurrentRelation(rela1);
+        System.out.println("WeldingSetCurrentRelation rtn is: " + rtn);
 
-        WeldVoltageAORelation rela2=new WeldVoltageAORelation(0, 40, 0, 10, 1);
+        WeldVoltageAORelation rela2 = new WeldVoltageAORelation(0, 40, 0, 10, 1);
         rtn = robot.WeldingSetVoltageRelation(rela2);
+        System.out.println("WeldingSetVoltageRelation rtn is: " + rtn);
 
-        double current_min = 0;
-        double current_max = 0;
-        double vol_min = 0;
-        double vol_max = 0;
-        double output_vmin = 0;
-        double output_vmax = 0;
-        int curIndex = 0;
-        int volIndex = 0;
-        WeldCurrentAORelation rela3=new WeldCurrentAORelation(current_min, current_max, output_vmin, output_vmax, curIndex);
+        // 5. 获取并打印电流关系
+        WeldCurrentAORelation rela3 = new WeldCurrentAORelation(0, 0, 0, 0, 0);
         rtn = robot.WeldingGetCurrentRelation(rela3);
+        System.out.println("WeldingGetCurrentRelation rtn is: " + rtn);
+        System.out.println("current min " + rela3.currentMin
+                + " current max " + rela3.currentMax
+                + " output vol min " + rela3.outputVoltageMin
+                + " output vol max " + rela3.outputVoltageMax);
 
-        WeldVoltageAORelation rela4=new WeldVoltageAORelation(0,0,0,0,0);
+        // 6. 获取并打印电压关系
+        WeldVoltageAORelation rela4 = new WeldVoltageAORelation(0, 0, 0, 0, 0);
         rtn = robot.WeldingGetVoltageRelation(rela4);
+        System.out.println("WeldingGetVoltageRelation rtn is: " + rtn);
+        System.out.println("vol min " + rela4.weldVoltageMin
+                + " vol max " + rela4.weldVoltageMax
+                + " output vol min " + rela4.outputVoltageMin
+                + " output vol max " + rela4.outputVoltageMax);
 
+        // 7. 设置电流/电压并打印返回值
         rtn = robot.WeldingSetCurrent(0, 100, 0, 0);
+        System.out.println("WeldingSetCurrent rtn is: " + rtn);
 
-        robot.Sleep(3000);
+        robot.Sleep(3000);  // 对应 this_thread::sleep_for(chrono::seconds(3))
 
         rtn = robot.WeldingSetVoltage(0, 10, 0, 0);
+        System.out.println("WeldingSetVoltage rtn is: " + rtn);
 
+        // 8. 设置摆动参数
         rtn = robot.WeaveSetPara(0, 0, 2.000000, 0, 10.000000, 0.000000, 0.000000, 0, 0, 0, 0, 0, 60.000000,0);
+        System.out.println("rtn is: " + rtn);
 
         robot.WeaveOnlineSetPara(0, 0, 1, 0, 20, 0, 0, 0, 0);
 
+        // 9. 设置断弧检测和重焊参数
         rtn = robot.WeldingSetCheckArcInterruptionParam(1, 200);
+        System.out.println("WeldingSetCheckArcInterruptionParam  " + rtn);
+
         rtn = robot.WeldingSetReWeldAfterBreakOffParam(1, 5.7, 98.2, 0);
-        int enable = 0;
-        double length = 0;
-        double velocity = 0;
-        int moveType = 0;
-        int checkEnable = 0;
-        int arcInterruptTimeLength = 0;
-        List<Integer> inter=new ArrayList<>();
-        List<Number> num=new ArrayList<>();
+        System.out.println("WeldingSetReWeldAfterBreakOffParam  " + rtn);
 
-        inter = robot.WeldingGetCheckArcInterruptionParam();
-        num = robot.WeldingGetReWeldAfterBreakOffParam();
+        // 10. 获取并打印断弧检测参数
+        List<Integer> inter = robot.WeldingGetCheckArcInterruptionParam();
+        int checkEnable = inter.get(0);
+        int arcInterruptTimeLength = inter.get(1);
+        System.out.println("WeldingGetCheckArcInterruptionParam checkEnable " + checkEnable
+                + "  arcInterruptTimeLength " + arcInterruptTimeLength);
 
+        // 11. 获取并打印重焊参数（返回 List<Number>）
+        List<Number> num = robot.WeldingGetReWeldAfterBreakOffParam();
+        int enable = num.get(0).intValue();
+        double length = num.get(1).doubleValue();
+        double velocity = num.get(2).doubleValue();
+        int moveType = num.get(3).intValue();
+        System.out.printf("WeldingGetReWeldAfterBreakOffParam enable = %d, length = %f, velocity = %f, moveType = %d%n",
+                enable, length, velocity, moveType);
+
+        // 12. 设置扩展 DO 并循环控制
         robot.SetWeldMachineCtrlModeExtDoNum(17);
-        for (int i = 0; i < 5; i++)
-        {
+        for (int i = 0; i < 5; i++) {
+            int[] mode = new int[1];   // 用于接收输出值
+
             robot.SetWeldMachineCtrlMode(0);
+            rtn = robot.GetWeldMachineCtrlMode(mode);
+            if (rtn == 0) {
+                System.out.println("GetWeldMachineCtrlMode " + mode[0]);
+            } else {
+                System.out.println("GetWeldMachineCtrlMode failed, err: " + rtn);
+            }
             robot.Sleep(1000);
+
             robot.SetWeldMachineCtrlMode(1);
+            rtn = robot.GetWeldMachineCtrlMode(mode);
+            if (rtn == 0) {
+                System.out.println("GetWeldMachineCtrlMode " + mode[0]);
+            } else {
+                System.out.println("GetWeldMachineCtrlMode failed, err: " + rtn);
+            }
             robot.Sleep(1000);
         }
+
         return 0;
     }
+
 
     public static int TestWelding(Robot robot)
     {
@@ -5026,6 +4816,18 @@ public class Main {
         robot.SetArcDoneExtDiNum(60);
         robot.SetExtDIWeldBreakOffRecover(70, 80);
         robot.SetWireSearchExtDIONum(0, 1);
+
+        int[] DIConfig = new int[16];
+        int[] DOConfig = new int[16];
+        int rtn = robot.GetExtDIConfig(DIConfig);
+        System.out.printf("GetExtDIConfig rtn is %d\n welder ready %d\narc done %d\nreweld start %d\nabort reweld %d\nwiresearch done %d\nLaser welding State %d\nlaser welding error state %d\n",
+            rtn, DIConfig[0], DIConfig[1], DIConfig[2], DIConfig[3], DIConfig[4], DIConfig[5], DIConfig[6]);
+
+        rtn = robot.GetExtDOConfig(DOConfig);
+        System.out.printf("GetExtDOConfig rtn is %d\n Arc Start %d\nAir Test %d\nWire forward %d\nWire Inverse %d\nwiresearch %d\nWeld Mode %d\nlaser Enable %d\nLaser On %d\nLaser Reset Error %d\n",
+            rtn, DOConfig[0], DOConfig[1], DOConfig[2], DOConfig[3], DOConfig[4], DOConfig[5], DOConfig[6], DOConfig[7], DOConfig[8]);
+
+
 
         return 0;
     }
@@ -9980,8 +9782,8 @@ public static void TestTPD2(Robot robot)
             System.out.println("***********************complete No. " + cnt + " SDK test*****************************");
             cnt++;
         }
-    }  
-      
+    }
+
     public static void TestRobotStopOnComDisc(Robot robot)
     {
         int[] enable = {0};
@@ -10052,46 +9854,46 @@ public static void TestRobotUDP (Robot robot) {
 //        rtn = robot.SendUDPFrame("/f/bII20II303II7IIMode(0)II/b/f");
 //        System.out.println("SendUDPFrame rtn is " + rtn);
     }
-    public static int TestSetVelReducePara(Robot robot) {
-        int rtn = 0;
-
-        JointPos j1 = new JointPos(0, -90, 90, 0, 0, 0);
-        JointPos j2 = new JointPos(90, -90, 90, 0, 0, 0);
-        ExaxisPos epos = new ExaxisPos(0, 0, 0, 0);
-        DescPose offset_pos = new DescPose(0, 0, 0, 0, 0, 0);
-
-        robot.SetSpeed(80);
-        rtn = robot.SetVelReducePara(2, 30, 1);
-        System.out.printf("SetVelReducePara param error rtn is %d\n", rtn);
-
-        rtn = robot.SetVelReducePara(0, 30, 1);
-        System.out.printf("SetVelReducePara disable reduce vel rtn is %d\n", rtn);
-        robot.MoveJ(j1, 0, 0, 100, 100, 100.0, epos, -1.0, 0, offset_pos);
-        robot.MoveJ(j2, 0, 0, 100, 100, 100.0, epos, -1.0, 0, offset_pos);
-
-        rtn = robot.SetVelReducePara(1, 30, 1);
-        System.out.printf("SetVelReducePara reduce vel rtn is %d\n", rtn);
-        robot.MoveJ(j1, 0, 0, 100, 100, 100.0, epos, -1.0, 0, offset_pos);
-        robot.MoveJ(j2, 0, 0, 100, 100, 100.0, epos, -1.0, 0, offset_pos);
-
-        rtn = robot.SetVelReducePara(2, 30, 2);
-        System.out.printf("SetVelReducePara disable robot rtn is %d\n", rtn);
-        robot.MoveJ(j1, 0, 0, 100, 100, 100.0, epos, -1.0, 0, offset_pos);
-        robot.MoveJ(j2, 0, 0, 100, 100, 100.0, epos, -1.0, 0, offset_pos);
-
-        robot.Sleep(2000);
-        robot.ResetAllError();
-        robot.RobotEnable(1);
-        robot.Sleep(1000);
-
-        rtn = robot.SetVelReducePara(2, 30, 0);
-        System.out.printf("SetVelReducePara report error rtn is %d\n", rtn);
-        robot.MoveJ(j1, 0, 0, 100, 100, 100.0, epos, -1.0, 0, offset_pos);
-        robot.MoveJ(j2, 0, 0, 100, 100, 100.0, epos, -1.0, 0, offset_pos);
-
-        robot.Sleep(1000);
-        return 0;
-    }
+//    public static int TestSetVelReducePara(Robot robot) {
+//        int rtn = 0;
+//
+//        JointPos j1 = new JointPos(0, -90, 90, 0, 0, 0);
+//        JointPos j2 = new JointPos(90, -90, 90, 0, 0, 0);
+//        ExaxisPos epos = new ExaxisPos(0, 0, 0, 0);
+//        DescPose offset_pos = new DescPose(0, 0, 0, 0, 0, 0);
+//
+//        robot.SetSpeed(80);
+//        rtn = robot.SetVelReducePara(2, 30, 1);
+//        System.out.printf("SetVelReducePara param error rtn is %d\n", rtn);
+//
+//        rtn = robot.SetVelReducePara(0, 30, 1);
+//        System.out.printf("SetVelReducePara disable reduce vel rtn is %d\n", rtn);
+//        robot.MoveJ(j1, 0, 0, 100, 100, 100.0, epos, -1.0, 0, offset_pos);
+//        robot.MoveJ(j2, 0, 0, 100, 100, 100.0, epos, -1.0, 0, offset_pos);
+//
+//        rtn = robot.SetVelReducePara(1, 30, 1);
+//        System.out.printf("SetVelReducePara reduce vel rtn is %d\n", rtn);
+//        robot.MoveJ(j1, 0, 0, 100, 100, 100.0, epos, -1.0, 0, offset_pos);
+//        robot.MoveJ(j2, 0, 0, 100, 100, 100.0, epos, -1.0, 0, offset_pos);
+//
+//        rtn = robot.SetVelReducePara(2, 30, 2);
+//        System.out.printf("SetVelReducePara disable robot rtn is %d\n", rtn);
+//        robot.MoveJ(j1, 0, 0, 100, 100, 100.0, epos, -1.0, 0, offset_pos);
+//        robot.MoveJ(j2, 0, 0, 100, 100, 100.0, epos, -1.0, 0, offset_pos);
+//
+//        robot.Sleep(2000);
+//        robot.ResetAllError();
+//        robot.RobotEnable(1);
+//        robot.Sleep(1000);
+//
+//        rtn = robot.SetVelReducePara(2, 30, 0);
+//        System.out.printf("SetVelReducePara report error rtn is %d\n", rtn);
+//        robot.MoveJ(j1, 0, 0, 100, 100, 100.0, epos, -1.0, 0, offset_pos);
+//        robot.MoveJ(j2, 0, 0, 100, 100, 100.0, epos, -1.0, 0, offset_pos);
+//
+//        robot.Sleep(1000);
+//        return 0;
+//    }
     /**
      * @brief 测试定点摆动功能
      * @param robot Robot对象
@@ -10104,7 +9906,7 @@ public static void TestRobotUDP (Robot robot) {
 
         DescPose refPoint = new DescPose(400.021, 300.022, 299.996, 179.997, -0.003, -90.956);
         robot.MoveJ(j, 1, 0, 100, 100, 100.0, epos, -1.0, 0, offset_pos);
-        
+
         robot.OriginPointWeaveStart(0, 0, refPoint, 3);
         robot.MoveStationary();
         robot.OriginPointWeaveEnd();
@@ -10185,8 +9987,8 @@ public static void TestRobotUDP (Robot robot) {
         int rtn = robot.SetDIConfig(setDIConfig);
         System.out.println("SetDIConfig rtn is " + rtn);
         rtn = robot.GetDIConfig(getDIConfig);
-        System.out.println("GetDIConfig rtn is " + rtn + ", value is " + 
-            getDIConfig[0] + " " + getDIConfig[1] + " " + getDIConfig[2] + " " + getDIConfig[3] + " " + 
+        System.out.println("GetDIConfig rtn is " + rtn + ", value is " +
+            getDIConfig[0] + " " + getDIConfig[1] + " " + getDIConfig[2] + " " + getDIConfig[3] + " " +
             getDIConfig[4] + " " + getDIConfig[5] + " " + getDIConfig[6] + " " + getDIConfig[7]);
 
         int[] setDOConfig = new int[]{9, 10, 11, 12, 13, 14, 15, 16};
@@ -10194,8 +9996,8 @@ public static void TestRobotUDP (Robot robot) {
         rtn = robot.SetDOConfig(setDOConfig);
         System.out.println("SetDOConfig rtn is " + rtn);
         rtn = robot.GetDOConfig(getDOConfig);
-        System.out.println("GetDOConfig rtn is " + rtn + ", value is " + 
-            getDOConfig[0] + " " + getDOConfig[1] + " " + getDOConfig[2] + " " + getDOConfig[3] + " " + 
+        System.out.println("GetDOConfig rtn is " + rtn + ", value is " +
+            getDOConfig[0] + " " + getDOConfig[1] + " " + getDOConfig[2] + " " + getDOConfig[3] + " " +
             getDOConfig[4] + " " + getDOConfig[5] + " " + getDOConfig[6] + " " + getDOConfig[7]);
 
         int[] setToolDIConfig = new int[]{17, 18};
@@ -10210,8 +10012,8 @@ public static void TestRobotUDP (Robot robot) {
         rtn = robot.SetDIConfigLevel(setDIConfigLevel);
         System.out.println("SetDIConfigLevel rtn is " + rtn);
         rtn = robot.GetDIConfigLevel(getDIConfigLevel);
-        System.out.println("GetDIConfigLevel rtn is " + rtn + ", value is " + 
-            getDIConfigLevel[0] + " " + getDIConfigLevel[1] + " " + getDIConfigLevel[2] + " " + getDIConfigLevel[3] + " " + 
+        System.out.println("GetDIConfigLevel rtn is " + rtn + ", value is " +
+            getDIConfigLevel[0] + " " + getDIConfigLevel[1] + " " + getDIConfigLevel[2] + " " + getDIConfigLevel[3] + " " +
             getDIConfigLevel[4] + " " + getDIConfigLevel[5] + " " + getDIConfigLevel[6] + " " + getDIConfigLevel[7]);
 
         int[] setDOConfigLevel = new int[]{0, 0, 0, 0, 1, 1, 1, 1};
@@ -10219,8 +10021,8 @@ public static void TestRobotUDP (Robot robot) {
         rtn = robot.SetDOConfigLevel(setDOConfigLevel);
         System.out.println("SetDOConfigLevel rtn is " + rtn);
         rtn = robot.GetDOConfigLevel(getDOConfigLevel);
-        System.out.println("GetDOConfigLevel rtn is " + rtn + ", value is " + 
-            getDOConfigLevel[0] + " " + getDOConfigLevel[1] + " " + getDOConfigLevel[2] + " " + getDOConfigLevel[3] + " " + 
+        System.out.println("GetDOConfigLevel rtn is " + rtn + ", value is " +
+            getDOConfigLevel[0] + " " + getDOConfigLevel[1] + " " + getDOConfigLevel[2] + " " + getDOConfigLevel[3] + " " +
             getDOConfigLevel[4] + " " + getDOConfigLevel[5] + " " + getDOConfigLevel[6] + " " + getDOConfigLevel[7]);
 
         int[] setToolDIConfigLevel = new int[]{1, 0};
@@ -10235,8 +10037,8 @@ public static void TestRobotUDP (Robot robot) {
         rtn = robot.SetStandardDILevel(setStandardDILevel);
         System.out.println("SetStandardDILevel rtn is " + rtn);
         rtn = robot.GetStandardDILevel(getStandardDILevel);
-        System.out.println("GetStandardDILevel rtn is " + rtn + ", value is " + 
-            getStandardDILevel[0] + " " + getStandardDILevel[1] + " " + getStandardDILevel[2] + " " + getStandardDILevel[3] + " " + 
+        System.out.println("GetStandardDILevel rtn is " + rtn + ", value is " +
+            getStandardDILevel[0] + " " + getStandardDILevel[1] + " " + getStandardDILevel[2] + " " + getStandardDILevel[3] + " " +
             getStandardDILevel[4] + " " + getStandardDILevel[5] + " " + getStandardDILevel[6] + " " + getStandardDILevel[7]);
 
         int[] setStandardDOLevel = new int[]{0, 0, 0, 0, 1, 1, 1, 1};
@@ -10244,8 +10046,8 @@ public static void TestRobotUDP (Robot robot) {
         rtn = robot.SetStandardDOLevel(setStandardDOLevel);
         System.out.println("SetStandardDOLevel rtn is " + rtn);
         rtn = robot.GetStandardDOLevel(getStandardDOLevel);
-        System.out.println("GetStandardDOLevel rtn is " + rtn + ", value is " + 
-            getStandardDOLevel[0] + " " + getStandardDOLevel[1] + " " + getStandardDOLevel[2] + " " + getStandardDOLevel[3] + " " + 
+        System.out.println("GetStandardDOLevel rtn is " + rtn + ", value is " +
+            getStandardDOLevel[0] + " " + getStandardDOLevel[1] + " " + getStandardDOLevel[2] + " " + getStandardDOLevel[3] + " " +
             getStandardDOLevel[4] + " " + getStandardDOLevel[5] + " " + getStandardDOLevel[6] + " " + getStandardDOLevel[7]);
 
         robot.Sleep(2000);
@@ -10674,7 +10476,7 @@ public static void TestRobotUDP (Robot robot) {
          state.add(RobotState.RobotTime);
          robot.SetRobotRealtimeStateConfig(state, 100);
 
-        
+
         int rtn = robot.RPC("192.168.58.2");
         if (rtn == 0) {
             System.out.println("rpc连接 success");
@@ -10732,12 +10534,11 @@ public static void TestRobotUDP (Robot robot) {
             }
         }
     }
-    
+
     private static void TestCNDEStarte(Robot robot) {
          List<RobotState> state = new ArrayList<>();
          state.add(RobotState.RobotTime);
-         state.add(RobotState.ExaxisCoordID);
-         state.add(RobotState.ExAxisCoord);
+         state.add(RobotState.ProgramRunState);
          robot.SetRobotRealtimeStateConfig(state, 100);
 
         int rtn = robot.RPC("192.168.58.2");
@@ -10784,8 +10585,11 @@ public static void TestRobotUDP (Robot robot) {
                         "." + pkg.robotTime.millisecond);
             }
 
-        System.out.println("exaxisCoordID: " + pkg.exaxisCoordID);
-        printArray("exAxisCoord", pkg.exAxisCoord);
+//        System.out.println("exaxisCoordID: " + pkg.exaxisCoordID);
+//        printArray("exAxisCoord", pkg.exAxisCoord);
+
+
+        System.out.println("ProgramRunState: " + pkg.ProgramRunState);
         robot.Sleep(100);
             // System.out.println("\n--- Socket状态 ---");
             // System.out.println("socketConnTimeout: " + pkg.socketConnTimeout);
@@ -10891,7 +10695,7 @@ public static void TestRobotUDP (Robot robot) {
         ret = robot.SetRobotRealtimeStateConfig(state, 200);
         System.out.println("SetRobotRealtimeStateConfig rtn : " + ret);
 
-        
+
         int rtn = robot.RPC("192.168.58.2");
         if (rtn == 0) {
             System.out.println("rpc连接 success");
@@ -11573,7 +11377,7 @@ public static void TestRobotUDP (Robot robot) {
             cycle++;
         }
     }
-    
+
 
     /**
      * 测试通用轴通信数据 - 配置AxleGenComData状态并解析倍益康艾灸头协议
@@ -11696,7 +11500,7 @@ public static void TestRobotUDP (Robot robot) {
             System.out.printf("robot RPC failed %d%n", rtn);
             return 0;
         }
-        
+
         JointPos j = new JointPos(0, 0, 0, 0, 0, 0);
         ExaxisPos epos = new ExaxisPos(0, 0, 0, 0);
 
@@ -11759,7 +11563,7 @@ public static void TestRobotUDP (Robot robot) {
         {
             System.out.printf("GetActualJointPosDegree errcode:%d%n", ret);
         }
-       
+
         robot.Sleep(1000);
 
         robot.CloseRPC();
@@ -11821,7 +11625,7 @@ public static void TestRobotUDP (Robot robot) {
 
 //        return 0;
     }
-    
+
     /**
      * @brief 测试实时状态配置接口
      * 演示 SetRobotRealtimeStateConfig、AddRobotRealtimeState、
@@ -11830,24 +11634,24 @@ public static void TestRobotUDP (Robot robot) {
     public static void TestRealtimeStateConfig(Robot robot)
     {
         System.out.println("========== TestRealtimeStateConfig Start ==========");
-        
+
         // 1. 创建初始状态列表
         List<RobotState> stateList1 = new ArrayList<>();
         stateList1.add(RobotState.ProgramState);
         stateList1.add(RobotState.RobotState);
         stateList1.add(RobotState.JointCurPos);
         stateList1.add(RobotState.ToolCurPos);
-        
+
         // 2. 第一次调用 SetRobotRealtimeStateConfig 配置状态和周期
         int period1 = 100;  // 100ms周期
         int rtn = robot.SetRobotRealtimeStateConfig(stateList1, period1);
         System.out.printf("1. SetRobotRealtimeStateConfig (initial list, period=%d) rtn: %d%n", period1, rtn);
-        
+
         if (rtn == 0) {
             // 3. 添加额外状态
             rtn = robot.AddRobotRealtimeState(RobotState.RobotTime);
             System.out.printf("2. AddRobotRealtimeState (RobotTime) rtn: %d%n", rtn);
-            
+
             // 4. 再次调用 SetRobotRealtimeStateConfig 重新配置（不同状态列表）
             List<RobotState> stateList2 = new ArrayList<>();
             stateList2.add(RobotState.ProgramState);
@@ -11857,16 +11661,16 @@ public static void TestRobotUDP (Robot robot) {
             stateList2.add(RobotState.JointCurPos);
             stateList2.add(RobotState.ToolCurPos);
             stateList2.add(RobotState.ActualJointTorque);
-            
+
             int period2 = 50;  // 50ms周期
             rtn = robot.SetRobotRealtimeStateConfig(stateList2, period2);
             System.out.printf("3. SetRobotRealtimeStateConfig (updated list, period=%d) rtn: %d%n", period2, rtn);
-            
+
             // 5. 修改周期
             int newPeriod = 80;  // 80ms周期
             rtn = robot.SetRobotRealtimeStatePeriod(newPeriod);
             System.out.printf("4. SetRobotRealtimeStatePeriod (period=%d) rtn: %d%n", newPeriod, rtn);
-            
+
             // 6. 获取当前配置并打印
             Robot.StateConfigResult configResult = robot.GetRobotRealtimeStateConfig();
             System.out.println("5. GetRobotRealtimeStateConfig result:");
@@ -11875,7 +11679,7 @@ public static void TestRobotUDP (Robot robot) {
             for (int i = 0; i < configResult.stateList.size(); i++) {
                 System.out.printf("     [%d] %s%n", i, configResult.stateList.get(i));
             }
-            
+
             rtn = robot.RPC("192.168.58.2");
             if (rtn == 0) {
                 System.out.println("rpc连接 success");
@@ -11933,7 +11737,7 @@ public static void TestRobotUDP (Robot robot) {
         } else {
             System.out.printf("SetRobotRealtimeStateConfig failed with error: %d%n", rtn);
         }
-        
+
         System.out.println("========== TestRealtimeStateConfig End ==========");
     }
 
@@ -12119,19 +11923,19 @@ public static void TestRobotUDP (Robot robot) {
     }
     public static int TestUDPAxis(Robot robot) {
         int rtn = -1;
-        
+
         // 设置UDP通信参数
         UDPComParam param = new UDPComParam("192.168.58.88", 2021, 2, 100, 3, 200, 1, 100, 5, 1);
         rtn = robot.ExtDevSetUDPComParam(param);
         System.out.println("ExtDevSetUDPComParam rtn is " + rtn);
-        
+
         // 获取UDP通信参数
         UDPComParam getParam = new UDPComParam();
         rtn = robot.ExtDevGetUDPComParam(getParam);
-        String paramStr = "\nip " + getParam.ip + "\nport " + getParam.port + "\nperiod " + getParam.period + 
-                "\nlossPkgTime " + getParam.lossPkgTime + "\nlossPkgNum " + getParam.lossPkgNum + 
-                "\ndisconnectTime " + getParam.disconnectTime + "\nreconnectEnable " + getParam.reconnectEnable + 
-                "\nreconnectPeriod " + getParam.reconnectPeriod + "\nreconnectNum " + getParam.reconnectNum + 
+        String paramStr = "\nip " + getParam.ip + "\nport " + getParam.port + "\nperiod " + getParam.period +
+                "\nlossPkgTime " + getParam.lossPkgTime + "\nlossPkgNum " + getParam.lossPkgNum +
+                "\ndisconnectTime " + getParam.disconnectTime + "\nreconnectEnable " + getParam.reconnectEnable +
+                "\nreconnectPeriod " + getParam.reconnectPeriod + "\nreconnectNum " + getParam.reconnectNum +
                 "\nselfConnect " + getParam.selfConnect;
         System.out.println("ExtDevGetUDPComParam rtn is " + rtn + paramStr);
 
@@ -12141,7 +11945,7 @@ public static void TestRobotUDP (Robot robot) {
         // 设置扩展轴命令完成时间
         rtn = robot.SetExAxisCmdDoneTime(5000.0);
         System.out.println("SetExAxisCmdDoneTime rtn is " + rtn);
-        
+
         // 使能扩展轴
         rtn = robot.ExtAxisServoOn(1, 1);
         System.out.println("ExtAxisServoOn axis id 1 rtn is " + rtn);
@@ -12160,7 +11964,7 @@ public static void TestRobotUDP (Robot robot) {
         // 设置机器人位置到轴
         rtn = robot.SetRobotPosToAxis(1);
         System.out.println("SetRobotPosToAxis rtn is " + rtn);
-        
+
         // 设置轴DH参数配置
         rtn = robot.SetAxisDHParaConfig(10, 20, 0, 0, 0, 0, 0, 0, 0);
         System.out.println("SetAxisDHParaConfig rtn is " + rtn);
@@ -12168,29 +11972,29 @@ public static void TestRobotUDP (Robot robot) {
         // 配置扩展轴参数
         rtn = robot.ExtAxisParamConfig(1, 1, 1, 1000, -1000, 1000, 1000, 1.905, 262144, 200, 1, 0, 0);
         System.out.println("ExtAxisParamConfig axis 1 rtn is " + rtn);
-        
+
         // 获取扩展轴参数
         Object[] params1 = new Object[12];
         rtn = robot.ExtAxisGetParamConfig(1, params1);
         System.out.printf("axis id 1 ExtAxisGetParamConfig : axisType %d, axisDirection %d, axisMax %.2f, axisMin %.2f, axisVel %.2f, axisAcc %.2f, axisLead %.2f, encResolution %d, axisOffect %.2f, axisCompany %d, axisModel %d, axisEncType %d\n",
-                (int)params1[0], (int)params1[1], (double)params1[2], (double)params1[3], 
-                (double)params1[4], (double)params1[5], (double)params1[6], (int)params1[7], 
+                (int)params1[0], (int)params1[1], (double)params1[2], (double)params1[3],
+                (double)params1[4], (double)params1[5], (double)params1[6], (int)params1[7],
                 (double)params1[8], (int)params1[9], (int)params1[10], (int)params1[11]);
-        
+
         // 配置扩展轴2参数
         rtn = robot.ExtAxisParamConfig(2, 1, 1, 1000, -1000, 1000, 1000, 4.444, 262144, 200, 1, 0, 0);
         System.out.println("ExtAxisParamConfig axis 2 rtn is " + rtn);
-        
+
         // 获取扩展轴2参数
         Object[] params2 = new Object[12];
         rtn = robot.ExtAxisGetParamConfig(2, params2);
         System.out.printf("axis id 2 ExtAxisGetParamConfig : axisType %d, axisDirection %d, axisMax %.2f, axisMin %.2f, axisVel %.2f, axisAcc %.2f, axisLead %.2f, encResolution %d, axisOffect %.2f, axisCompany %d, axisModel %d, axisEncType %d\n",
-                (int)params2[0], (int)params2[1], (double)params2[2], (double)params2[3], 
-                (double)params2[4], (double)params2[5], (double)params2[6], (int)params2[7], 
+                (int)params2[0], (int)params2[1], (double)params2[2], (double)params2[3],
+                (double)params2[4], (double)params2[5], (double)params2[6], (int)params2[7],
                 (double)params2[8], (int)params2[9], (int)params2[10], (int)params2[11]);
 
         robot.Sleep(3000);
-        
+
         // 扩展轴1点动
         robot.ExtAxisStartJog(1, 0, 10, 10, 30);
         robot.Sleep(1000);
@@ -12199,7 +12003,7 @@ public static void TestRobotUDP (Robot robot) {
         robot.ExtAxisServoOn(1, 0);
 
         robot.Sleep(3000);
-        
+
         // 扩展轴2点动
         robot.ExtAxisStartJog(2, 0, 10, 10, 30);
         robot.Sleep(1000);
@@ -12301,7 +12105,7 @@ public static void TestRobotUDP (Robot robot) {
         ret = robot.SetDexterousHandsMove(id, slaveNum, pos, speed, force, max_time);
         System.out.println("初始移动 20° -> " + ret);
         robot.Sleep(5000);
-        
+
         // ========== 6. 往复运动10次（10° ↔ 50°） ==========
         System.out.println("开始往复运动10次...");
         for (int iteration = 1; iteration <= 10; iteration++) {
@@ -12645,6 +12449,361 @@ public static void TestRobotUDP (Robot robot) {
         System.out.println("============================================================");
         System.out.println("  摆动调速与实时偏移测试 完成");
         System.out.println("============================================================");
+    }
+
+    /**
+     * @brief 五指灵巧手完整功能测试
+     *
+     * 测试流程：
+     * 1. 初始化机器人连接并配置参数
+     * 2. 设置灵巧手功能开关（使能、初始化、位置/速度/力矩控制、多轴同步）
+     * 3. 读取并验证功能开关状态
+     * 4. 激活灵巧手
+     * 5. 执行往复运动测试：机器人交替移动至两个位姿，灵巧手在 A/B/C 三组目标位置间切换
+     *
+     * @return int 0-测试成功，-1-连接失败，-2-激活失败
+     */
+    public static int TestFiveDexterousHands(Robot robot) {
+        // ==================== 1. 初始化与连接 ====================
+        ROBOT_STATE_PKG pkg = new ROBOT_STATE_PKG();
+
+        // ==================== 2. 运动参数配置 ====================
+        final int DEXTEROUS_ID = 1;          // 从站号（灵巧手）
+        final int FINGER_COUNT = 12;          // 控制手指数量
+        final int MOVE_TIMEOUT_MS = 12000;    // 单次运动最大等待时间（毫秒）
+
+        // 速度/力矩数组（12个手指，后4个留空）
+        int[] speed = { 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 0, 0, 0, 0 };
+        int[] force = { 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 0, 0, 0, 0 };
+
+        // 三组目标位置（角度）
+        double[] posA = { 5,  5,  5,  5,  5,  5,  5,  5,  5,  5,  5,  5, 0, 0, 0, 0 };
+        double[] posB = { 60, 10, 70, 30, 70, 70, 10, 10, 10, 10, 10, 10, 0, 0, 0, 0 };
+        double[] posC = { 50, 50, 20, 20, 0,  0,  0,  0,  70, 70, 70, 70, 0, 0, 0, 0 };
+
+        // 机器人两个测试位姿
+        JointPos j1 = new JointPos(-172.132, -90.455, -102.422, -67.864, 95.273, -21.129);
+        JointPos j2 = new JointPos(-173.180, -106.578, -83.661, -70.600, 95.440, -22.167);
+        ExaxisPos epos = new ExaxisPos(0, 0, 0, 0);
+        DescPose offset_pos = new DescPose(0, 0, 0, 0, 0, 0);
+
+        System.out.println("===== 灵巧手完整功能测试开始 =====");
+
+        // ==================== 3. 清除错误状态 ====================
+        int rtn = robot.ClearDexterousHandsError();
+        System.out.printf("[清除错误] rtn = %d\n", rtn);
+
+        // ==================== 4. 设置功能开关 ====================
+        int[] setFuncA = new int[32];
+        setFuncA[2] = 1;
+        setFuncA[3] = 1;
+        setFuncA[4] = 1;
+        setFuncA[9] = 1;
+        setFuncA[10] = 1;
+        setFuncA[11] = 1;
+        setFuncA[20] = 1;//多轴同步运动
+        setFuncA[22] = 1;
+
+        int[] setFuncB = new int[32];
+        setFuncB[2] = 1;
+        setFuncB[3] = 1;
+        setFuncB[4] = 1;
+        setFuncB[9] = 1;
+        setFuncB[10] = 1;
+        setFuncB[11] = 1;
+        setFuncB[22] = 1;
+
+        // 主站设置功能 A
+        rtn = robot.SetDexterousHandsFunc(DEXTEROUS_ID, setFuncA);
+        System.out.printf("[设置主站功能] rtn = %d\n", rtn);
+
+        // 从站（手指2~12）设置功能 B
+        for (int i = 2; i <= FINGER_COUNT; i++) {
+            rtn = robot.SetDexterousHandsFunc(i, setFuncB);
+        }
+        System.out.printf("[设置从站功能（2~12）] rtn = %d\n", rtn);
+
+        // ==================== 5. 读取并验证功能状态 ====================
+        int[] getFunc = new int[32];
+        rtn = robot.GetDexterousHandsFunc(DEXTEROUS_ID, getFunc);
+        System.out.printf("[读取功能状态] rtn = %d\n", rtn);
+
+        if (rtn == 0) {
+            System.out.println("功能开关状态（32位）:");
+            System.out.print("  ");
+            for (int i = 0; i < 32; i++) {
+                System.out.printf("[%d]=%d", i, getFunc[i]);
+                if ((i + 1) % 8 == 0 && i < 31) {
+                    System.out.print("\n  ");
+                } else if (i < 31) {
+                    System.out.print(", ");
+                }
+            }
+            System.out.println();
+        }
+
+        // ==================== 6. 激活灵巧手 ====================
+        rtn = robot.SetDexterousHandsAct(DEXTEROUS_ID, 1);
+        System.out.printf("[激活灵巧手] rtn = %d\n", rtn);
+        if (rtn != 0) {
+            System.out.println("激活失败，测试中止");
+            return -2;
+        }
+
+        robot.Sleep(5000);  // 等待激活完成
+
+        // ==================== 7. 往复运动测试（10次循环） ====================
+        System.out.println("\n开始往复运动测试（共10次循环）...");
+        System.out.println("  位姿1: j1（左）  位姿2: j2（右）");
+        System.out.println("  手指目标: A→B→A→C（每组4个动作）\n");
+
+        for (int iteration = 1; iteration <= 10; iteration++) {
+            System.out.printf("--- 第 %2d 次循环 ---\n", iteration);
+
+            // 动作1：移至 j1 + 手指 A
+            robot.MoveJ(j1, 0, 0, 100, 100, 100, epos, -1, 0, offset_pos);
+            rtn = robot.SetDexterousHandsMove(DEXTEROUS_ID, FINGER_COUNT, posA, speed, force, MOVE_TIMEOUT_MS);
+            System.out.printf("  j1 + posA → %d\n", rtn);
+            robot.Sleep(1000);
+
+            // 动作2：移至 j2 + 手指 B
+            robot.MoveJ(j2, 0, 0, 100, 100, 100, epos, -1, 0, offset_pos);
+            rtn = robot.SetDexterousHandsMove(DEXTEROUS_ID, FINGER_COUNT, posB, speed, force, MOVE_TIMEOUT_MS);
+            System.out.printf("  j2 + posB → %d\n", rtn);
+            robot.Sleep(1000);
+
+            // 动作3：移至 j1 + 手指 A
+            robot.MoveJ(j1, 0, 0, 100, 100, 100, epos, -1, 0, offset_pos);
+            rtn = robot.SetDexterousHandsMove(DEXTEROUS_ID, FINGER_COUNT, posA, speed, force, MOVE_TIMEOUT_MS);
+            System.out.printf("  j1 + posA → %d\n", rtn);
+            robot.Sleep(1000);
+
+            // 动作4：移至 j2 + 手指 C
+            robot.MoveJ(j2, 0, 0, 100, 100, 100, epos, -1, 0, offset_pos);
+            rtn = robot.SetDexterousHandsMove(DEXTEROUS_ID, FINGER_COUNT, posC, speed, force, MOVE_TIMEOUT_MS);
+            System.out.printf("  j2 + posC → %d\n", rtn);
+            robot.Sleep(1000);
+        }
+
+        // ==================== 8. 测试完成 ====================
+        System.out.println("\n===== 测试完成 =====");
+        System.out.println("  功能开关设置/读取  ✓");
+        System.out.println("  灵巧手激活        ✓");
+        System.out.println("  10次往复运动      ✓");
+        return 0;
+    }
+
+    public static int TestWorkPieceTrsf(Robot robot) {
+        ROBOT_STATE_PKG pkg = new ROBOT_STATE_PKG();
+
+        JointPos j1 = new JointPos(-11.188, -64.165, -107.299, -76.706, 89.590, 92.983);
+        DescPose desc1 = new DescPose(225.986, 190.694, 394.238, -6.230, -23.797, -98.972);
+        JointPos j2 = new JointPos(-38.148, -97.408, -133.704, -30.999, 89.584, 92.986);
+        DescPose desc2 = new DescPose(52.741, 262.917, 30.824, -5.696, -9.864, -126.092);
+        JointPos j3 = new JointPos(-25.561, -123.131, -85.736, -94.911, 89.582, 93.006);
+        DescPose desc3 = new DescPose(70.455, 88.410, 45.299, -4.101, 31.775, -113.199);
+        JointPos j4 = new JointPos(-8.013, -125.881, -79.196, -84.440, 89.564, 93.005);
+        DescPose desc4 = new DescPose(209.453, -73.895, 56.416, -4.727, 17.523, -95.906);
+        JointPos j5 = new JointPos(-2.722, -94.518, -119.965, -54.518, 89.563, 93.005);
+        DescPose desc5 = new DescPose(274.800, 81.106, 102.977, -5.467, -2.980, -90.711);
+        JointPos j6 = new JointPos(-2.671, -56.234, -138.914, -25.099, 95.355, 92.967);
+        DescPose desc6 = new DescPose(300.392, 177.281, 300.926, -1.909, -51.894, -89.703);
+        JointPos j7 = new JointPos(-1.229, -121.184, -63.201, -122.331, 93.045, 93.019);
+        DescPose desc7 = new DescPose(296.856, -31.294, 215.698, -0.589, 34.594, -88.954);
+
+        ExaxisPos exaxis = new ExaxisPos(0.0, 0.0, 0.0, 0.0);
+        DescPose offset = new DescPose(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+
+        int tool = 1;
+        int workpiece = 1;
+        double blend = 5.0;
+
+        robot.MoveJ(j1, desc1, tool, workpiece, 100, 100, 100, exaxis, -1, 0, offset);
+        robot.MoveJ(j2, desc2, tool, workpiece, 100, 100, 100, exaxis, blend, 0, offset);
+        robot.MoveL(j3, desc3, tool, workpiece, 10, 100, 100, blend, 0, exaxis, 0, 1, offset,-1, 0,0,0);
+        robot.MoveC(j4, desc4, tool, workpiece, 100, 100, exaxis, 0, offset, j5, desc5, tool, workpiece, 100, 100, exaxis, 0, offset, 10, blend,100, 0);
+        robot.Circle(j6, desc6, tool, workpiece, 100, 100, exaxis, j7, desc7, tool, workpiece, 100, 100, exaxis, 10, 0, offset, 100.0, blend,0);
+
+        int rtn = robot.WorkPieceTrsfStart(2);
+        System.out.printf("WorkPieceTrsfStart rtn is %d\n", rtn);
+        robot.MoveJ(j1, desc1, tool, workpiece, 100, 100, 100, exaxis, -1, 0, offset);
+        robot.MoveJ(j2, desc2, tool, workpiece, 100, 100, 100, exaxis, blend, 0, offset);
+        robot.MoveL(j3, desc3, tool, workpiece, 10, 100, 100, blend, 0, exaxis, 0, 1, offset,-1, 0,0,0);
+        robot.MoveC(j4, desc4, tool, workpiece, 100, 100, exaxis, 0, offset, j5, desc5, tool, workpiece, 100, 100, exaxis, 0, offset, 10, blend,100, 0);
+        robot.Circle(j6, desc6, tool, workpiece, 100, 100, exaxis, j7, desc7, tool, workpiece, 100, 100, exaxis, 10, 0, offset, 100.0, blend, 0);
+
+        robot.WorkPieceTrsfEnd();
+        System.out.printf("WorkPieceTrsfEnd rtn is %d\n", rtn);
+        robot.Sleep(2000);
+        return 0;
+    }
+
+    public static int TestSetJointVelReducePara(Robot robot) {
+        ROBOT_STATE_PKG pkg = new ROBOT_STATE_PKG();
+
+        JointPos j1 = new JointPos(10.220, -11.121, -118.086, -46.739, 82.036, 131.503);
+        JointPos j2 = new JointPos(89.782, -11.122, -118.086, -46.740, 82.036, 131.504);
+        ExaxisPos epos = new ExaxisPos(0, 0, 0, 0);
+        DescPose offset_pos = new DescPose(0, 0, 0, 0, 0, 0);
+        robot.SetSpeed(20);
+
+        double[] maxJointVelA = {100.0, 100.0, 100.0, 100.0, 100.0, 100.0};
+        int rtn = robot.SetVelReducePara(2, 200, 0, maxJointVelA);
+        System.out.printf("SetVelReducePara param error rtn is %d\n", rtn);
+        robot.MoveJ(j1, 1, 2, 100, 100, 100, epos, -1, 0, offset_pos);
+        robot.MoveJ(j2, 1, 2, 100, 100, 100, epos, -1, 0, offset_pos);
+
+        double[] maxJointVelB = {20.0, 20.0, 20.0, 20.0, 20.0, 20.0};
+        rtn = robot.SetVelReducePara(2, 200, 0, maxJointVelB);
+        System.out.printf("SetVelReducePara reduce vel rtn is %d\n", rtn);
+        robot.MoveJ(j1, 1, 2, 100, 100, 100, epos, -1, 0, offset_pos);
+        robot.MoveJ(j2, 1, 2, 100, 100, 100, epos, -1, 0, offset_pos);
+
+        robot.Sleep(2000);
+        return 0;
+    }
+
+    public static int TestCoord(Robot robot)
+    {
+        int id = 1;
+        DescPose toolCoord = new DescPose();
+        DescPose extoolCoord = new DescPose();
+        DescPose exworkpieceCoord = new DescPose();
+        DescPose wobjCoord = new DescPose();
+        DescPose exAxisCoord = new DescPose();
+        int[] type = new int[1];
+        int[] install = new int[1];
+        int[] toolID = new int[1];
+        int[] loadNo = new int[1];
+        robot.GetToolCoordWithID(id, toolCoord, type, install, toolID, loadNo);
+        System.out.printf("GetToolCoordWithID %d, %f %f %f %f %f %f,  type = %d, install = %d, toolID = %d, loadNo = %d\n", id,
+            toolCoord.tran.x, toolCoord.tran.y, toolCoord.tran.z,
+            toolCoord.rpy.rx, toolCoord.rpy.ry, toolCoord.rpy.rz, type[0], install[0], toolID[0], loadNo[0]);
+        int[] refFrame = new int[1];
+        robot.GetWObjCoordWithID(id, wobjCoord, refFrame);
+        System.out.printf("GetWObjCoordWithID %d, %f %f %f %f %f %f, refFrame = %d\n", id,
+            wobjCoord.tran.x, wobjCoord.tran.y, wobjCoord.tran.z,
+            wobjCoord.rpy.rx, wobjCoord.rpy.ry, wobjCoord.rpy.rz, refFrame[0]);
+
+
+        robot.GetExToolCoordWithID(21, extoolCoord, exworkpieceCoord);
+        System.out.printf("GetExToolCoordWithID %d, %f %f %f %f %f %f\n", id,
+            extoolCoord.tran.x, extoolCoord.tran.y, extoolCoord.tran.z,
+            extoolCoord.rpy.rx, extoolCoord.rpy.ry, extoolCoord.rpy.rz,
+            exworkpieceCoord.tran.x, exworkpieceCoord.tran.y, exworkpieceCoord.tran.z,
+            exworkpieceCoord.rpy.rx, exworkpieceCoord.rpy.ry, exworkpieceCoord.rpy.rz);
+
+        int[] axisCoordNum = new int[1];
+        int[] calibFlag = new int[1];
+        robot.GetExAxisCoordWithID(id, exAxisCoord, axisCoordNum, calibFlag);
+        System.out.printf("GetExAxisCoordWithID %d, %f %f %f %f %f %f, axisCoordNum = %d, calibFlag = %d\n", id,
+            exAxisCoord.tran.x, exAxisCoord.tran.y, exAxisCoord.tran.z,
+            exAxisCoord.rpy.rx, exAxisCoord.rpy.ry, exAxisCoord.rpy.rz, axisCoordNum[0], calibFlag[0]);
+
+        double[] weight = new double[1];
+        DescTran cog = new DescTran();
+        robot.GetTargetPayloadWithID(id, weight, cog);
+        System.out.printf("GetTargetPayloadWithID %d, %f %f %f %f\n", id, weight[0],
+            cog.x, cog.y, cog.z);
+        robot.GetCurToolCoord(toolCoord);
+        System.out.printf("GetCurToolCoord %f %f %f %f %f %f\n",
+            toolCoord.tran.x, toolCoord.tran.y, toolCoord.tran.z,
+            toolCoord.rpy.rx, toolCoord.rpy.ry, toolCoord.rpy.rz);
+        robot.GetCurWObjCoord(wobjCoord);
+        System.out.printf("GetCurWObjCoord %f %f %f %f %f %f\n",
+            wobjCoord.tran.x, wobjCoord.tran.y, wobjCoord.tran.z,
+            wobjCoord.rpy.rx, wobjCoord.rpy.ry, wobjCoord.rpy.rz);
+        robot.GetCurExToolCoord(extoolCoord);
+        System.out.printf("GetExToolCoordWithID %f %f %f %f %f %f\n",
+            extoolCoord.tran.x, extoolCoord.tran.y, extoolCoord.tran.z,
+            extoolCoord.rpy.rx, extoolCoord.rpy.ry, extoolCoord.rpy.rz);
+        robot.GetCurExAxisCoord(exAxisCoord);
+        System.out.printf("GetCurExAxisCoord %f %f %f %f %f %f\n",
+            exAxisCoord.tran.x, exAxisCoord.tran.y, exAxisCoord.tran.z,
+            exAxisCoord.rpy.rx, exAxisCoord.rpy.ry, exAxisCoord.rpy.rz);
+        DescTran cogT = new DescTran();
+        List<Number> weightT = robot.GetTargetPayload(0);
+        robot.GetTargetPayloadCog(0, cogT);
+        System.out.println("GetTargetPayload is " + weightT.get(0) + " cogT is  " + cogT.x + "  " + cogT.y + "  " + cogT.z);
+        DescPose coordSet = new DescPose(0, 1, 2, 3, 4, 5);
+        robot.SetToolCoord(1, coordSet, 0, 0, 1, 0);
+        robot.SetWObjCoord(1, coordSet, 0);
+        robot.SetLoadWeight(1, 1.3);
+        cog.x = 10;
+        cog.y = 20;
+        cog.z = 30;
+        robot.SetLoadCoord(1, cog);
+        DescPose etcp = new DescPose(0, 0, 100, 0, 0, 0);
+        DescPose etool = new DescPose(0, 0, 50, 0, 0, 0);
+        int rtn = robot.SetExToolCoord(21, etcp, etool);
+        System.out.printf("SetExToolCoord rtn is %d\n", rtn);
+        robot.ExtAxisActiveECoordSys(1, 1, coordSet, 1);
+        return 0;
+    }
+
+    public static int TestStationaryTrack(Robot robot)
+    {
+        System.out.println("\n========== 传送带静止跟踪测试 ==========");
+
+        int rtn;
+
+        JointPos j1 = new JointPos(-35.146, -102.684, 120.805, -100.401, -90.295, 150.105);
+        DescPose d1 = new DescPose(-121.814, -348.341, 209.978, -173.152, -3.585, -5.446);
+
+        ExaxisPos ex = new ExaxisPos(0, 0, 0, 0);
+        DescPose zeroOff = new DescPose(0, 0, 0, 0, 0, 0);
+
+        int tool = 1;
+        int workpiece = 1;
+
+        rtn = robot.ConveyorSetParam(0, 10000, 200, 0, 0, 10,0,0,0);
+
+
+        robot.MoveJ(j1, d1, tool, workpiece, 100, 100, 100, ex, -1, 0, zeroOff);
+
+        // Step 1: SetDO 控制信号
+        System.out.println("--- Step 1: SetDO(6,1) ---");
+        rtn = robot.SetDO(6, 1, 0, 0);
+        System.out.println("  SetDO(6,1) rtn=" + rtn);
+
+        // Step 2: 传送带跟踪开始
+        System.out.println("--- Step 2: ConveyorTrackStart(2) ---");
+        rtn = robot.ConveyorTrackStart(2);
+        System.out.println("  ConveyorTrackStart(2) rtn=" + rtn);
+
+        // Step 3: 工件IO检测
+        System.out.println("--- Step 3: ConveyorIODetect(10000) ---");
+        rtn = robot.ConveyorIODetect(10000);
+        System.out.println("  ConveyorIODetect(10000) rtn=" + rtn);
+
+        // Step 4: 获取跟踪数据
+        System.out.println("--- Step 4: ConveyorGetTrackData(2) ---");
+        rtn = robot.ConveyorGetTrackData(2);
+        System.out.println("  ConveyorGetTrackData(2) rtn=" + rtn);
+
+        // Step 5: 静止跟踪参数配置 (时间模式, 200s, 距离5)
+        System.out.println("--- Step 5: SetStationaryTrackPara(0,200,5) ---");
+        rtn = robot.SetStationaryTrackPara(0, 5, 5);
+        System.out.println("  SetStationaryTrackPara(0,200,5) rtn=" + rtn);
+
+        // Step 6: 执行静止跟踪运动
+        System.out.println("--- Step 6: MoveStationary() ---");
+        rtn = robot.MoveStationary();
+        robot.WaitStationaryMotionDone();
+        System.out.println("  MoveStationary() rtn=" + rtn);
+
+        // Step 7: 传送带跟踪结束
+        System.out.println("--- Step 7: ConveyorTrackEnd() ---");
+        rtn = robot.ConveyorTrackEnd();
+        System.out.println("  ConveyorTrackEnd() rtn=" + rtn);
+
+        // Step 8: SetDO 关闭信号
+        System.out.println("--- Step 8: SetDO(6,0) ---");
+        rtn = robot.SetDO(6, 0, 0, 0);
+        System.out.println("  SetDO(6,0) rtn=" + rtn);
+
+        System.out.println("\n========== 静止跟踪测试完成 ==========");
+        return 0;
     }
 
 }

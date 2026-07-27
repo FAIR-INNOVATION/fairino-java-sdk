@@ -264,6 +264,8 @@ public class RobotStateParser {
         // 扩展轴
         addMapping(RobotState.ExaxisCoordID, "exaxis_coord_id", "exaxisCoordID", DataType.UINT8, DataType.UINT8);
 
+        addMapping(RobotState.ProgramRunState, "program_run_state", "ProgramRunState", DataType.UINT8, DataType.UINT8);
+
     }
 
     private static void addMapping(RobotState state, String serverName, String fieldName, DataType structType, DataType serverType) {

@@ -20,7 +20,7 @@ import org.apache.xmlrpc.client.XmlRpcClientConfigImpl;
 
 public class Robot
 {
-    String SDK_VERSION = "JavaSDK V1.0.7  WebApp V3.8.4";
+    String SDK_VERSION = "JavaSDK V1.0.7  WebApp V3.8.6";
     private String robotIp = "192.168.58.2";//机器人ip
 
     int ROBOT_CMD_PORT = 8080;
@@ -894,11 +894,11 @@ public class Robot
         {
             if(!IsSockComError())
             {
-                return MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, blendMode, epos, search, offset_flag, offset_pos, overSpeedStrategy, speedPercent);
+                return MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, blendMode, epos, search, offset_flag, offset_pos, velAccParamMode, overSpeedStrategy, speedPercent);
             }
             if(e.getMessage().contains("Connection timed out") || e.getMessage().contains("connect timed out"))
             {
-                MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, blendMode, epos, search, offset_flag, offset_pos, overSpeedStrategy, speedPercent);
+                MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, blendMode, epos, search, offset_flag, offset_pos, velAccParamMode, overSpeedStrategy, speedPercent);
             }
             if (log != null)
             {

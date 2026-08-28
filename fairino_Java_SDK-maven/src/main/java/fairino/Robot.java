@@ -18,12 +18,14 @@ import javafx.scene.effect.BlendMode;
 import org.apache.xmlrpc.client.XmlRpcClient;
 import org.apache.xmlrpc.client.XmlRpcClientConfigImpl;
 
+
+
 public class Robot
 {
-    String SDK_VERSION = "JavaSDK V1.0.7  WebApp V3.8.6";
+    String SDK_VERSION = "JavaSDK V1.1.9  WebApp V3.9.9";
     private String robotIp = "192.168.58.2";//机器人ip
-
     int ROBOT_CMD_PORT = 8080;
+    int ROBOT_CMD_UDP_PORT = 20007;
     int MAX_UPLOAD_FILE_SIZE = 500 * 1024 * 1024;//最大上传文件为2Mb
     private int PauseMotionCnt = 0;
     private int ResumeMotionCnt = 0;
@@ -31,18 +33,108 @@ public class Robot
     private String sendBuf = "";
 
     private boolean reconnEnable = true;  //重连使能
-    private int reconnTimes = 20;          //重连次数
+    private int reconnTimes = 100;          //重连次数
     private int reconnPeriod = 2000;       //重连时间间隔
 
     XmlRpcClientConfigImpl config;
     XmlRpcClient client;
     FRLog log;
 
-    RobotStateRoutineThread robotStateRoutineThread;
     int sockErr = RobotError.ERR_SUCCESS;
 
     TCPClient clientCmd;
+    UDPClient udpCmdClient;
+    FrameHandle frameHandle;
 
+    int cmdFrameCnt = 0; //帧计数
+
+    // 机器人实时状态反馈配置
+    private List<RobotState> robotRealtimeStateList = new ArrayList<>();  // 存储状态列表
+    private int robotRealtimeStatePeriod = 8;  // 状态反馈周期，默认8ms，范围8-1000
+
+    // 初始化默认状态配置
+    {
+        initDefaultRobotRealtimeStateConfig();
+    }
+
+    private void initDefaultRobotRealtimeStateConfig() {
+        robotRealtimeStateList.add(RobotState.ProgramState);
+        robotRealtimeStateList.add(RobotState.RobotState);
+        robotRealtimeStateList.add(RobotState.MainCode);
+        robotRealtimeStateList.add(RobotState.SubCode);
+        robotRealtimeStateList.add(RobotState.RobotMode);
+        robotRealtimeStateList.add(RobotState.JointCurPos);
+        robotRealtimeStateList.add(RobotState.ToolCurPos);
+        robotRealtimeStateList.add(RobotState.FlangeCurPos);
+        robotRealtimeStateList.add(RobotState.ActualJointVel);
+        robotRealtimeStateList.add(RobotState.ActualJointAcc);
+        robotRealtimeStateList.add(RobotState.TargetTCPCmpSpeed);
+        robotRealtimeStateList.add(RobotState.TargetTCPSpeed);
+        robotRealtimeStateList.add(RobotState.ActualTCPCmpSpeed);
+        robotRealtimeStateList.add(RobotState.ActualTCPSpeed);
+        robotRealtimeStateList.add(RobotState.ActualJointTorque);
+        robotRealtimeStateList.add(RobotState.Tool);
+        robotRealtimeStateList.add(RobotState.User);
+        robotRealtimeStateList.add(RobotState.ClDgtOutputH);
+        robotRealtimeStateList.add(RobotState.ClDgtOutputL);
+        robotRealtimeStateList.add(RobotState.TlDgtOutputL);
+        robotRealtimeStateList.add(RobotState.ClDgtInputH);
+        robotRealtimeStateList.add(RobotState.ClDgtInputL);
+        robotRealtimeStateList.add(RobotState.TlDgtInputL);
+        robotRealtimeStateList.add(RobotState.ClAnalogInput);
+        robotRealtimeStateList.add(RobotState.TlAnglogInput);
+        robotRealtimeStateList.add(RobotState.FtSensorRawData);
+        robotRealtimeStateList.add(RobotState.FtSensorData);
+        robotRealtimeStateList.add(RobotState.FtSensorActive);
+        robotRealtimeStateList.add(RobotState.EmergencyStop);
+        robotRealtimeStateList.add(RobotState.MotionDone);
+        robotRealtimeStateList.add(RobotState.GripperMotiondone);
+        robotRealtimeStateList.add(RobotState.McQueueLen);
+        robotRealtimeStateList.add(RobotState.CollisionState);
+        robotRealtimeStateList.add(RobotState.TrajectoryPnum);
+        robotRealtimeStateList.add(RobotState.SafetyStop0State);
+        robotRealtimeStateList.add(RobotState.SafetyStop1State);
+        robotRealtimeStateList.add(RobotState.GripperFaultId);
+        robotRealtimeStateList.add(RobotState.GripperFault);
+        robotRealtimeStateList.add(RobotState.GripperActive);
+        robotRealtimeStateList.add(RobotState.GripperPosition);
+        robotRealtimeStateList.add(RobotState.GripperCurrent);
+        robotRealtimeStateList.add(RobotState.GripperTemp);
+        robotRealtimeStateList.add(RobotState.GripperVoltage);
+        robotRealtimeStateList.add(RobotState.AuxState);
+         robotRealtimeStateList.add(RobotState.ExtAxisStatus);
+        robotRealtimeStateList.add(RobotState.ExtDIState);
+        robotRealtimeStateList.add(RobotState.ExtDOState);
+        robotRealtimeStateList.add(RobotState.ExtAIState);
+        robotRealtimeStateList.add(RobotState.ExtAOState);
+        robotRealtimeStateList.add(RobotState.RbtEnableState);
+        robotRealtimeStateList.add(RobotState.JointDriverTorque);
+        robotRealtimeStateList.add(RobotState.JointDriverTemperature);
+        robotRealtimeStateList.add(RobotState.RobotTime);
+        robotRealtimeStateList.add(RobotState.SoftwareUpgradeState);
+        robotRealtimeStateList.add(RobotState.EndLuaErrCode);
+        robotRealtimeStateList.add(RobotState.ClAnalogOutput);
+        robotRealtimeStateList.add(RobotState.TlAnalogOutput);
+        robotRealtimeStateList.add(RobotState.GripperRotNum);
+        robotRealtimeStateList.add(RobotState.GripperRotSpeed);
+        robotRealtimeStateList.add(RobotState.GripperRotTorque);
+        robotRealtimeStateList.add(RobotState.WeldingBreakOffState);
+        robotRealtimeStateList.add(RobotState.TargetJointTorque);
+        robotRealtimeStateList.add(RobotState.SmartToolState);
+        robotRealtimeStateList.add(RobotState.WideVoltageCtrlBoxTemp);
+        robotRealtimeStateList.add(RobotState.WideVoltageCtrlBoxFanCurrent);
+        robotRealtimeStateList.add(RobotState.ToolCoord);
+        robotRealtimeStateList.add(RobotState.WobjCoord);
+        robotRealtimeStateList.add(RobotState.ExtoolCoord);
+        robotRealtimeStateList.add(RobotState.ExAxisCoord);
+        robotRealtimeStateList.add(RobotState.Load);
+        robotRealtimeStateList.add(RobotState.LoadCog);
+        robotRealtimeStateList.add(RobotState.LastServoTarget);
+        robotRealtimeStateList.add(RobotState.ServoJCmdNum);
+    }
+
+    // CNDE 客户端 (用于自定义状态上报)
+    private FRCNDEClient cndeClient;
 //
 //            private void RobotTaskRoutineThread()
 //            {
@@ -107,21 +199,20 @@ public class Robot
             config.setConnectionTimeout(1000000);
             client = new XmlRpcClient();
             client.setConfig(config);
+
             sockErr = RobotError.ERR_SUCCESS;
-            robotStateRoutineThread = new RobotStateRoutineThread(robotIp);//状态获取线程
-            robotStateRoutineThread.start();
 
-            Sleep(1000);
+            // 创建 CNDE 客户端并连接到 20005 端口
+            cndeClient = new FRCNDEClient(robotIp, 20005);
+            // 设置CNDE重连参数（与20004端口保持一致）
+            cndeClient.SetReconnectParam(reconnEnable, reconnTimes, reconnPeriod);
+            // 同步之前配置的状态列表和周期
+            cndeClient.SetCNDERobotStatePeriod(robotRealtimeStatePeriod);
+            cndeClient.SetStateConfig(robotRealtimeStateList);
 
-            if(robotStateRoutineThread != null)
-            {
-                robotStateRoutineThread.SetReconnectParam(reconnEnable, reconnTimes, reconnPeriod);//设置默认重连
-                robotStateRoutineThread.clientRobotState.SetLog(log);
-            }
-
-            if (IsSockComError())
-            {
-                return sockErr;
+            int cndeConnectResult = cndeClient.Connect(robotIp, 20005);
+            if (cndeConnectResult != 0) {
+                sockErr = RobotError.ERR_SOCKET_COM_FAILED;
             }
 
             clientCmd = new TCPClient(robotIp, ROBOT_CMD_PORT);//机械臂cmd指令端口
@@ -131,7 +222,13 @@ public class Robot
                 sockErr = RobotError.ERR_SOCKET_COM_FAILED;
                 return sockErr;
             }
-
+            udpCmdClient = new UDPClient(robotIp, ROBOT_CMD_UDP_PORT);
+            rtn = udpCmdClient.Connect();
+            if(!rtn)
+            {
+                sockErr = RobotError.ERR_SOCKET_COM_FAILED;
+                return sockErr;
+            }
             return sockErr;
         }
         catch (Throwable e) {
@@ -146,8 +243,6 @@ public class Robot
      */
     public int CloseRPC()
     {
-        robotStateRoutineThread.getRobotRealTimeFlag = false;
-        robotStateRoutineThread.interrupt();
         sockErr = RobotError.ERR_SUCCESS;
 
         if(clientCmd != null)
@@ -163,6 +258,11 @@ public class Robot
         if (log != null)
         {
             log.LogClose();
+        }
+
+        // 关闭 CNDE 客户端连接
+        if (cndeClient != null) {
+            cndeClient.Close();
         }
 
         return 0;
@@ -195,11 +295,6 @@ public class Robot
             reconnEnable = enable;
             reconnTimes = times;
             reconnPeriod = period;
-
-            if(robotStateRoutineThread != null)
-            {
-                robotStateRoutineThread.SetReconnectParam(enable, times, period);
-            }
 
             if (log != null)
             {
@@ -503,7 +598,7 @@ public class Robot
      * @param  user  工件坐标号，范围[0~14]
      * @param  vel  速度百分比，范围[0~100]
      * @param  acc  加速度百分比，范围[0~100],暂不开放
-     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  ovl  速度缩放因子[0~100]/物理速度(mm/s)
      * @param  epos  扩展轴位置，单位mm
      * @param  blendT [-1.0]-运动到位(阻塞)，[0~500.0]-平滑时间(非阻塞)，单位ms
      * @param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
@@ -556,7 +651,7 @@ public class Robot
      * @param  user  工件坐标号，范围[0~14]
      * @param  vel  速度百分比，范围[0~100]
      * @param  acc  加速度百分比，范围[0~100],暂不开放
-     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  ovl  速度缩放因子[0~100]/物理速度(mm/s)
      * @param  epos  扩展轴位置，单位mm
      * @param  blendT [-1.0]-运动到位(阻塞)，[0~500.0]-平滑时间(非阻塞)，单位ms
      * @param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
@@ -586,226 +681,6 @@ public class Robot
     }
 
     /**
-     * @brief  笛卡尔空间直线运动
-     * @param  joint_pos  目标关节位置,单位deg
-     * @param  desc_pos   目标笛卡尔位姿
-     * @param  tool  工具坐标号，范围[0~14]
-     * @param  user  工件坐标号，范围[0~14]
-     * @param  vel  速度百分比，范围[0~100]
-     * @param  acc  加速度百分比，范围[0~100],暂不开放
-     * @param  ovl  速度缩放因子，范围[0~100]
-     * @param  blendR [-1.0]-运动到位(阻塞)，[0~1000.0]-平滑半径(非阻塞)，单位mm
-     * @param  epos  扩展轴位置，单位mm
-     * @param  search  0-不焊丝寻位，1-焊丝寻位
-     * @param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
-     * @param  offset_pos  位姿偏移量
-     * @param  overSpeedStrategy  超速处理策略，1-标准；2-超速时报错停止；3-自适应降速，默认为0
-     * @param  speedPercent  允许降速阈值百分比[0-100]，默认10%
-     * @return  错误码
-     */
-    public int MoveL(JointPos joint_pos, DescPose desc_pos, int tool, int user, double vel, double acc, double ovl, double blendR,ExaxisPos epos, int search, int offset_flag, DescPose offset_pos, int overSpeedStrategy, int speedPercent)
-    {
-        if (IsSockComError())
-        {
-            return sockErr;
-        }
-
-        if(GetSafetyCode()!=0){
-            return GetSafetyCode();
-        }
-        try
-        {
-            int rtn = -1;
-            if (overSpeedStrategy > 1)
-            {
-                Object[] paramProtectStart = new Object[] {overSpeedStrategy, speedPercent};
-                rtn = (int)client.execute("JointOverSpeedProtectStart" , paramProtectStart);
-                if (log != null)
-                {
-                    log.LogInfo("JointOverSpeedProtectStart(" + overSpeedStrategy + "," + speedPercent + ") : " + rtn);
-                }
-                if (rtn != 0)
-                {
-                    return rtn;
-                }
-            }
-
-            Object[] joint = {joint_pos.J1, joint_pos.J2, joint_pos.J3, joint_pos.J4, joint_pos.J5, joint_pos.J6};
-            Object[] desc = { desc_pos.tran.x, desc_pos.tran.y, desc_pos.tran.z, desc_pos.rpy.rx, desc_pos.rpy.ry, desc_pos.rpy.rz };;
-            Object[] exteraxis = {epos.axis1, epos.axis2, epos.axis3, epos.axis4};
-            Object[] offect = { offset_pos.tran.x, offset_pos.tran.y, offset_pos.tran.z, offset_pos.rpy.rx, offset_pos.rpy.ry, offset_pos.rpy.rz };
-            Object[] params = new Object[] {joint, desc, tool, user, vel, acc, ovl, blendR, 0, exteraxis, search, offset_flag, offect};
-            rtn = (int)client.execute("MoveL" , params);
-            if (log != null)
-            {
-                log.LogInfo("MoveL(" + joint[0] + "," + joint[1] + "," + joint[2] + "," + joint[3] + "," + joint[4] + "," + joint[5] + "," + desc[0] + "," + desc[1] + "," + desc[2] + "," + desc[3] + "," + desc[4] + "," + desc[5] + "," + tool + "," + user + "," + vel + "," + acc + "," + ovl + "," + blendR +
-                        epos.axis1 + "," + epos.axis2 + "," + epos.axis3 + "," + epos.axis4 + "," + search + "," + offset_flag + "," + offect[0] + "," + offect[1] + "," + offect[2] + "," + offect[3] + "," + offect[4] + "," + offect[5] + ") : " + rtn);
-            }
-
-            if (overSpeedStrategy > 1)
-            {
-                Object[] paramProtectStart = new Object[] {};
-                rtn = (int)client.execute("JointOverSpeedProtectEnd" , params);
-                if (log != null)
-                {
-                    log.LogInfo("JointOverSpeedProtectEnd() : " + rtn);
-                }
-                if (rtn != 0)
-                {
-                    return rtn;
-                }
-            }
-            return rtn;
-        }
-        catch (Throwable e)
-        {
-            if(!IsSockComError())
-            {
-                return MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, epos, search, offset_flag, offset_pos, overSpeedStrategy, speedPercent);
-            }
-            if(e.getMessage().contains("Connection timed out") || e.getMessage().contains("connect timed out"))
-            {
-                MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, epos, search, offset_flag, offset_pos, overSpeedStrategy, speedPercent);
-            }
-            if (log != null)
-            {
-                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
-            }
-            return (int) RobotError.ERR_RPC_ERROR;
-        }
-    }
-
-    /**
-     * @brief  笛卡尔空间直线运动
-     * @param  joint_pos  目标关节位置,单位deg
-     * @param  desc_pos   目标笛卡尔位姿
-     * @param  tool  工具坐标号，范围[0~14]
-     * @param  user  工件坐标号，范围[0~14]
-     * @param  vel  速度百分比，范围[0~100]
-     * @param  acc  加速度百分比，范围[0~100],暂不开放
-     * @param  ovl  速度缩放因子，范围[0~100]
-     * @param  blendR [-1.0]-运动到位(阻塞)，[0~1000.0]-平滑半径(非阻塞)，单位mm
-     * @param  blendMode 过渡方式；0-内切过渡；1-角点过渡
-     * @param  epos  扩展轴位置，单位mm
-     * @param  search  0-不焊丝寻位，1-焊丝寻位
-     * @param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
-     * @param  offset_pos  位姿偏移量
-     * @param  overSpeedStrategy  超速处理策略，1-标准；2-超速时报错停止；3-自适应降速，默认为0
-     * @param  speedPercent  允许降速阈值百分比[0-100]，默认10%
-     * @return  错误码
-     */
-    public int MoveL(JointPos joint_pos, DescPose desc_pos, int tool, int user, double vel, double acc, double ovl, double blendR, int blendMode,ExaxisPos epos, int search, int offset_flag, DescPose offset_pos, int overSpeedStrategy, int speedPercent)
-    {
-        if (IsSockComError())
-        {
-            return sockErr;
-        }
-
-        if(GetSafetyCode()!=0){
-            return GetSafetyCode();
-        }
-        try
-        {
-            int rtn = -1;
-            if (overSpeedStrategy > 1)
-            {
-                Object[] paramProtectStart = new Object[] {overSpeedStrategy, speedPercent};
-                rtn = (int)client.execute("JointOverSpeedProtectStart" , paramProtectStart);
-                if (log != null)
-                {
-                    log.LogInfo("JointOverSpeedProtectStart(" + overSpeedStrategy + "," + speedPercent + ") : " + rtn);
-                }
-                if (rtn != 0)
-                {
-                    return rtn;
-                }
-            }
-
-            Object[] joint = {joint_pos.J1, joint_pos.J2, joint_pos.J3, joint_pos.J4, joint_pos.J5, joint_pos.J6};
-            Object[] desc = { desc_pos.tran.x, desc_pos.tran.y, desc_pos.tran.z, desc_pos.rpy.rx, desc_pos.rpy.ry, desc_pos.rpy.rz };;
-            Object[] exteraxis = {epos.axis1, epos.axis2, epos.axis3, epos.axis4};
-            Object[] offect = { offset_pos.tran.x, offset_pos.tran.y, offset_pos.tran.z, offset_pos.rpy.rx, offset_pos.rpy.ry, offset_pos.rpy.rz };
-            Object[] params = new Object[] {joint, desc, tool, user, vel, acc, ovl, blendR,blendMode, exteraxis, search, offset_flag, offect};
-            rtn = (int)client.execute("MoveL" , params);
-            if (log != null)
-            {
-                log.LogInfo("MoveL(" + joint[0] + "," + joint[1] + "," + joint[2] + "," + joint[3] + "," + joint[4] + "," + joint[5] + "," + desc[0] + "," + desc[1] + "," + desc[2] + "," + desc[3] + "," + desc[4] + "," + desc[5] + "," + tool + "," + user + "," + vel + "," + acc + "," + ovl + "," + blendR +
-                        epos.axis1 + "," + epos.axis2 + "," + epos.axis3 + "," + epos.axis4 + "," + search + "," + offset_flag + "," + offect[0] + "," + offect[1] + "," + offect[2] + "," + offect[3] + "," + offect[4] + "," + offect[5] + ") : " + rtn);
-            }
-
-            if (overSpeedStrategy > 1)
-            {
-                Object[] paramProtectStart = new Object[] {};
-                rtn = (int)client.execute("JointOverSpeedProtectEnd" , params);
-                if (log != null)
-                {
-                    log.LogInfo("JointOverSpeedProtectEnd() : " + rtn);
-                }
-                if (rtn != 0)
-                {
-                    return rtn;
-                }
-            }
-            return rtn;
-        }
-        catch (Throwable e)
-        {
-            if(!IsSockComError())
-            {
-                return MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR,blendMode,epos, search, offset_flag, offset_pos, overSpeedStrategy, speedPercent);
-            }
-            if(e.getMessage().contains("Connection timed out") || e.getMessage().contains("connect timed out"))
-            {
-                MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, blendMode,epos, search, offset_flag, offset_pos, overSpeedStrategy, speedPercent);
-            }
-            if (log != null)
-            {
-                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
-            }
-            return (int) RobotError.ERR_RPC_ERROR;
-        }
-    }
-
-    /**
-     * @brief  笛卡尔空间直线运动(重载函数2 不需要输入关节位置)
-     * @param  desc_pos   目标笛卡尔位姿
-     * @param  tool  工具坐标号，范围[0~14]
-     * @param  user  工件坐标号，范围[0~14]
-     * @param  vel  速度百分比，范围[0~100]
-     * @param  acc  加速度百分比，范围[0~100],暂不开放
-     * @param  ovl  速度缩放因子，范围[0~100]
-     * @param  blendR [-1.0]-运动到位(阻塞)，[0~1000.0]-平滑半径(非阻塞)，单位mm
-     * @param  blendMode 过渡方式；0-内切过渡；1-角点过渡
-     * @param  epos  扩展轴位置，单位mm
-     * @param  search  0-不焊丝寻位，1-焊丝寻位
-     * @param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
-     * @param  offset_pos  位姿偏移量
-     * @param  config 逆解关节空间配置，[-1]-参考当前关节位置解算，[0~7]-依据特定关节空间配置求解
-     * @param  overSpeedStrategy  超速处理策略，1-标准；2-超速时报错停止；3-自适应降速，默认为0
-     * @param  speedPercent  允许降速阈值百分比[0-100]，默认10%
-     * @return  错误码
-     */
-    public int MoveL(DescPose desc_pos, int tool, int user, double vel, double acc, double ovl, double blendR, int blendMode,ExaxisPos epos, int search, int offset_flag, DescPose offset_pos, int config, int overSpeedStrategy, int speedPercent) {
-        if (IsSockComError()) {
-            return sockErr;
-        }
-
-        if (GetSafetyCode() != 0) {
-            return GetSafetyCode();
-        }
-        JointPos jPos=new JointPos(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
-        int errcode = GetInverseKin(0, desc_pos, config, jPos);
-        if (errcode != 0)
-        {
-            log.LogError("MoveL GetInverseKin failed rtn is:"+ errcode);
-            return errcode;
-        }
-
-        errcode = MoveL(jPos, desc_pos, tool, user, vel, acc, ovl, blendR, blendMode, epos, search, offset_flag, offset_pos, overSpeedStrategy, speedPercent);
-        return errcode;
-    }
-
-    /**
      * @brief  笛卡尔空间直线运动(重载函数1 增加blendMode)
      * @param  joint_pos  目标关节位置,单位deg
      * @param  desc_pos   目标笛卡尔位姿
@@ -813,19 +688,20 @@ public class Robot
      * @param  user  工件坐标号，范围[1~15]
      * @param  vel  速度百分比，范围[0~100]
      * @param  acc  加速度百分比，范围[0~100],暂不开放
-     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  ovl  速度缩放因子[0~100]/物理速度(mm/s)
      * @param  blendR [-1.0]-运动到位(阻塞)，[0~1000.0]-平滑半径(非阻塞)，单位mm
      * @param  blendMode 过渡方式；0-内切过渡；1-角点过渡
      * @param  epos  扩展轴位置，单位mm
      * @param  search  0-不焊丝寻位，1-焊丝寻位
      * @param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
      * @param  offset_pos  位姿偏移量
+     * @param  oacc 加速度缩放因子[0-100]/物理加速度(mm/s2)
      * @param  velAccParamMode 速度加速度参数模式；0-百分比；1-物理速度(mm/s)加速度(mm/s2)
      * @param  overSpeedStrategy  超速处理策略，1-标准；2-超速时报错停止；3-自适应降速，默认为0
      * @param  speedPercent  允许降速阈值百分比[0-100]，默认10%
      * @return  错误码
      */
-    public int MoveL(JointPos joint_pos, DescPose desc_pos, int tool, int user, double vel, double acc, double ovl, double blendR, int blendMode, ExaxisPos epos, int search, int offset_flag, DescPose offset_pos, int velAccParamMode, int overSpeedStrategy, int speedPercent)
+    public int MoveL(JointPos joint_pos, DescPose desc_pos, int tool, int user, double vel, double acc, double ovl, double blendR, int blendMode, ExaxisPos epos, int search, int offset_flag, DescPose offset_pos, double oacc,int velAccParamMode, int overSpeedStrategy, int speedPercent)
     {
         if (IsSockComError())
         {
@@ -858,7 +734,7 @@ public class Robot
                     desc_pos.tran.x, desc_pos.tran.y, desc_pos.tran.z, desc_pos.rpy.rx, desc_pos.rpy.ry, desc_pos.rpy.rz,
                     tool, user, vel, acc, ovl, blendR, blendMode,epos.axis1, epos.axis2, epos.axis3, epos.axis4,
                     search, offset_flag,offset_pos.tran.x, offset_pos.tran.y, offset_pos.tran.z, offset_pos.rpy.rx, offset_pos.rpy.ry,
-                    offset_pos.rpy.rz,100.0,velAccParamMode};
+                    offset_pos.rpy.rz,oacc,velAccParamMode};
 
             Object[] params1 = new Object[]{params};
 
@@ -894,11 +770,11 @@ public class Robot
         {
             if(!IsSockComError())
             {
-                return MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, blendMode, epos, search, offset_flag, offset_pos, velAccParamMode, overSpeedStrategy, speedPercent);
+                return MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, blendMode, epos, search, offset_flag, offset_pos,oacc,velAccParamMode, overSpeedStrategy, speedPercent);
             }
             if(e.getMessage().contains("Connection timed out") || e.getMessage().contains("connect timed out"))
             {
-                MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, blendMode, epos, search, offset_flag, offset_pos, velAccParamMode, overSpeedStrategy, speedPercent);
+                MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, blendMode, epos, search, offset_flag, offset_pos, oacc,velAccParamMode,overSpeedStrategy, speedPercent);
             }
             if (log != null)
             {
@@ -915,7 +791,7 @@ public class Robot
      * @param  user  工件坐标号，范围[1~15]
      * @param  vel  速度百分比，范围[0~100]
      * @param  acc  加速度百分比，范围[0~100],暂不开放
-     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  ovl  速度缩放因子[0~100]/物理速度(mm/s)
      * @param  blendR [-1.0]-运动到位(阻塞)，[0~1000.0]-平滑半径(非阻塞)，单位mm
      * @param  blendMode 过渡方式；0-内切过渡；1-角点过渡
      * @param  epos  扩展轴位置，单位mm
@@ -948,7 +824,7 @@ public class Robot
             return errcode;
         }
 
-        errcode = MoveL(jPos, desc_pos, tool, user, vel, acc, ovl, blendR, blendMode, epos, search, offset_flag, offset_pos, velAccParamMode, overSpeedStrategy, speedPercent);
+        errcode = MoveL(jPos, desc_pos, tool, user, vel, acc, ovl, blendR, blendMode, epos, search, offset_flag, offset_pos, 100,velAccParamMode, overSpeedStrategy, speedPercent);
         return errcode;
     }
 
@@ -960,21 +836,85 @@ public class Robot
      * @param  user  工件坐标号，范围[1~15]
      * @param  vel  速度百分比，范围[0~100]
      * @param  acc  加速度百分比，范围[0~100],暂不开放
-     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  ovl  速度缩放因子[0~100]/物理速度(mm/s)
      * @param  blendR [-1.0]-运动到位(阻塞)，[0~1000.0]-平滑半径(非阻塞)，单位mm
      * @param  epos  扩展轴位置，单位mm
      * @param  search  0-不焊丝寻位，1-焊丝寻位
      * @param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
      * @param  offset_pos  位姿偏移量
-     * @param  velAccParamMode 速度加速度参数模式；0-百分比；1-物理速度(mm/s)加速度(mm/s2)
      * @param  overSpeedStrategy  超速处理策略，1-标准；2-超速时报错停止；3-自适应降速，默认为0
      * @param  speedPercent  允许降速阈值百分比[0-100]，默认10%
      * @return  错误码
      */
-    public int MoveL(JointPos joint_pos, DescPose desc_pos, int tool, int user, double vel, double acc, double ovl, double blendR, ExaxisPos epos, int search, int offset_flag, DescPose offset_pos, int velAccParamMode, int overSpeedStrategy, int speedPercent)
+    public int MoveL(JointPos joint_pos, DescPose desc_pos, int tool, int user, double vel, double acc, double ovl, double blendR, ExaxisPos epos, int search, int offset_flag, DescPose offset_pos, int overSpeedStrategy, int speedPercent)
     {
-        int errcode = MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, 0/*blendMode*/, epos, search, offset_flag, offset_pos, 0/*velAccParamMode*/, overSpeedStrategy, speedPercent);
+        int errcode = MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, 0/*blendMode*/, epos, search, offset_flag, offset_pos, 100,0, overSpeedStrategy, speedPercent);
 
+        return errcode;
+    }
+
+    /**
+     * @brief  笛卡尔空间直线运动(旧)
+     * @param  joint_pos  目标关节位置,单位deg
+     * @param  desc_pos   目标笛卡尔位姿
+     * @param  tool  工具坐标号，范围[0~14]
+     * @param  user  工件坐标号，范围[0~14]
+     * @param  vel  速度百分比，范围[0~100]
+     * @param  acc  加速度百分比，范围[0~100],暂不开放
+     * @param  ovl  速度缩放因子[0~100]/物理速度(mm/s)
+     * @param  blendR [-1.0]-运动到位(阻塞)，[0~1000.0]-平滑半径(非阻塞)，单位mm
+     * @param  blendMode 过渡方式；0-内切过渡；1-角点过渡
+     * @param  epos  扩展轴位置，单位mm
+     * @param  search  0-不焊丝寻位，1-焊丝寻位
+     * @param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
+     * @param  offset_pos  位姿偏移量
+     * @param  overSpeedStrategy  超速处理策略，1-标准；2-超速时报错停止；3-自适应降速，默认为0
+     * @param  speedPercent  允许降速阈值百分比[0-100]，默认10%
+     * @return  错误码
+     */
+    public int MoveL(JointPos joint_pos, DescPose desc_pos, int tool, int user, double vel, double acc, double ovl, double blendR, int blendMode,ExaxisPos epos, int search, int offset_flag, DescPose offset_pos, int overSpeedStrategy, int speedPercent)
+    {
+        int errcode = MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, blendMode, epos, search, offset_flag, offset_pos, 100,0, overSpeedStrategy, speedPercent);
+
+        return errcode;
+    }
+
+    /**
+     * @brief  笛卡尔空间直线运动(重载函数2 不需要输入关节位置)
+     * @param  desc_pos   目标笛卡尔位姿
+     * @param  tool  工具坐标号，范围[0~14]
+     * @param  user  工件坐标号，范围[0~14]
+     * @param  vel  速度百分比，范围[0~100]
+     * @param  acc  加速度百分比，范围[0~100],暂不开放
+     * @param  ovl  速度缩放因子[0~100]/物理速度(mm/s)
+     * @param  blendR [-1.0]-运动到位(阻塞)，[0~1000.0]-平滑半径(非阻塞)，单位mm
+     * @param  blendMode 过渡方式；0-内切过渡；1-角点过渡
+     * @param  epos  扩展轴位置，单位mm
+     * @param  search  0-不焊丝寻位，1-焊丝寻位
+     * @param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
+     * @param  offset_pos  位姿偏移量
+     * @param  config 逆解关节空间配置，[-1]-参考当前关节位置解算，[0~7]-依据特定关节空间配置求解
+     * @param  overSpeedStrategy  超速处理策略，1-标准；2-超速时报错停止；3-自适应降速，默认为0
+     * @param  speedPercent  允许降速阈值百分比[0-100]，默认10%
+     * @return  错误码
+     */
+    public int MoveL(DescPose desc_pos, int tool, int user, double vel, double acc, double ovl, double blendR, int blendMode,ExaxisPos epos, int search, int offset_flag, DescPose offset_pos, int config, int overSpeedStrategy, int speedPercent) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        if (GetSafetyCode() != 0) {
+            return GetSafetyCode();
+        }
+        JointPos jPos=new JointPos(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        int errcode = GetInverseKin(0, desc_pos, config, jPos);
+        if (errcode != 0)
+        {
+            log.LogError("MoveL GetInverseKin failed rtn is:"+ errcode);
+            return errcode;
+        }
+
+        errcode = MoveL(jPos, desc_pos, tool, user, vel, acc, ovl, blendR, blendMode, epos, search, offset_flag, offset_pos, config, 0, overSpeedStrategy, speedPercent);
         return errcode;
     }
 
@@ -998,7 +938,7 @@ public class Robot
      * @param  epos_t  扩展轴位置，单位mm
      * @param  toffset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
      * @param  offset_pos_t  位姿偏移量
-     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  ovl  速度缩放因子[0~100]/物理速度(mm/s)
      * @param  blendR [-1.0]-运动到位(阻塞)，[0~1000.0]-平滑半径(非阻塞)，单位mm
      * @return  错误码
      */
@@ -1067,7 +1007,7 @@ public class Robot
      * @param  epos_t  扩展轴位置，单位mm
      * @param  toffset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
      * @param  offset_pos_t  位姿偏移量
-     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  ovl  速度缩放因子[0~100]/物理速度(mm/s)
      * @param  blendR [-1.0]-运动到位(阻塞)，[0~1000.0]-平滑半径(非阻塞)，单位mm
      * @param  config 逆解关节空间配置，[-1]-参考当前关节位置解算，[0~7]-依据特定关节空间配置求解
      * @return  错误码
@@ -1120,12 +1060,13 @@ public class Robot
      * @param  epos_t  扩展轴位置，单位mm
      * @param  toffset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
      * @param  offset_pos_t  位姿偏移量
-     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  ovl  速度缩放因子[0~100]/物理速度(mm/s)
      * @param  blendR [-1.0]-运动到位(阻塞)，[0~1000.0]-平滑半径(非阻塞)，单位mm
+     * @param  oacc 加速度缩放因子[0-100]/物理加速度(mm/s2)
      * @param  velAccParamMode 速度加速度参数模式；0-百分比；1-物理速度(mm/s)加速度(mm/s2)
      * @return  错误码
      */
-    public int MoveC(JointPos joint_pos_p, DescPose desc_pos_p, int ptool, int puser, double pvel, double pacc, ExaxisPos epos_p, int poffset_flag, DescPose offset_pos_p, JointPos joint_pos_t, DescPose desc_pos_t, int ttool, int tuser, double tvel, double tacc, ExaxisPos epos_t, int toffset_flag, DescPose offset_pos_t, double ovl, double blendR, int velAccParamMode)
+    public int MoveC(JointPos joint_pos_p, DescPose desc_pos_p, int ptool, int puser, double pvel, double pacc, ExaxisPos epos_p, int poffset_flag, DescPose offset_pos_p, JointPos joint_pos_t, DescPose desc_pos_t, int ttool, int tuser, double tvel, double tacc, ExaxisPos epos_t, int toffset_flag, DescPose offset_pos_t, double ovl, double blendR, double oacc,int velAccParamMode)
     {
         if (IsSockComError())
         {
@@ -1144,7 +1085,7 @@ public class Robot
                     desc_pos_t.tran.x, desc_pos_t.tran.y, desc_pos_t.tran.z, desc_pos_t.rpy.rx, desc_pos_t.rpy.ry, desc_pos_t.rpy.rz,
                     ttool,tuser,tvel,tacc,epos_t.axis1, epos_t.axis2, epos_t.axis3, epos_t.axis4,toffset_flag,
                     offset_pos_t.tran.x, offset_pos_t.tran.y, offset_pos_t.tran.z, offset_pos_t.rpy.rx, offset_pos_t.rpy.ry, offset_pos_t.rpy.rz,
-                    ovl, blendR,(double)100.0,velAccParamMode};
+                    ovl, blendR,oacc,velAccParamMode};
             Object[] params1 = new Object[]{params};
             int rtn = (int)client.execute("MoveC" , params1);
             if (log != null)
@@ -1160,7 +1101,7 @@ public class Robot
         {
             if(e.getMessage().contains("Connection timed out") || e.getMessage().contains("connect timed out"))
             {
-                MoveC(joint_pos_p, desc_pos_p, ptool, puser, pvel, pacc, epos_p, poffset_flag, offset_pos_p, joint_pos_t, desc_pos_t, ttool, tuser, tvel, tacc, epos_t, toffset_flag, offset_pos_t, ovl, blendR,velAccParamMode);
+                MoveC(joint_pos_p, desc_pos_p, ptool, puser, pvel, pacc, epos_p, poffset_flag, offset_pos_p, joint_pos_t, desc_pos_t, ttool, tuser, tvel, tacc, epos_t, toffset_flag, offset_pos_t, ovl, blendR,oacc,velAccParamMode);
             }
             else if (log != null)
             {
@@ -1188,7 +1129,7 @@ public class Robot
      * @param  epos_t  扩展轴位置，单位mm
      * @param  toffset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
      * @param  offset_pos_t  位姿偏移量
-     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  ovl  速度缩放因子[0~100]/物理速度(mm/s)
      * @param  blendR [-1.0]-运动到位(阻塞)，[0~1000.0]-平滑半径(非阻塞)，单位mm
      * @param  config 逆解关节空间配置，[-1]-参考当前关节位置解算，[0~7]-依据特定关节空间配置求解
      * @param  velAccParamMode 速度加速度参数模式；0-百分比；1-物理速度(mm/s)加速度(mm/s2)
@@ -1220,7 +1161,7 @@ public class Robot
             return errcode;
         }
 
-        errcode = MoveC(jPosP, desc_pos_p, ptool, puser, pvel, pacc, epos_p, poffset_flag, offset_pos_p, jPosT, desc_pos_t, ttool, tuser, tvel, tacc, epos_t, toffset_flag, offset_pos_t, ovl, blendR, velAccParamMode);
+        errcode = MoveC(jPosP, desc_pos_p, ptool, puser, pvel, pacc, epos_p, poffset_flag, offset_pos_p, jPosT, desc_pos_t, ttool, tuser, tvel, tacc, epos_t, toffset_flag, offset_pos_t, ovl, blendR, ovl,velAccParamMode);
 
         return errcode;
     }
@@ -1241,7 +1182,7 @@ public class Robot
      * @param  tvel  速度百分比，范围[0~100]
      * @param  tacc  加速度百分比，范围[0~100],暂不开放
      * @param  epos_t  扩展轴位置，单位mm
-     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  ovl  速度缩放因子[0~100]/物理速度(mm/s)
      * @param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
      * @param  offset_pos  位姿偏移量
      * @return  错误码
@@ -1308,10 +1249,10 @@ public class Robot
      * @param  tvel  速度百分比，范围[0~100]
      * @param  tacc  加速度百分比，范围[0~100],暂不开放
      * @param  epos_t  扩展轴位置，单位mm
-     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  ovl  速度缩放因子[0~100]/物理速度(mm/s)
      * @param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
      * @param  offset_pos  位姿偏移量
-     * @param  oacc 加速度百分比
+     * @param  oacc 加速度缩放因子[0-100]/物理加速度(mm/s2)
      * @param  blendR -1：阻塞；0~1000：平滑半径
      * @return  错误码
      */
@@ -1377,10 +1318,10 @@ public class Robot
      * @param  tvel  速度百分比，范围[0~100]
      * @param  tacc  加速度百分比，范围[0~100],暂不开放
      * @param  epos_t  扩展轴位置，单位mm
-     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  ovl  速度缩放因子[0~100]/物理速度(mm/s)
      * @param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
      * @param  offset_pos  位姿偏移量
-     * @param  oacc 加速度百分比
+     * @param  oacc 加速度缩放因子[0-100]/物理加速度(mm/s2)
      * @param  blendR -1：阻塞；0~1000：平滑半径
      * @param  config 逆解关节空间配置，[-1]-参考当前关节位置解算，[0~7]-依据特定关节空间配置求解
      * @return  错误码
@@ -1416,28 +1357,28 @@ public class Robot
     }
 
     /**
-     *@brief  笛卡尔空间整圆运动
-     *@param  joint_pos_p  路径点1关节位置,单位deg
-     *@param  desc_pos_p   路径点1笛卡尔位姿
-     *@param  ptool  工具坐标号，范围[1~15]
-     *@param  puser  工件坐标号，范围[1~15]
-     *@param  pvel  速度百分比，范围[0~100]
-     *@param  pacc  加速度百分比，范围[0~100],暂不开放
-     *@param  epos_p  扩展轴位置，单位mm
-     *@param  joint_pos_t  路径点2关节位置,单位deg
-     *@param  desc_pos_t   路径点2笛卡尔位姿
-     *@param  ttool  工具坐标号，范围[1~15]
-     *@param  tuser  工件坐标号，范围[1~15]
-     *@param  tvel  速度百分比，范围[0~100]
-     *@param  tacc  加速度百分比，范围[0~100],暂不开放
-     *@param  epos_t  扩展轴位置，单位mm
-     *@param  ovl  速度缩放因子，范围[0~100]
-     *@param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
-     *@param  offset_pos  位姿偏移量
-     *@param  oacc 加速度百分比
-     *@param  blendR -1：阻塞；0~1000：平滑半径
-     *@param  velAccParamMode 速度加速度参数模式；0-百分比；1-物理速度(mm/s)加速度(mm/s2)
-     *@return  错误码
+     * @brief  笛卡尔空间整圆运动
+     * @param  joint_pos_p  路径点1关节位置,单位deg
+     * @param  desc_pos_p   路径点1笛卡尔位姿
+     * @param  ptool  工具坐标号，范围[1~15]
+     * @param  puser  工件坐标号，范围[1~15]
+     * @param  pvel  速度百分比，范围[0~100]
+     * @param  pacc  加速度百分比，范围[0~100],暂不开放
+     * @param  epos_p  扩展轴位置，单位mm
+     * @param  joint_pos_t  路径点2关节位置,单位deg
+     * @param  desc_pos_t   路径点2笛卡尔位姿
+     * @param  ttool  工具坐标号，范围[1~15]
+     * @param  tuser  工件坐标号，范围[1~15]
+     * @param  tvel  速度百分比，范围[0~100]
+     * @param  tacc  加速度百分比，范围[0~100],暂不开放
+     * @param  epos_t  扩展轴位置，单位mm
+     * @param  ovl  速度缩放因子[0~100]/物理速度(mm/s)
+     * @param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
+     * @param  offset_pos  位姿偏移量
+     * @param  oacc 加速度缩放因子[0-100]/物理加速度(mm/s2)
+     * @param  blendR -1：阻塞；0~1000：平滑半径
+     * @param  velAccParamMode 速度加速度参数模式；0-百分比；1-物理速度(mm/s)加速度(mm/s2)
+     * @return  错误码
      */
     public int Circle(JointPos joint_pos_p, DescPose desc_pos_p, int ptool, int puser, double pvel, double pacc, ExaxisPos epos_p, JointPos joint_pos_t, DescPose desc_pos_t, int ttool, int tuser, double tvel, double tacc, ExaxisPos epos_t, double ovl, int offset_flag, DescPose offset_pos, double oacc, double blendR, int velAccParamMode)
     {
@@ -1503,10 +1444,10 @@ public class Robot
      * @param  tvel  速度百分比，范围[0~100]
      * @param  tacc  加速度百分比，范围[0~100],暂不开放
      * @param  epos_t  扩展轴位置，单位mm
-     * @param  ovl  速度缩放因子，范围[0~100]
+     * @param  ovl  速度缩放因子[0~100]/物理速度(mm/s)
      * @param  offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
      * @param  offset_pos  位姿偏移量
-     * @param  oacc 加速度百分比
+     * @param  oacc 加速度缩放因子[0-100]/物理加速度(mm/s2)
      * @param  blendR -1：阻塞；0~1000：平滑半径
      * @param  config 逆解关节空间配置，[-1]-参考当前关节位置解算，[0~7]-依据特定关节空间配置求解
      * @param  velAccParamMode 速度加速度参数模式；0-百分比；1-物理速度(mm/s)加速度(mm/s2)
@@ -1559,45 +1500,45 @@ public class Robot
      * @param  spiral_param  螺旋参数
      * @return  错误码
      */
-    public int NewSpiral(JointPos joint_pos, DescPose desc_pos, int tool, int user, double vel, double acc, ExaxisPos epos, double ovl, int offset_flag, DescPose offset_pos, SpiralParam spiral_param)
-    {
-        if (IsSockComError())
-        {
-            return sockErr;
-        }
-        if(GetSafetyCode()!=0){
-            return GetSafetyCode();
-        }
-        try
-        {
-            Object[] jointPos = {joint_pos.J1, joint_pos.J2, joint_pos.J3, joint_pos.J4, joint_pos.J5, joint_pos.J6};
-            Object[] descPos = { desc_pos.tran.x, desc_pos.tran.y, desc_pos.tran.z, desc_pos.rpy.rx, desc_pos.rpy.ry, desc_pos.rpy.rz };
-            Object[] exteraxisPos = {epos.axis1, epos.axis2, epos.axis3, epos.axis4};
-            Object[] offectPos = { offset_pos.tran.x, offset_pos.tran.y, offset_pos.tran.z, offset_pos.rpy.rx, offset_pos.rpy.ry, offset_pos.rpy.rz };
-            Object[] spiralParam = { spiral_param.circle_num * 1.0, spiral_param.circle_angle, spiral_param.rad_init, spiral_param.rad_add, spiral_param.rotaxis_add, spiral_param.rot_direction * 1.0 };
-            Object[] params = new Object[] {jointPos, descPos, tool, user, vel, acc, exteraxisPos, ovl, offset_flag , offectPos, spiralParam};
-            int rtn = (int)client.execute("NewSpiral" , params);
-            if (log != null)
-            {
-                log.LogInfo("NewSpiral(" + jointPos[0] + "," + jointPos[1] + "," + jointPos[2] + "," + jointPos[3] + "," + jointPos[4] + "," + jointPos[5] + "," + descPos[0] + "," + descPos[1] + "," + descPos[2] + "," + descPos[3] + "," + descPos[4] + "," + descPos[5] + "," + tool + "," + user + "," + vel + "," + acc + "," +
-                        epos.axis1 + "," + epos.axis2 + "," + epos.axis3 + "," + epos.axis4 + "," + ovl + "," + offset_flag + ",) " +
-                        offectPos[0] + "," + offectPos[1] + "," + offectPos[2] + "," + offectPos[3] + "," + offectPos[4] + "," + offectPos[5] + "," + spiralParam[0] + "," + spiralParam[1] + "," + spiralParam[2] + "," + spiralParam[3] + "," + spiralParam[4] + "," + spiralParam[5] + " : " + rtn);
-            }
-            return rtn;
-        }
-        catch (Throwable e)
-        {
-            if(e.getMessage().contains("Connection timed out") || e.getMessage().contains("connect timed out"))
-            {
-                NewSpiral(joint_pos, desc_pos, tool, user, vel, acc, epos, ovl, offset_flag, offset_pos, spiral_param);
-            }
-            else if (log != null)
-            {
-                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
-            }
-            return RobotError.ERR_RPC_ERROR;
-        }
-    }
+//    public int NewSpiral(JointPos joint_pos, DescPose desc_pos, int tool, int user, double vel, double acc, ExaxisPos epos, double ovl, int offset_flag, DescPose offset_pos, SpiralParam spiral_param)
+//    {
+//        if (IsSockComError())
+//        {
+//            return sockErr;
+//        }
+//        if(GetSafetyCode()!=0){
+//            return GetSafetyCode();
+//        }
+//        try
+//        {
+//            Object[] jointPos = {joint_pos.J1, joint_pos.J2, joint_pos.J3, joint_pos.J4, joint_pos.J5, joint_pos.J6};
+//            Object[] descPos = { desc_pos.tran.x, desc_pos.tran.y, desc_pos.tran.z, desc_pos.rpy.rx, desc_pos.rpy.ry, desc_pos.rpy.rz };
+//            Object[] exteraxisPos = {epos.axis1, epos.axis2, epos.axis3, epos.axis4};
+//            Object[] offectPos = { offset_pos.tran.x, offset_pos.tran.y, offset_pos.tran.z, offset_pos.rpy.rx, offset_pos.rpy.ry, offset_pos.rpy.rz };
+//            Object[] spiralParam = { spiral_param.circle_num * 1.0, spiral_param.circle_angle, spiral_param.rad_init, spiral_param.rad_add, spiral_param.rotaxis_add, spiral_param.rot_direction * 1.0 };
+//            Object[] params = new Object[] {jointPos, descPos, tool, user, vel, acc, exteraxisPos, ovl, offset_flag , offectPos, spiralParam};
+//            int rtn = (int)client.execute("NewSpiral" , params);
+//            if (log != null)
+//            {
+//                log.LogInfo("NewSpiral(" + jointPos[0] + "," + jointPos[1] + "," + jointPos[2] + "," + jointPos[3] + "," + jointPos[4] + "," + jointPos[5] + "," + descPos[0] + "," + descPos[1] + "," + descPos[2] + "," + descPos[3] + "," + descPos[4] + "," + descPos[5] + "," + tool + "," + user + "," + vel + "," + acc + "," +
+//                        epos.axis1 + "," + epos.axis2 + "," + epos.axis3 + "," + epos.axis4 + "," + ovl + "," + offset_flag + ",) " +
+//                        offectPos[0] + "," + offectPos[1] + "," + offectPos[2] + "," + offectPos[3] + "," + offectPos[4] + "," + offectPos[5] + "," + spiralParam[0] + "," + spiralParam[1] + "," + spiralParam[2] + "," + spiralParam[3] + "," + spiralParam[4] + "," + spiralParam[5] + " : " + rtn);
+//            }
+//            return rtn;
+//        }
+//        catch (Throwable e)
+//        {
+//            if(e.getMessage().contains("Connection timed out") || e.getMessage().contains("connect timed out"))
+//            {
+//                NewSpiral(joint_pos, desc_pos, tool, user, vel, acc, epos, ovl, offset_flag, offset_pos, spiral_param);
+//            }
+//            else if (log != null)
+//            {
+//                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
+//            }
+//            return RobotError.ERR_RPC_ERROR;
+//        }
+//    }
 
     /**
      * @brief  笛卡尔空间螺旋线运动 (重载函数1 不需要输入关节位置)
@@ -1636,10 +1577,21 @@ public class Robot
     }
 
     /**
-     * @brief 伺服运动开始，配合ServoJ、ServoCart指令使用
+     *@brief  笛卡尔空间螺旋线运动
+     *@param   joint_pos  目标关节位置,单位deg
+     *@param   desc_pos   目标笛卡尔位姿
+     *@param   tool  工具坐标号，范围[1~15]
+     *@param   user  工件坐标号，范围[1~15]
+     *@param   vel  速度百分比，范围[0~100]
+     *@param   acc  加速度百分比，范围[0~100],暂不开放
+     *@param   epos  扩展轴位置，单位mm
+     *@param   ovl  速度缩放因子，范围[0~100]
+     *@param   offset_flag  0-不偏移，1-基坐标系/工件坐标系下偏移，2-工具坐标系下偏移
+     *@param   offset_pos  位姿偏移量
+     *@param   spiral_param  螺旋参数
      * @return  错误码
      */
-    public int ServoMoveStart()
+    public int NewSpiral(JointPos joint_pos, DescPose desc_pos, int tool, int user, double vel, double acc, ExaxisPos epos, double ovl, int offset_flag, DescPose offset_pos, SpiralParam spiral_param)
     {
         if (IsSockComError())
         {
@@ -1650,11 +1602,16 @@ public class Robot
         }
         try
         {
-            Object[] params = new Object[] {};
-            int rtn = (int)client.execute("ServoMoveStart" , params);
+            Object[] param = new Object[] {joint_pos.J1, joint_pos.J2, joint_pos.J3, joint_pos.J4, joint_pos.J5, joint_pos.J6,
+                    desc_pos.tran.x, desc_pos.tran.y, desc_pos.tran.z, desc_pos.rpy.rx, desc_pos.rpy.ry, desc_pos.rpy.rz,
+                    tool,user,vel,acc,epos.axis1, epos.axis2, epos.axis3, epos.axis4,ovl,offset_flag,
+                    offset_pos.tran.x, offset_pos.tran.y, offset_pos.tran.z, offset_pos.rpy.rx, offset_pos.rpy.ry, offset_pos.rpy.rz ,
+                    spiral_param.circle_num * 1.0, spiral_param.circle_angle, spiral_param.rad_init, spiral_param.rad_add, spiral_param.rotaxis_add, spiral_param.rot_direction,spiral_param.velAccMode};
+            Object[] params = new Object[] {param};
+            int rtn = (int)client.execute("NewSpiral" , params);
             if (log != null)
             {
-                log.LogInfo("ServoMoveStart(" + rtn);
+                log.LogInfo("NewSpiral :" + rtn);
             }
             return rtn;
         }
@@ -1662,7 +1619,60 @@ public class Robot
         {
             if(e.getMessage().contains("Connection timed out") || e.getMessage().contains("connect timed out"))
             {
-                ServoMoveStart();
+                NewSpiral(joint_pos, desc_pos, tool, user, vel, acc, epos, ovl, offset_flag, offset_pos, spiral_param);
+            }
+            else if (log != null)
+            {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+
+    /**
+     * @brief 伺服运动开始，配合ServoJ、ServoCart指令使用
+     * @return  错误码
+     */
+    public int ServoMoveStart(int comType)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+        if(GetSafetyCode()!=0){
+            return GetSafetyCode();
+        }
+        try
+        {
+            if (comType == 0) {
+                Object[] params = new Object[] {};
+                int rtn = (int)client.execute("ServoMoveStart" , params);
+                if (log != null)
+                {
+                    log.LogInfo("ServoMoveStart(" + rtn);
+                }
+                return rtn;
+            } else if (comType == 1) {
+                String cmdStr = "ServoMoveStart()";
+                Frame frame = new Frame(cmdFrameCnt, 689, cmdStr);
+                int rtn = udpCmdClient.sendFrame(frameHandle.packFrame(frame));
+                if (rtn != 0) {
+                    return RobotError.ERR_SOCKET_SEND_FAILED;
+                }
+                cmdFrameCnt++;
+                return rtn;
+            } else {
+                return RobotError.ERR_PARAM_VALUE;
+            }
+
+
+        }
+        catch (Throwable e)
+        {
+            if(e.getMessage().contains("Connection timed out") || e.getMessage().contains("connect timed out"))
+            {
+                ServoMoveStart(comType);
             }
             else if (log != null)
             {
@@ -1676,27 +1686,40 @@ public class Robot
      * @brief 伺服运动结束，配合ServoJ、ServoCart指令使用
      * @return  错误码
      */
-    public int ServoMoveEnd()
+    public int ServoMoveEnd(int comType)
     {
         if (IsSockComError())
         {
             return sockErr;
         }
         try
-        {
-            Object[] params = new Object[] {};
-            int rtn = (int)client.execute("ServoMoveEnd" , params);
-            if (log != null)
-            {
-                log.LogInfo("ServoMoveEnd(" + rtn);
+        {   if (comType == 0) {
+                Object[] params = new Object[] {};
+                int rtn = (int)client.execute("ServoMoveEnd" , params);
+                if (log != null)
+                {
+                    log.LogInfo("ServoMoveEnd(" + rtn);
+                }
+                return rtn;
+            } else if (comType == 1) {
+                String cmdStr = "ServoMoveEnd()";
+                Frame frame = new Frame(cmdFrameCnt, 690, cmdStr);
+                int rtn = udpCmdClient.sendFrame(FrameHandle.packFrame(frame));
+                if (rtn != 0) {
+                    return RobotError.ERR_SOCKET_SEND_FAILED;
+                }
+                cmdFrameCnt++;
+               return rtn;
+            } else {
+                return RobotError.ERR_PARAM_VALUE;
             }
-            return rtn;
+
         }
         catch (Throwable e)
         {
             if(e.getMessage().contains("Connection timed out") || e.getMessage().contains("connect timed out"))
             {
-                ServoMoveEnd();
+                ServoMoveEnd(comType);
             }
             else if (log != null)
             {
@@ -1762,9 +1785,10 @@ public class Robot
      * @param  filterT 滤波时间，单位s，暂不开放，默认为0
      * @param  gain  目标位置的比例放大器，暂不开放，默认为0
      * @param  id  servoJ指令ID,默认为0
+     * @param  comType 指令下发类型；0-xmlrpc；1-UDP(对应机器人20007端口)
      * @return  错误码
      */
-    public int ServoJ(JointPos joint_pos, ExaxisPos axisPos, double acc, double vel, double cmdT, double filterT, double gain, int id)
+    public int ServoJ(JointPos joint_pos, ExaxisPos axisPos, double acc, double vel, double cmdT, double filterT, double gain, int id,int comType)
     {
         if (IsSockComError())
         {
@@ -1775,15 +1799,46 @@ public class Robot
         }
         try
         {
-            Object[] jointPos = {joint_pos.J1, joint_pos.J2, joint_pos.J3, joint_pos.J4, joint_pos.J5, joint_pos.J6};
-            Object[] axis = {axisPos.axis1, axisPos.axis2, axisPos.axis3, axisPos.axis4};
-            Object[] params = new Object[] {jointPos, axis, acc, vel, cmdT, filterT, gain, id};
-            int rtn = (int)client.execute("ServoJ" , params);
-            if (log != null)
-            {
-                log.LogInfo("ServoJ(" + Arrays.toString(jointPos) + "," + Arrays.toString(axis) + "," + acc + "," + vel + "," + cmdT + "," + filterT + "," + gain + "," + id + " ): " + rtn);
+            if (comType == 0) {
+                Object[] jointPos = {joint_pos.J1, joint_pos.J2, joint_pos.J3, joint_pos.J4, joint_pos.J5, joint_pos.J6};
+                Object[] axis = {axisPos.axis1, axisPos.axis2, axisPos.axis3, axisPos.axis4};
+                Object[] params = new Object[] {jointPos, axis, acc, vel, cmdT, filterT, gain, id};
+                Object result = client.execute("ServoJ" , params);
+                int rtn;
+                if (result instanceof Integer) {
+                    rtn = (Integer) result;
+                } else {
+                    rtn = RobotError.ERR_RPC_ERROR;
+                }
+                if (log != null)
+                {
+                    log.LogInfo("ServoJ(" + Arrays.toString(jointPos) + "," + Arrays.toString(axis) + "," + acc + "," + vel + "," + cmdT + "," + filterT + "," + gain + "," + id + " ): " + rtn);
+                }
+                return rtn;
+            } else if (comType == 1) {
+                String jointStr = String.format("{%.3f,%.3f,%.3f,%.3f,%.3f,%.3f}",
+                        joint_pos.J1, joint_pos.J2, joint_pos.J3, joint_pos.J4, joint_pos.J5, joint_pos.J6);
+                
+                String axisStr = String.format("{%.3f,%.3f,%.3f,%.3f}",
+                        axisPos.axis1, axisPos.axis2, axisPos.axis3, axisPos.axis4);
+
+                String cmdStr = String.format("ServoJ(%s,%s,%f,%f,%f,%f,%f,%d)",
+                        jointStr, axisStr, acc, vel, cmdT, filterT, gain, id);
+                
+                Frame frame = new Frame(cmdFrameCnt, 476, cmdStr);
+                int rtn = udpCmdClient.sendFrame(FrameHandle.packFrame(frame));
+                if (rtn != 0) {
+                    return RobotError.ERR_SOCKET_SEND_FAILED;
+                }
+                cmdFrameCnt++;
+                return rtn;
+            } else {
+                System.out.println(" param error ,rtn is " + RobotError.ERR_PARAM_VALUE);
+                return RobotError.ERR_PARAM_VALUE;
+
             }
-            return rtn;
+
+
         }
         catch (Throwable e)
         {
@@ -1800,18 +1855,20 @@ public class Robot
     }
 
     /**
-     * @brief  笛卡尔空间伺服模式运动
-     * @param  mode  0-绝对运动(基坐标系)，1-增量运动(基坐标系)，2-增量运动(工具坐标系)
-     * @param  desc_pose  目标笛卡尔位姿或位姿增量
-     * @param  pos_gain  位姿增量比例系数，仅在增量运动下生效，范围[0~1]
-     * @param  acc  加速度百分比，范围[0~100],暂不开放，默认为0
-     * @param  vel  速度百分比，范围[0~100]，暂不开放，默认为0
-     * @param  cmdT  指令下发周期，单位s，建议范围[0.001~0.0016]
-     * @param  filterT 滤波时间，单位s，暂不开放，默认为0
-     * @param  gain  目标位置的比例放大器，暂不开放，默认为0
-     * @return  错误码
+     * @brief 关节空间伺服模式运动(支持多点位一次输入)
+     * @param [in] joint_pos 目标关节位置集合(最多支持10组),单位deg
+     * @param [in] axisPos 外部轴位置,单位mm
+     * @param [in] acc 加速度百分比，范围[0~100],暂不开放，默认为0
+     * @param [in] vel 速度百分比，范围[0~100]，暂不开放，默认为0
+     * @param [in] cmdT 指令下发周期，单位s，建议范围[0.001~0.0016]
+     * @param [in] filterT 滤波时间，单位s，暂不开放，默认为0
+     * @param [in] gain 目标位置的比例放大器，暂不开放，默认为0
+     * @param [out] servoJCmdCount ServoJ指令点位计数[0-10000]
+     * @param [in] id servoJ指令ID,默认为0
+     * @param [in] comType 指令下发类型；0-xmlrpc；1-UDP(对应机器人20007端口)
+     * @return 错误码
      */
-    public int ServoCart(int mode, DescPose desc_pose, Object[] pos_gain, double acc, double vel, double cmdT, double filterT, double gain)
+    public int ServoJ(List<JointPos> joint_pos, ExaxisPos axisPos, float acc, float vel, float cmdT, float filterT, float gain, int[] servoJCmdCount, int id, int comType)
     {
         if (IsSockComError())
         {
@@ -1820,24 +1877,240 @@ public class Robot
         if(GetSafetyCode()!=0){
             return GetSafetyCode();
         }
+        if (joint_pos == null || joint_pos.isEmpty() || joint_pos.size() > 10) {
+            System.out.println(" param error ,rtn is " + RobotError.ERR_PARAM_VALUE);
+            return RobotError.ERR_PARAM_VALUE;
+        }
+        try
+        {
+            if (comType == 0) {
+                List<Object[]> jointPosList = new ArrayList<>();
+                for (JointPos jp : joint_pos) {
+                    jointPosList.add(new Object[]{jp.J1, jp.J2, jp.J3, jp.J4, jp.J5, jp.J6});
+                }
+                Object[] axis = {axisPos.axis1, axisPos.axis2, axisPos.axis3, axisPos.axis4};
+                Object[] params = new Object[] {jointPosList, axis, acc, vel, cmdT, filterT, gain, id};
+                Object result = client.execute("ServoJ" , params);
+                int rtn;
+                if (result instanceof Integer) {
+                    rtn = (Integer) result;
+                } else if (result instanceof Map) {
+                    Map<?, ?> resultMap = (Map<?, ?>) result;
+                    Object rtnObj = resultMap.get("rtn");
+                    Object countObj = resultMap.get("servoJCmdCount");
+                    if (rtnObj instanceof Integer) {
+                        rtn = (Integer) rtnObj;
+                    } else {
+                        rtn = RobotError.ERR_RPC_ERROR;
+                    }
+                    if (countObj instanceof Integer && servoJCmdCount != null && servoJCmdCount.length > 0) {
+                        servoJCmdCount[0] = (Integer) countObj;
+                    }
+                } else {
+                    rtn = RobotError.ERR_RPC_ERROR;
+                }
+                if (log != null)
+                {
+                    log.LogInfo("ServoJ(multi-point) rtn: " + rtn);
+                }
+                return rtn;
+            } else if (comType == 1) {
+                StringBuilder jointStr = new StringBuilder();
+                jointStr.append("{");
+                for (int i = 0; i < joint_pos.size(); i++) {
+                    JointPos jp = joint_pos.get(i);
+                    if (i > 0) jointStr.append(",");
+                    jointStr.append(String.format("{%.3f,%.3f,%.3f,%.3f,%.3f,%.3f}",
+                            jp.J1, jp.J2, jp.J3, jp.J4, jp.J5, jp.J6));
+                }
+                jointStr.append("}");
+                
+                String axisStr = String.format("{%.3f,%.3f,%.3f,%.3f}",
+                        axisPos.axis1, axisPos.axis2, axisPos.axis3, axisPos.axis4);
+
+                String cmdStr = String.format("ServoJ(%s,%s,%f,%f,%f,%f,%f,%d)",
+                        jointStr.toString(), axisStr, acc, vel, cmdT, filterT, gain, id);
+                
+                Frame frame = new Frame(cmdFrameCnt, 476, cmdStr);
+                int rtn = udpCmdClient.sendFrame(FrameHandle.packFrame(frame));
+                if (rtn != 0) {
+                    return RobotError.ERR_SOCKET_SEND_FAILED;
+                }
+                cmdFrameCnt++;
+                return rtn;
+            } else {
+                System.out.println(" param error ,rtn is " + RobotError.ERR_PARAM_VALUE);
+                return RobotError.ERR_PARAM_VALUE;
+            }
+        }
+        catch (Throwable e)
+        {
+            if (log != null)
+            {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+//
+//    /**
+//     * @brief  笛卡尔空间伺服模式运动
+//     * @param  mode  0-绝对运动(基坐标系)，1-增量运动(基坐标系)，2-增量运动(工具坐标系)
+//     * @param  desc_pose  目标笛卡尔位姿或位姿增量
+//     * @param  pos_gain  位姿增量比例系数，仅在增量运动下生效，范围[0~1]
+//     * @param  acc  加速度百分比，范围[0~100],暂不开放，默认为0
+//     * @param  vel  速度百分比，范围[0~100]，暂不开放，默认为0
+//     * @param  cmdT  指令下发周期，单位s，建议范围[0.001~0.0016]
+//     * @param  filterT 滤波时间，单位s，暂不开放，默认为0
+//     * @param  gain  目标位置的比例放大器，暂不开放，默认为0
+//     * @return  错误码
+//     */
+//    public int ServoCart(int mode, DescPose desc_pose, Object[] pos_gain, double acc, double vel, double cmdT, double filterT, double gain)
+//    {
+//        if (IsSockComError())
+//        {
+//            return sockErr;
+//        }
+//        if(GetSafetyCode()!=0){
+//            return GetSafetyCode();
+//        }
+//        try
+//        {
+//            Object[] descPos = { desc_pose.tran.x, desc_pose.tran.y, desc_pose.tran.z, desc_pose.rpy.rx, desc_pose.rpy.ry, desc_pose.rpy.rz };
+//            Object[] params = new Object[] {mode, descPos, pos_gain, acc, vel, cmdT, filterT, gain};
+//            int rtn = (int)client.execute("ServoCart" , params);
+//            if (log != null)
+//            {
+//                log.LogInfo("ServoCart(" + mode + "," + descPos[0] + "," + descPos[1] + "," + descPos[2] + "," + descPos[3] + "," + descPos[4] + "," + descPos[5] + "," + pos_gain[0] + "," + pos_gain[1] + "," + pos_gain[2] + "," + pos_gain[3] + "," + pos_gain[4] + "," + pos_gain[5] + "," + acc + "," + vel + "," + cmdT + "," + filterT + "," + gain + " : " + rtn);
+//            }
+//            return rtn;
+//        }
+//        catch (Throwable e)
+//        {
+//            if(e.getMessage().contains("Connection timed out") || e.getMessage().contains("connect timed out"))
+//            {
+//                ServoCart(mode, desc_pose, pos_gain, acc, vel, cmdT, filterT, gain);
+//            }
+//            else if (log != null)
+//            {
+//                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
+//            }
+//            return RobotError.ERR_RPC_ERROR;
+//        }
+//    }
+
+    /**
+     *@brief 笛卡尔空间伺服模式运动
+     *@param mode 0-绝对运动(基坐标系)，1-增量运动(基坐标系)，2-增量运动(工具坐标系)
+     *@param desc_pose 目标笛卡尔位姿或位姿增量
+     *@param exaxis 扩展轴位置
+     *@param pos_gain 位姿增量比例系数，仅在增量运动下生效，范围[0~1]
+     *@param acc 加速度百分比，范围[0~100],暂不开放，默认为0
+     *@param vel 速度百分比，范围[0~100]，暂不开放，默认为0
+     *@param cmdT 指令下发周期，单位s，建议范围[0.001~0.016]
+     *@param filterT 滤波时间，单位s，暂不开放，默认为0
+     *@param gain 目标位置的比例放大器，暂不开放，默认为0
+     *@return 错误码
+     */
+    public int ServoCart(int mode, DescPose desc_pose, ExaxisPos exaxis, double[] pos_gain, double acc, double vel, double cmdT, double filterT, double gain)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+        if (GetSafetyCode() != 0)
+        {
+            return GetSafetyCode();
+        }
+
         try
         {
             Object[] descPos = { desc_pose.tran.x, desc_pose.tran.y, desc_pose.tran.z, desc_pose.rpy.rx, desc_pose.rpy.ry, desc_pose.rpy.rz };
-            Object[] params = new Object[] {mode, descPos, pos_gain, acc, vel, cmdT, filterT, gain};
+            Object[] p_gain = { pos_gain[0],pos_gain[1],pos_gain[2],pos_gain[3],pos_gain[4],pos_gain[5]};
+            Object[] ex = {exaxis.axis1,exaxis.axis2,exaxis.axis3,exaxis.axis4};
+
+            Object[] params = new Object[] {mode, descPos,p_gain, ex, acc, vel, cmdT, filterT, gain};
             int rtn = (int)client.execute("ServoCart" , params);
             if (log != null)
             {
                 log.LogInfo("ServoCart(" + mode + "," + descPos[0] + "," + descPos[1] + "," + descPos[2] + "," + descPos[3] + "," + descPos[4] + "," + descPos[5] + "," + pos_gain[0] + "," + pos_gain[1] + "," + pos_gain[2] + "," + pos_gain[3] + "," + pos_gain[4] + "," + pos_gain[5] + "," + acc + "," + vel + "," + cmdT + "," + filterT + "," + gain + " : " + rtn);
             }
             return rtn;
-        }
-        catch (Throwable e)
+        }catch (Throwable e)
         {
-            if(e.getMessage().contains("Connection timed out") || e.getMessage().contains("connect timed out"))
+            if (log != null)
             {
-                ServoCart(mode, desc_pose, pos_gain, acc, vel, cmdT, filterT, gain);
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
             }
-            else if (log != null)
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 逆运动学求解，笛卡尔空间包含扩展轴位置
+     * @param  type 0-绝对位姿(基坐标系)，1-增量位姿(基坐标系)，2-增量位姿(工具坐标系)
+     * @param  desc_pos 笛卡尔位姿
+     * @param  exaxis 扩展轴位置
+     * @param  tool 工具号
+     * @param  workPiece 工件号
+     * @param  joint_pos 关节位置
+     * @return 错误码
+     */
+    public int GetInverseKinExaxis(int type, DescPose desc_pos, ExaxisPos exaxis, int tool, int workPiece, JointPos joint_pos)
+    {
+        return GetInverseKinExaxis(type, desc_pos, exaxis, tool, workPiece, joint_pos, -1);
+    }
+
+    /**
+     * @brief 逆运动学求解，笛卡尔空间包含扩展轴位置
+     * @param  type 0-绝对位姿(基坐标系)，1-增量位姿(基坐标系)，2-增量位姿(工具坐标系)
+     * @param  desc_pos 笛卡尔位姿
+     * @param  exaxis 扩展轴位置
+     * @param  tool 工具号
+     * @param  workPiece 工件号
+     * @param  joint_pos 关节位置
+     * @param  config -1：自动求解，0-7对应八组解
+     * @return 错误码
+     */
+    public int GetInverseKinExaxis(int type, DescPose desc_pos, ExaxisPos exaxis, int tool, int workPiece, JointPos joint_pos, int config)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+        if (GetSafetyCode() != 0)
+        {
+            return GetSafetyCode();
+        }
+
+        try
+        {
+            Object[] descPos = { desc_pos.tran.x, desc_pos.tran.y, desc_pos.tran.z, desc_pos.rpy.rx, desc_pos.rpy.ry, desc_pos.rpy.rz };
+            Object[] ex = {exaxis.axis1,exaxis.axis2,exaxis.axis3,exaxis.axis4};
+
+            Object[] params = new Object[] {type, descPos, ex, tool,workPiece,config};
+            Object[] result = (Object[])client.execute("GetInverseKinExaxis" , params);
+
+            int rtn = (int)result[0];
+            if (rtn == 0)
+            {
+                joint_pos.J1 = (double)(result[1]);
+                joint_pos.J2 = (double)(result[2]);
+                joint_pos.J3 = (double)(result[3]);
+                joint_pos.J4 = (double)(result[4]);
+                joint_pos.J5 = (double)(result[5]);
+                joint_pos.J6 = (double)(result[6]);
+            }
+
+            if (log != null)
+            {
+                log.LogInfo("GetInverseKinExaxis(" + type + "," + descPos[0] + "," + descPos[1] + "," + descPos[2] + "," + descPos[3] + "," + descPos[4] + "," + descPos[5] + "," + exaxis.axis1 + "," + exaxis.axis2 + "," + exaxis.axis3 + "," + exaxis.axis4 + "," + tool + "," + workPiece  + " : " + rtn);
+            }
+            return rtn;
+        }catch (Throwable e)
+        {
+            if (log != null)
             {
                 log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
             }
@@ -2735,6 +3008,11 @@ public class Robot
      */
     public int GetAI(int id, int block, double[] persent)
     {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+
         try
         {
             Object[] params = new Object[] {};
@@ -2778,6 +3056,11 @@ public class Robot
      */
     public int GetToolAI(int id, int block, double[] persent)
     {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+        
         try
         {
             ROBOT_STATE_PKG robot_state_pkg = GetRobotRealTimeState();
@@ -2813,6 +3096,11 @@ public class Robot
      */
     public int GetAxlePointRecordBtnState(int[] state)
     {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+        
         int errcode = 0;
         ROBOT_STATE_PKG robot_state_pkg = GetRobotRealTimeState();
 
@@ -2840,6 +3128,11 @@ public class Robot
      */
     public int GetToolDO(int[] do_state)
     {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+        
         int errcode = 0;
         ROBOT_STATE_PKG robot_state_pkg = GetRobotRealTimeState();
 
@@ -2867,6 +3160,11 @@ public class Robot
      */
     public int GetDO(int[] do_state_h, int[] do_state_l)
     {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+        
         int errcode = 0;
         ROBOT_STATE_PKG robot_state_pkg = GetRobotRealTimeState();
 
@@ -3659,9 +3957,9 @@ public class Robot
 
     /**
      * @brief  设置外部工具坐标系
-     * @param  id 坐标系编号，范围[0~14]
+     * @param   id 坐标系编号，20-39对应外部工具坐标系0-19
      * @param  etcp  工具中心点相对末端法兰中心位姿
-     * @param  etool  待定
+     * @param  etool  安装在机器人末端的工件坐标系位姿
      * @return  错误码
      */
     public int SetExToolCoord(int id, DescPose etcp, DescPose etool)
@@ -3698,7 +3996,7 @@ public class Robot
      * @brief  设置外部工具坐标系列表
      * @param  id 坐标系编号，范围[0~14]
      * @param  etcp  工具中心点相对末端法兰中心位姿
-     * @param  etool  待定
+     * @param  etool  安装在机器人末端的工件坐标系位姿
      * @return  错误码
      */
     public int SetExToolList(int id, DescPose etcp, DescPose etool)
@@ -4671,12 +4969,12 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            jPos.J1 = robotStateRoutineThread.pkg.jt_cur_pos[0];
-            jPos.J2 = robotStateRoutineThread.pkg.jt_cur_pos[1];
-            jPos.J3 = robotStateRoutineThread.pkg.jt_cur_pos[2];
-            jPos.J4 = robotStateRoutineThread.pkg.jt_cur_pos[3];
-            jPos.J5 = robotStateRoutineThread.pkg.jt_cur_pos[4];
-            jPos.J6 = robotStateRoutineThread.pkg.jt_cur_pos[5];
+            jPos.J1 = cndeClient.GetStatePkg().jt_cur_pos[0];
+            jPos.J2 = cndeClient.GetStatePkg().jt_cur_pos[1];
+            jPos.J3 = cndeClient.GetStatePkg().jt_cur_pos[2];
+            jPos.J4 = cndeClient.GetStatePkg().jt_cur_pos[3];
+            jPos.J5 = cndeClient.GetStatePkg().jt_cur_pos[4];
+            jPos.J6 = cndeClient.GetStatePkg().jt_cur_pos[5];
         }
         else
         {
@@ -4745,7 +5043,7 @@ public class Robot
         {
             for (i = 0; i < 6; i++)
             {
-                speed[i] = robotStateRoutineThread.pkg.actual_qd[i];
+                speed[i] = cndeClient.GetStatePkg().actual_qd[i];
             }
         }
         else
@@ -4775,7 +5073,7 @@ public class Robot
         {
             for (i = 0; i < 6; i++)
             {
-                acc[i] = robotStateRoutineThread.pkg.actual_qdd[i];
+                acc[i] = cndeClient.GetStatePkg().actual_qdd[i];
             }
         }
         else
@@ -4803,8 +5101,8 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            tcp_speed = (double)robotStateRoutineThread.pkg.target_TCP_CmpSpeed[0];
-            ori_speed = (double)robotStateRoutineThread.pkg.target_TCP_CmpSpeed[1];
+            tcp_speed = (double)cndeClient.GetStatePkg().target_TCP_CmpSpeed[0];
+            ori_speed = (double)cndeClient.GetStatePkg().target_TCP_CmpSpeed[1];
         }
         else
         {
@@ -4830,8 +5128,8 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            tcp_speed = (double)robotStateRoutineThread.pkg.actual_TCP_CmpSpeed[0];
-            ori_speed = (double)robotStateRoutineThread.pkg.actual_TCP_CmpSpeed[1];
+            tcp_speed = (double)cndeClient.GetStatePkg().actual_TCP_CmpSpeed[0];
+            ori_speed = (double)cndeClient.GetStatePkg().actual_TCP_CmpSpeed[1];
         }
         else
         {
@@ -4860,7 +5158,7 @@ public class Robot
         {
             for (i = 0; i < 6; i++)
             {
-                speed[i] = (double)robotStateRoutineThread.pkg.target_TCP_Speed[i];
+                speed[i] = (double)cndeClient.GetStatePkg().target_TCP_Speed[i];
             }
         }
         else
@@ -4889,7 +5187,7 @@ public class Robot
         {
             for (i = 0; i < 6; i++)
             {
-                speed[i] = (double)robotStateRoutineThread.pkg.actual_TCP_Speed[i];
+                speed[i] = (double)cndeClient.GetStatePkg().actual_TCP_Speed[i];
             }
         }
         else
@@ -4914,12 +5212,12 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            desc_pos.tran.x = robotStateRoutineThread.pkg.tl_cur_pos[0];
-            desc_pos.tran.y = robotStateRoutineThread.pkg.tl_cur_pos[1];
-            desc_pos.tran.z = robotStateRoutineThread.pkg.tl_cur_pos[2];
-            desc_pos.rpy.rx = robotStateRoutineThread.pkg.tl_cur_pos[3];
-            desc_pos.rpy.ry = robotStateRoutineThread.pkg.tl_cur_pos[4];
-            desc_pos.rpy.rz = robotStateRoutineThread.pkg.tl_cur_pos[5];
+            desc_pos.tran.x = cndeClient.GetStatePkg().tl_cur_pos[0];
+            desc_pos.tran.y = cndeClient.GetStatePkg().tl_cur_pos[1];
+            desc_pos.tran.z = cndeClient.GetStatePkg().tl_cur_pos[2];
+            desc_pos.rpy.rx = cndeClient.GetStatePkg().tl_cur_pos[3];
+            desc_pos.rpy.ry = cndeClient.GetStatePkg().tl_cur_pos[4];
+            desc_pos.rpy.rz = cndeClient.GetStatePkg().tl_cur_pos[5];
         }
         else
         {
@@ -4944,7 +5242,7 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            id[0] = robotStateRoutineThread.pkg.tool;
+            id[0] = cndeClient.GetStatePkg().tool;
         }
         else
         {
@@ -4969,7 +5267,7 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            id[0] = robotStateRoutineThread.pkg.user;
+            id[0] = cndeClient.GetStatePkg().user;
         }
         else
         {
@@ -4994,12 +5292,12 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            desc_pos.tran.x = robotStateRoutineThread.pkg.flange_cur_pos[0];
-            desc_pos.tran.y = robotStateRoutineThread.pkg.flange_cur_pos[1];
-            desc_pos.tran.z = robotStateRoutineThread.pkg.flange_cur_pos[2];
-            desc_pos.rpy.rx = robotStateRoutineThread.pkg.flange_cur_pos[3];
-            desc_pos.rpy.ry = robotStateRoutineThread.pkg.flange_cur_pos[4];
-            desc_pos.rpy.rz = robotStateRoutineThread.pkg.flange_cur_pos[5];
+            desc_pos.tran.x = cndeClient.GetStatePkg().flange_cur_pos[0];
+            desc_pos.tran.y = cndeClient.GetStatePkg().flange_cur_pos[1];
+            desc_pos.tran.z = cndeClient.GetStatePkg().flange_cur_pos[2];
+            desc_pos.rpy.rx = cndeClient.GetStatePkg().flange_cur_pos[3];
+            desc_pos.rpy.ry = cndeClient.GetStatePkg().flange_cur_pos[4];
+            desc_pos.rpy.rz = cndeClient.GetStatePkg().flange_cur_pos[5];
         }
         else
         {
@@ -5206,18 +5504,18 @@ public class Robot
         List<Number> torques=new ArrayList<>();
         torques.add(0);
         torques.add(0.0);
-        torques.add(0);
-        torques.add(0);
-        torques.add(0);
-        torques.add(0);
-        torques.add(0);
+        torques.add(0.0);
+        torques.add(0.0);
+        torques.add(0.0);
+        torques.add(0.0);
+        torques.add(0.0);
         int i;
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
             for (i = 0; i < 6; i++)
             {
-                torques.set(i+1,(double)robotStateRoutineThread.pkg.jt_cur_tor[i]);
+                torques.set(i+1,(double)cndeClient.GetStatePkg().jt_cur_tor[i]);
             }
         }
         else
@@ -5586,7 +5884,7 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            state = (int)robotStateRoutineThread.pkg.motion_done;
+            state = (int)cndeClient.GetStatePkg().motion_done;
         }
         else
         {
@@ -5613,8 +5911,8 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            maincode[0] = robotStateRoutineThread.pkg.main_code;
-            subcode[0] = robotStateRoutineThread.pkg.sub_code;
+            maincode[0] = cndeClient.GetStatePkg().main_code;
+            subcode[0] = cndeClient.GetStatePkg().sub_code;
         }
         else
         {
@@ -5714,7 +6012,7 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            len[0]=robotStateRoutineThread.pkg.mc_queue_len;
+            len[0]=cndeClient.GetStatePkg().mc_queue_len;
         }
         else
         {
@@ -6222,7 +6520,7 @@ public class Robot
 
             if (sockErr == RobotError.ERR_SUCCESS)
             {
-                pnum = robotStateRoutineThread.pkg.trajectory_pnum;
+                pnum = cndeClient.GetStatePkg().trajectory_pnum;
             }
             else
             {
@@ -6250,8 +6548,36 @@ public class Robot
     /**
      * @brief  设置轨迹运行中的速度
      * @param  ovl 速度百分比
+     * @param  mode 模式；0-降速模式；1-直接切换
      * @return  错误码
      */
+    public int SetTrajectoryJSpeed(double ovl, int mode)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+
+        try
+        {
+            Object[] params = new Object[] {ovl,mode};
+            int rtn = (int)client.execute("SetTrajectoryJSpeed" , params);
+            if (log != null)
+            {
+                log.LogInfo("SetTrajectoryJSpeed(" + ovl + ") : " + rtn);
+            }
+            return rtn;
+        }
+        catch (Throwable e)
+        {
+            if (log != null)
+            {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
     public int SetTrajectoryJSpeed(double ovl)
     {
         if (IsSockComError())
@@ -6261,7 +6587,8 @@ public class Robot
 
         try
         {
-            Object[] params = new Object[] {ovl};
+            int mode = 0;
+            Object[] params = new Object[] {ovl,mode};
             int rtn = (int)client.execute("SetTrajectoryJSpeed" , params);
             if (log != null)
             {
@@ -6803,7 +7130,7 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            state[0] = robotStateRoutineThread.pkg.robot_state;
+            state[0] = cndeClient.GetStatePkg().robot_state;
         }
         else
         {
@@ -7027,8 +7354,8 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            rtnArray.set(1,robotStateRoutineThread.pkg.gripper_fault);
-            rtnArray.set(2,robotStateRoutineThread.pkg.gripper_active);
+            rtnArray.set(1,cndeClient.GetStatePkg().gripper_fault);
+            rtnArray.set(2,cndeClient.GetStatePkg().gripper_active);
         }
         else
         {
@@ -7055,8 +7382,8 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            rtnArray.set(1,robotStateRoutineThread.pkg.gripper_fault);
-            rtnArray.set(2,robotStateRoutineThread.pkg.gripper_position);
+            rtnArray.set(1,cndeClient.GetStatePkg().gripper_fault);
+            rtnArray.set(2,cndeClient.GetStatePkg().gripper_position);
         }
         else
         {
@@ -7084,8 +7411,8 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            rtnArray.set(1, robotStateRoutineThread.pkg.gripper_fault);
-            rtnArray.set(2, robotStateRoutineThread.pkg.gripper_speed);
+            rtnArray.set(1, cndeClient.GetStatePkg().gripper_fault);
+            rtnArray.set(2, cndeClient.GetStatePkg().gripper_speed);
         }
         else
         {
@@ -7111,8 +7438,8 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            rtnArray.set(1,robotStateRoutineThread.pkg.gripper_fault);
-            rtnArray.set(2,robotStateRoutineThread.pkg.gripper_current);
+            rtnArray.set(1,cndeClient.GetStatePkg().gripper_fault);
+            rtnArray.set(2,cndeClient.GetStatePkg().gripper_current);
         }
         else
         {
@@ -7139,8 +7466,8 @@ public class Robot
         rtnArray.add(1);
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            rtnArray.set(1,robotStateRoutineThread.pkg.gripper_fault);
-            rtnArray.set(2,robotStateRoutineThread.pkg.gripper_voltage);
+            rtnArray.set(1,cndeClient.GetStatePkg().gripper_fault);
+            rtnArray.set(2,cndeClient.GetStatePkg().gripper_voltage);
         }
         else
         {
@@ -7167,8 +7494,8 @@ public class Robot
         rtnArray.add(1);
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            rtnArray.set(1,robotStateRoutineThread.pkg.gripper_fault);
-            rtnArray.set(2, robotStateRoutineThread.pkg.gripper_tmp);
+            rtnArray.set(1,cndeClient.GetStatePkg().gripper_fault);
+            rtnArray.set(2, cndeClient.GetStatePkg().gripper_temp);
         }
         else
         {
@@ -7610,12 +7937,12 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            ft.fx = robotStateRoutineThread.pkg.ft_sensor_data[0];
-            ft.fy = robotStateRoutineThread.pkg.ft_sensor_data[1];
-            ft.fz = robotStateRoutineThread.pkg.ft_sensor_data[2];
-            ft.tx = robotStateRoutineThread.pkg.ft_sensor_data[3];
-            ft.ty = robotStateRoutineThread.pkg.ft_sensor_data[4];
-            ft.tz = robotStateRoutineThread.pkg.ft_sensor_data[5];
+            ft.fx = cndeClient.GetStatePkg().ft_sensor_data[0];
+            ft.fy = cndeClient.GetStatePkg().ft_sensor_data[1];
+            ft.fz = cndeClient.GetStatePkg().ft_sensor_data[2];
+            ft.tx = cndeClient.GetStatePkg().ft_sensor_data[3];
+            ft.ty = cndeClient.GetStatePkg().ft_sensor_data[4];
+            ft.tz = cndeClient.GetStatePkg().ft_sensor_data[5];
         }
         else
         {
@@ -7641,12 +7968,12 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            ft.fx = robotStateRoutineThread.pkg.ft_sensor_raw_data[0];
-            ft.fy = robotStateRoutineThread.pkg.ft_sensor_raw_data[1];
-            ft.fz = robotStateRoutineThread.pkg.ft_sensor_raw_data[2];
-            ft.tx = robotStateRoutineThread.pkg.ft_sensor_raw_data[3];
-            ft.ty = robotStateRoutineThread.pkg.ft_sensor_raw_data[4];
-            ft.tz = robotStateRoutineThread.pkg.ft_sensor_raw_data[5];
+            ft.fx = cndeClient.GetStatePkg().ft_sensor_raw_data[0];
+            ft.fy = cndeClient.GetStatePkg().ft_sensor_raw_data[1];
+            ft.fz = cndeClient.GetStatePkg().ft_sensor_raw_data[2];
+            ft.tx = cndeClient.GetStatePkg().ft_sensor_raw_data[3];
+            ft.ty = cndeClient.GetStatePkg().ft_sensor_raw_data[4];
+            ft.tz = cndeClient.GetStatePkg().ft_sensor_raw_data[5];
         }
         else
         {
@@ -7717,34 +8044,183 @@ public class Robot
      * @param  isNoBlock 阻塞标志，0-阻塞；1-非阻塞
      * @return  错误码
      */
-    public int FT_Control(int flag, int sensor_id, Object[] select, ForceTorque ft, Object[] ft_pid, int adj_sign, int ILC_sign, double max_dis, double max_ang, int filter_Sign, int posAdapt_sign, int isNoBlock)
+//    public int FT_Control(int flag, int sensor_id, Object[] select, ForceTorque ft, Object[] ft_pid, int adj_sign, int ILC_sign, double max_dis, double max_ang, int filter_Sign, int posAdapt_sign, int isNoBlock)
+//    {
+//        if (IsSockComError())
+//        {
+//            return sockErr;
+//        }
+//
+//        try
+//        {
+//
+//            Object[] ftData = { ft.fx, ft.fy, ft.fz, ft.tx, ft.ty, ft.tz };
+//            Object[] params = new Object[] {flag, sensor_id, select, ftData, ft_pid, adj_sign, ILC_sign, max_dis, max_ang, filter_Sign, posAdapt_sign, isNoBlock};
+//            int rtn = (int)client.execute("FT_Control" , params);
+//            if (log != null)
+//            {
+//                log.LogInfo("FT_Control(" + flag + "," + sensor_id + "," + flag + "," + select[0] + "," + select[1] + "," + select[2] + "," + select[3] + "," + select[4] + "," + select[5] + "," + ft.fx + "," + ft.fy + "," + ft.fz + "," + ft.tx + "," + ft.ty + "," + ft.tz + "," +
+//                        ft_pid[0] + "," + ft_pid[1] + "," + ft_pid[2] + "," + ft_pid[3] + "," + ft_pid[4] + "," + ft_pid[5] + "," + adj_sign + "," + ILC_sign + "," + max_dis + "," + max_ang + "," + filter_Sign + "," + posAdapt_sign + "," + isNoBlock + ") : " + rtn);
+//            }
+//            return rtn;
+//        }
+//        catch (Throwable e)
+//        {
+//            if (log != null)
+//            {
+//                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
+//            }
+//            return RobotError.ERR_RPC_ERROR;
+//        }
+//    }
+
+    /**
+     * @brief  恒力控制
+     * @param  flag 0-关闭恒力控制，1-开启恒力控制
+     * @param  sensor_id 力传感器编号
+     * @param  select  选择六个自由度是否检测碰撞，0-不检测，1-检测
+     * @param  ft  碰撞力/扭矩，fx,fy,fz,tx,ty,tz
+     * @param  ft_pid 力pid参数，力矩pid参数
+     * @param  adj_sign 自适应启停控制，0-关闭，1-开启
+     * @param  ILC_sign ILC启停控制， 0-停止，1-训练，2-实操
+     * @param  max_dis 最大调整距离，单位mm
+     * @param  max_ang 最大调整角度，单位deg
+     * @param  M 质量参数
+     * @param  B 阻尼参数
+     * @param  polishRadio 打磨半径，单位mm
+     * @param  filter_Sign 滤波开启标志 0-关；1-开，默认关闭
+     * @param  posAdapt_sign 姿态顺应开启标志 0-关；1-开，默认关闭
+     * @param  isNoBlock 阻塞标志，0-阻塞；1-非阻塞
+     * @return  错误码
+     */
+//    public int FT_Control(int flag, int sensor_id, int[] select, ForceTorque ft, double[] ft_pid, int adj_sign, int ILC_sign, double max_dis, double max_ang,double[] M,double[] B, double polishRadio,int filter_Sign, int posAdapt_sign, int isNoBlock)
+//    {
+//        if (IsSockComError()) {
+//            return sockErr;
+//        }
+//        if (GetSafetyCode() != 0) {
+//            return GetSafetyCode();
+//        }
+//        try {
+//            Object[] selectData={select[0],select[1],select[2],select[3],select[4],select[5]};
+//            Object[] ft_pidData={ft_pid[0],ft_pid[1],ft_pid[2],ft_pid[3],ft_pid[4],ft_pid[5]};
+//            Object[] ftData = {ft.fx, ft.fy, ft.fz, ft.tx, ft.ty, ft.tz};
+//            Object[] MB={M[0],M[1],B[0],B[1]};
+//            Object[] params = new Object[]{flag, sensor_id, selectData, ftData, ft_pidData, adj_sign, ILC_sign, max_dis, max_ang,polishRadio, filter_Sign, posAdapt_sign,MB, isNoBlock};
+//            int rtn = (int) client.execute("FT_Control", params);
+//            if (log != null) {
+//                log.LogInfo("FT_Control(" + flag + "," + sensor_id + "," + flag + "," + select[0] + "," + select[1] + "," + select[2] + "," + select[3] + "," + select[4] + "," + select[5] + "," + ft.fx + "," + ft.fy + "," + ft.fz + "," + ft.tx + "," + ft.ty + "," + ft.tz + "," +
+//                        ft_pid[0] + "," + ft_pid[1] + "," + ft_pid[2] + "," + ft_pid[3] + "," + ft_pid[4] + "," + ft_pid[5] + "," + adj_sign + "," + ILC_sign + "," + max_dis + "," + max_ang + "," + filter_Sign + "," + posAdapt_sign + "," + isNoBlock + ") : " + rtn);
+//            }
+//            return rtn;
+//        } catch (Throwable e) {
+//            if (log != null) {
+//                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
+//            }
+//            return RobotError.ERR_RPC_ERROR;
+//        }
+//    }
+
+
+    /**
+     * @brief  恒力控制
+     * @param  flag 0-关闭恒力控制，1-开启恒力控制
+     * @param  sensor_id 力传感器编号
+     * @param  select  选择六个自由度是否检测碰撞，0-不检测，1-检测
+     * @param  ft  碰撞力/扭矩，fx,fy,fz,tx,ty,tz
+     * @param  ft_pid 力pid参数，力矩pid参数
+     * @param  adj_sign 自适应启停控制，0-关闭，1-开启
+     * @param  ILC_sign ILC启停控制， 0-停止，1-训练，2-实操
+     * @param  max_dis 最大调整距离，单位mm
+     * @param  max_ang 最大调整角度，单位deg
+     * @param  M rx、ry质量参数[0.1-10],默认2
+     * @param  B rx、ry阻尼参数[0.1-50],默认8
+     * @param  threshold rx、ry启动阈值[0-10],默认0.2
+     * @param  adjustCoeff rx、ry力矩调节系数[0-1],默认1
+     * @param  polishRadio 打磨半径，单位mm
+     * @param  filter_Sign 滤波开启标志 0-关；1-开，默认关闭
+     * @param  posAdapt_sign 姿态顺应开启标志 0-关；1-开，默认关闭
+     * @param  isNoBlock 阻塞标志，0-阻塞；1-非阻塞
+     * @return  错误码
+     */
+    public int FT_Control(int flag, int sensor_id, int[] select, ForceTorque ft, double[] ft_pid, int adj_sign, int ILC_sign, double max_dis, double max_ang,double[] M,double[] B, double[] threshold, double[] adjustCoeff, double polishRadio,int filter_Sign, int posAdapt_sign, int isNoBlock)
     {
-        if (IsSockComError())
-        {
+        if (IsSockComError()) {
             return sockErr;
         }
-
-        try
+        if (GetSafetyCode() != 0)
         {
+            return GetSafetyCode();
+        }
 
-            Object[] ftData = { ft.fx, ft.fy, ft.fz, ft.tx, ft.ty, ft.tz };
-            Object[] params = new Object[] {flag, sensor_id, select, ftData, ft_pid, adj_sign, ILC_sign, max_dis, max_ang, filter_Sign, posAdapt_sign, isNoBlock};
-            int rtn = (int)client.execute("FT_Control" , params);
-            if (log != null)
-            {
+        try {
+            Object[] selectData={select[0],select[1],select[2],select[3],select[4],select[5]};
+            Object[] ftData = {ft.fx, ft.fy, ft.fz, ft.tx, ft.ty, ft.tz};
+            Object[] ft_pidData={ft_pid[0],ft_pid[1],ft_pid[2],ft_pid[3],ft_pid[4],ft_pid[5]};
+            Object[] MB={M[0],M[1],B[0],B[1],threshold[0],threshold[1],adjustCoeff[0],adjustCoeff[1]};
+            Object[] params = new Object[]{flag, sensor_id, selectData, ftData, ft_pidData, adj_sign, ILC_sign, max_dis, max_ang,polishRadio, filter_Sign, posAdapt_sign,MB, isNoBlock};
+            int rtn = (int) client.execute("FT_Control", params);
+            if (log != null) {
                 log.LogInfo("FT_Control(" + flag + "," + sensor_id + "," + flag + "," + select[0] + "," + select[1] + "," + select[2] + "," + select[3] + "," + select[4] + "," + select[5] + "," + ft.fx + "," + ft.fy + "," + ft.fz + "," + ft.tx + "," + ft.ty + "," + ft.tz + "," +
                         ft_pid[0] + "," + ft_pid[1] + "," + ft_pid[2] + "," + ft_pid[3] + "," + ft_pid[4] + "," + ft_pid[5] + "," + adj_sign + "," + ILC_sign + "," + max_dis + "," + max_ang + "," + filter_Sign + "," + posAdapt_sign + "," + isNoBlock + ") : " + rtn);
             }
             return rtn;
-        }
-        catch (Throwable e)
-        {
-            if (log != null)
-            {
+        } catch (Throwable e) {
+            if (log != null) {
                 log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
             }
             return RobotError.ERR_RPC_ERROR;
         }
+    }
+
+
+    /**
+     * @brief  恒力控制
+     * @param  flag 0-关闭恒力控制，1-开启恒力控制
+     * @param  sensor_id 力传感器编号
+     * @param  select  选择六个自由度是否检测碰撞，0-不检测，1-检测
+     * @param  ft  碰撞力/扭矩，fx,fy,fz,tx,ty,tz
+     * @param  ft_pid 力pid参数，力矩pid参数
+     * @param  adj_sign 自适应启停控制，0-关闭，1-开启
+     * @param  ILC_sign ILC启停控制， 0-停止，1-训练，2-实操
+     * @param  max_dis 最大调整距离，单位mm
+     * @param  max_ang 最大调整角度，单位deg
+     * @param  filter_Sign 滤波开启标志 0-关；1-开，默认关闭
+     * @param  posAdapt_sign 姿态顺应开启标志 0-关；1-开，默认关闭
+     * @param  isNoBlock 阻塞标志，0-阻塞；1-非阻塞
+     * @return  错误码
+     */
+    public int FT_Control(int flag, int sensor_id, int[] select, ForceTorque ft, double[] ft_pid, int adj_sign, int ILC_sign, double max_dis, double max_ang,int filter_Sign, int posAdapt_sign, int isNoBlock)
+    {
+        double[] M = { 0.0,0.0 };
+        double[] B = { 0.0,0.0 };
+        return FT_Control(flag, sensor_id, select, ft, ft_pid, adj_sign, ILC_sign, max_dis, max_ang, M, B, 0.0, filter_Sign, posAdapt_sign, isNoBlock);
+    }
+
+    /**
+     * @brief  恒力控制
+     * @param  flag 0-关闭恒力控制，1-开启恒力控制
+     * @param  sensor_id 力传感器编号
+     * @param  select  选择六个自由度是否检测碰撞，0-不检测，1-检测
+     * @param  ft  碰撞力/扭矩，fx,fy,fz,tx,ty,tz
+     * @param  ft_pid 力pid参数，力矩pid参数
+     * @param  adj_sign 自适应启停控制，0-关闭，1-开启
+     * @param  ILC_sign ILC启停控制， 0-停止，1-训练，2-实操
+     * @param  max_dis 最大调整距离，单位mm
+     * @param  max_ang 最大调整角度，单位deg
+     * @param  M rx、ry质量参数[0.1-10],默认2
+     * @param  B rx、ry阻尼参数[0.1-50],默认8
+     * @param  polishRadio 打磨半径，单位mm
+     * @param  filter_Sign 滤波开启标志 0-关；1-开，默认关闭
+     * @param  posAdapt_sign 姿态顺应开启标志 0-关；1-开，默认关闭
+     * @param  isNoBlock 阻塞标志，0-阻塞；1-非阻塞
+     * @return  错误码
+     */
+    public int FT_Control(int flag, int sensor_id, int[] select, ForceTorque ft, double[] ft_pid, int adj_sign, int ILC_sign, double max_dis, double max_ang, double[] M,double[] B,double polishRadio, int filter_Sign, int posAdapt_sign, int isNoBlock)
+    {
+        double[] threshold = { 0.0 ,0.0};
+        double[] adjustCoeff = { 0.0,0.0 };
+        return FT_Control(flag, sensor_id, select, ft, ft_pid, adj_sign, ILC_sign, max_dis, max_ang, M, B, threshold, adjustCoeff, polishRadio, filter_Sign, posAdapt_sign, isNoBlock);
     }
 
     /**
@@ -8475,7 +8951,7 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            state[0] = robotStateRoutineThread.pkg.EmergencyStop;
+            state[0] = cndeClient.GetStatePkg().EmergencyStop;
         }
         else
         {
@@ -8523,8 +8999,8 @@ public class Robot
 
         if (sockErr == RobotError.ERR_SUCCESS)
         {
-            si0_state[0] = robotStateRoutineThread.pkg.safety_stop0_state;
-            si1_state[0] = robotStateRoutineThread.pkg.safety_stop1_state;
+            si0_state[0] = cndeClient.GetStatePkg().safety_stop0_state;
+            si1_state[0] = cndeClient.GetStatePkg().safety_stop1_state;
         }
         else
         {
@@ -9716,6 +10192,7 @@ public class Robot
             int weldNum = 0;
             int noWeldNum = 0;
             int i = 0;
+            System.out.println("次数:"+(int)(distance / (weldLength + noWeldLength)) * 2 + 2);
             while (i < (int)(distance / (weldLength + noWeldLength)) * 2 + 2)
             {
                 if (i % 2 == 0)
@@ -9736,7 +10213,8 @@ public class Robot
                                 return rtn;
                             }
                         }
-                        rtn = MoveL(endJPos, endDesePos, tool, user, vel, acc, ovl, blendR, epos, search, 0, offset_pos, 0, 100);
+                        rtn = MoveL(endJPos, endDesePos, tool, user, vel, acc, ovl, blendR, epos, search, offset_flag, offset_pos, 0, 10);
+
                         if (rtn != 0)
                         {
                             ARCEnd(weldIOType, arcNum, weldTimeout);
@@ -9771,6 +10249,7 @@ public class Robot
                         DescPose tmpWeldDesc = new DescPose(0, 0, 0, 0, 0, 0);
                         JointPos tmpJoint = new JointPos(0, 0, 0, 0, 0, 0);
                         Coord coord  = new Coord();
+
                         rtn = GetSegmentWeldPoint(startDesePos, endDesePos, weldNum * weldLength + noWeldNum * noWeldLength, tmpWeldDesc, tmpJoint, coord);
                         if (rtn != 0)
                         {
@@ -9789,7 +10268,7 @@ public class Robot
                                 return rtn;
                             }
                         }
-                        rtn = MoveL(tmpJoint, tmpWeldDesc, coord.tool, coord.user, vel, acc, ovl, blendR,epos, search, 0, endOffPos, 0, 1000);
+                        rtn = MoveL(tmpJoint, tmpWeldDesc, coord.tool, coord.user, vel, acc, ovl, blendR,epos, search, 0, endOffPos,0,10);
                         if (rtn != 0)
                         {
                             ARCEnd(weldIOType, arcNum, weldTimeout);
@@ -9823,7 +10302,7 @@ public class Robot
                     noWeldNum += 1;
                     if (weldNum * weldLength + noWeldNum * noWeldLength > distance)
                     {
-                        rtn = MoveL(endJPos, endDesePos, tool, user, vel, acc, ovl, blendR,epos, search, 0, offset_pos, 0, 100);
+                        rtn = MoveL(endJPos, endDesePos, tool, user, vel, acc, ovl, blendR,epos, search, 0, offset_pos,0, 100);
                         if (rtn != 0)
                         {
                             return rtn;
@@ -9837,11 +10316,12 @@ public class Robot
                         JointPos tmpJoint = new JointPos(0, 0, 0, 0, 0, 0);
                         Coord coord = new Coord();
                         rtn = GetSegmentWeldPoint(startDesePos, endDesePos, weldNum * weldLength + noWeldNum * noWeldLength, tmpWeldDesc, tmpJoint, coord);
+
                         if (rtn != 0)
                         {
                             return rtn;
                         }
-                        rtn = MoveL(tmpJoint, tmpWeldDesc, coord.tool, coord.user, vel, acc, ovl, blendR, epos, search, 0, offset_pos,0,100);
+                        rtn = MoveL(tmpJoint, tmpWeldDesc, coord.tool, coord.user, vel, acc, ovl, blendR, epos, search, offset_flag, offset_pos,0,100);
                         if (rtn != 0)
                         {
                             return rtn;
@@ -9860,81 +10340,6 @@ public class Robot
             }
             return RobotError.ERR_RPC_ERROR;
         }
-    }
-
-
-    /**
-     * @brief CI功能配置
-     * @param CIConfig CI配置 CIConfig[0] - CIConfig[7]表示CI0-CI7的功能配置 0-无配置；1-起弧成功；2-焊机准备；3-传送带检测；4-暂停；5-恢复；6-启动
-     * 7-停止；8-暂停/恢复；9-启动/停止；10-脚踏拖动；11-移至作业原点；12-手自动切换；13-焊丝寻位成功；14-运动中断；15-启动主程序；16-启动倒带；17-启动确认；
-     * 18-激光检测信号X；19-激光检测信号Y；20-外部急停输入信号1；21-外部急停输入信号2；22-一级缩减模式；23-二级缩减模式；24-三级缩减模式(停止)；25-恢复焊接；26-终止焊接
-     * @return 错误码
-     */
-    public int SetDIConfig(int[] CIConfig)
-    {
-        if (IsSockComError())
-        {
-            return sockErr;
-        }
-
-        try
-        {
-            String configStr = "SetDIConfig(" + CIConfig[0] + "," + CIConfig[1] + "," + CIConfig[2] + "," + CIConfig[3] + "," + CIConfig[4] + "," + CIConfig[5] + "," + CIConfig[6] + "," + CIConfig[7] + " + )";
-            int configLength = configStr.length();
-
-            while (isSendCmd == true) //说明当前正在处理上一条指令
-            {
-                Thread.sleep(10);
-            }
-
-            sendBuf = "/f/bIII" + ResumeMotionCnt + " + III323III" + configLength + " + III" + configStr + " + III/b/f";
-            if (log != null)
-            {
-                log.LogInfo("SetDIConfig(" + configStr + ") : " + sockErr);
-            }
-            ResumeMotionCnt++;
-            isSendCmd = true;
-        }
-        catch (Throwable e)
-        {
-            return RobotError.ERR_RPC_ERROR;
-        }
-        return 0;
-    }
-
-    /**
-     * @brief CI输入有效电平配置
-     * @param CIConfig CI配置 CIConfig[0] - CIConfig[7]表示CI0-CI7的功能配置 0-高电平有效；1-低电平有效
-     * @return 错误码
-     */
-    public int SetDIConfigLevel(int[] CIConfig)
-    {
-        if (IsSockComError())
-        {
-            return sockErr;
-        }
-
-        try {
-            String configStr = "SetDIConfigLevel(" + CIConfig[0] + "," + CIConfig[1] + "," + CIConfig[2] + "," + CIConfig[3] + "," + CIConfig[4] + "," + CIConfig[5] + "," + CIConfig[6] + "," + CIConfig[7] + " + )";
-            int configLength = configStr.length();
-
-            while (isSendCmd == true) //说明当前正在处理上一条指令
-            {
-                Thread.sleep(10);
-            }
-
-            sendBuf = "/f/bIII" + ResumeMotionCnt + " + III335III" + configLength + " + III" + configStr + " + III/b/f";
-            if (log != null) {
-                log.LogInfo("SetDIConfig(" + configStr + ") : " + sockErr );
-            }
-            ResumeMotionCnt++;
-            isSendCmd = true;
-        }
-        catch (Throwable e)
-        {
-            return RobotError.ERR_RPC_ERROR;
-        }
-        return 0;
     }
 
     private int SegmentWeldEnd(int ioType, int arcNum, int timeout)
@@ -10017,13 +10422,19 @@ public class Robot
 
     private boolean IsSockComError()
     {
-        while(robotStateRoutineThread.clientRobotState.GetReconnState())
+        // 检查CNDE客户端连接状态
+        if (cndeClient == null || !cndeClient.isRunning())
         {
-            Sleep(10);
+            if (sockErr == RobotError.ERR_SUCCESS)
+            {
+                sockErr = RobotError.ERR_SOCKET_COM_FAILED;
+            }
+            return true;
         }
-        if (robotStateRoutineThread.GetSockErr() != RobotError.ERR_SUCCESS)
+
+        // 检查socket错误状态
+        if (sockErr != RobotError.ERR_SUCCESS)
         {
-            sockErr = robotStateRoutineThread.GetSockErr();
             if (log != null)
             {
                 log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "sdk socket error" + sockErr);
@@ -10604,49 +11015,57 @@ public class Robot
 
     /**
      * @brief 获取当前所有lua文件名称
-     * @param luaNames lua文件名列表
+     * @param luaNames lua文件名列表（输出参数）
      * @return 错误码
      */
-    public int GetLuaList(List<String> luaNames)
-    {
-        if (IsSockComError())
-        {
+    public int GetLuaList(List<String> luaNames) {
+        if (IsSockComError()) {
             return sockErr;
         }
 
-        try
-        {
-            Object[] params = new Object[] {};
-            int luaNum = 0;
-            String luaNameStr = "";
-            Object[] result = (Object[])client.execute("GetLuaList" , params);
-            if ((int)result[0] == 0)
-            {
-                luaNum = (int)result[1];
-                luaNameStr = (String)result[2];
-                String[] names = luaNameStr.split(";");
-                for (int i = 0; i < luaNum; i++)
-                {
-                    luaNames.add(names[i]);
+        try {
+            // 1. 调用 Prepare 接口获取 lua 文件总数
+            Object[] prepareParams = new Object[] {};          // 无参数
+            Object[] prepareResult = (Object[]) client.execute("GetLuaListPrepare", prepareParams);
+            int errCode = (int) prepareResult[0];
+            if (errCode != 0) {
+                if (log != null) {
+                    log.LogInfo("GetLuaListPrepare failed, errCode: " + errCode);
                 }
+                return errCode;
+            }
+            int luaNum = (int) prepareResult[1];
 
+            // 2. 循环调用 GetLuaNameWithID 逐个获取文件名
+            for (int i = 0; i < luaNum; i++) {
+                Object[] nameParams = new Object[] { i };       // 传入索引 i
+                Object[] nameResult = (Object[]) client.execute("GetLuaNameWithID", nameParams);
+                int nameErr = (int) nameResult[0];
+                if (nameErr != 0) {
+                    if (log != null) {
+                        log.LogInfo("GetLuaNameWithID failed for id " + i + ", errCode: " + nameErr);
+                    }
+                    return nameErr;                             // 出错立即返回
+                }
+                String luaName = (String) nameResult[1];
+                luaNames.add(luaName);
             }
-            if (log != null)
-            {
-                log.LogInfo("GetLuaList(" + luaNameStr + ") : " + (int)result[0] );
+
+            // 成功日志
+            if (log != null) {
+                log.LogInfo("GetLuaList succeeded, total count: " + luaNum);
             }
-            return (int)result[0];
-        }
-        catch (Throwable e)
-        {
-            if (log != null)
-            {
-                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
+            return 0;   // 成功返回 0
+
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception: " + e.getMessage());
             }
             return RobotError.ERR_RPC_ERROR;
         }
     }
-
 
     /**
      * @brief 设置485扩展轴参数
@@ -11048,19 +11467,18 @@ public class Robot
 
     /**
      * @brief 获取机器人实时状态结构体
-     * @return 错误码
+     * @return ROBOT_STATE_PKG 机器人状态包
      */
     public ROBOT_STATE_PKG GetRobotRealTimeState()
     {
-        if (IsSockComError())
+        if (IsSockComError() || cndeClient == null)
         {
             return new ROBOT_STATE_PKG();
         }
         else
         {
-            return robotStateRoutineThread.GetRobotRealTimeState();
+            return cndeClient.GetStatePkg();
         }
-
     }
 
     /**
@@ -11362,6 +11780,7 @@ public class Robot
                 param.reconnectEnable = (int)result[7];
                 param.reconnectPeriod = (int)result[8];
                 param.reconnectNum = (int)result[9];
+                param.selfConnect = (int)result[10];
 
             }
             if (log != null)
@@ -11600,12 +12019,12 @@ public class Robot
         }
         try
         {
-            Object[] params = new Object[] {0, pos.axis1, pos.axis2, pos.axis3, pos.axis4, ovl};
+            Object[] params = new Object[] {0, pos.axis1, pos.axis2, pos.axis3, pos.axis4, ovl,-1.0};
             //单独调用时，默认异步运动
-            int rtn = (int)client.execute("ExtAxisMove" , params);
+            int rtn = (int)client.execute("ExtAxisMoveJ" , params);
             if (log != null)
             {
-                log.LogInfo("ExtAxisMove(" + pos.axis1 + ", " + pos.axis2 + ", " + pos.axis3 + ", " + pos.axis4 + ") : " + rtn);
+                log.LogInfo("ExtAxisMoveJ(" + pos.axis1 + ", " + pos.axis2 + ", " + pos.axis3 + ", " + pos.axis4 + ") : " + rtn);
             }
             return rtn;
         }
@@ -12522,7 +12941,7 @@ public class Robot
                 return rtn;
             }
             Object[] axis = {epos.axis1, epos.axis2, epos.axis3, epos.axis4};
-            rtn = MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, 0,epos,0,  offset_flag, offset_pos, 0,0, 100);
+            rtn = MoveL(joint_pos, desc_pos, tool, user, vel, acc, ovl, blendR, 0,epos,0,  offset_flag, offset_pos, ovl,0,0, 100);
             return rtn;
         }
         catch (Throwable e)
@@ -13698,12 +14117,232 @@ public class Robot
         }
     }
 
+//    /**
+//     * @brief  设置控制箱DO停止/暂停后输出是否复位
+//     * @param  resetFlag  0-不复位；1-复位
+//     * @return  错误码
+//     */
+//    public int SetOutputResetCtlBoxDO(int resetFlag)
+//    {
+//        if (IsSockComError())
+//        {
+//            return sockErr;
+//        }
+//        try
+//        {
+//            Object[] params = new Object[] {resetFlag};
+//            int rtn = (int)client.execute("SetOutputResetCtlBoxDO" , params);
+//            if (log != null)
+//            {
+//                log.LogInfo("SetOutputResetCtlBoxDO(" + resetFlag + ") : " + rtn);
+//            }
+//            return rtn;
+//        }
+//        catch (Throwable e)
+//        {
+//            if (log != null)
+//            {
+//                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
+//            }
+//            return RobotError.ERR_RPC_ERROR;
+//        }
+//    }
+
+//    /**
+//     * @brief  设置控制箱AO停止/暂停后输出是否复位
+//     * @param  resetFlag  0-不复位；1-复位
+//     * @return  错误码
+//     */
+//    public int SetOutputResetCtlBoxAO(int resetFlag)
+//    {
+//        if (IsSockComError())
+//        {
+//            return sockErr;
+//        }
+//        try
+//        {
+//            Object[] params = new Object[] {resetFlag};
+//            int rtn = (int)client.execute("SetOutputResetCtlBoxAO" , params);
+//            if (log != null)
+//            {
+//                log.LogInfo("SetOutputResetCtlBoxAO(" + resetFlag + ") : " + rtn);
+//            }
+//            return rtn;
+//        }
+//        catch (Throwable e)
+//        {
+//            if (log != null)
+//            {
+//                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
+//            }
+//            return RobotError.ERR_RPC_ERROR;
+//        }
+//    }
+
+//    /**
+//     * @brief  设置末端工具DO停止/暂停后输出是否复位
+//     * @param  resetFlag  0-不复位；1-复位
+//     * @return  错误码
+//     */
+//    public int SetOutputResetAxleDO(int resetFlag)
+//    {
+//        if (IsSockComError())
+//        {
+//            return sockErr;
+//        }
+//        try
+//        {
+//            Object[] params = new Object[] {resetFlag};
+//            int rtn = (int)client.execute("SetOutputResetAxleDO" , params);
+//            if (log != null)
+//            {
+//                log.LogInfo("SetOutputResetAxleDO(" + resetFlag + ") : " + rtn);
+//            }
+//            return rtn;
+//        }
+//        catch (Throwable e)
+//        {
+//            if (log != null)
+//            {
+//                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
+//            }
+//            return RobotError.ERR_RPC_ERROR;
+//        }
+//    }
+
+//    /**
+//     * @brief  设置末端工具AO停止/暂停后输出是否复位
+//     * @param  resetFlag  0-不复位；1-复位
+//     * @return  错误码
+//     */
+//    public int SetOutputResetAxleAO(int resetFlag)
+//    {
+//        if (IsSockComError())
+//        {
+//            return sockErr;
+//        }
+//        try
+//        {
+//            Object[] params = new Object[] {resetFlag};
+//            int rtn = (int)client.execute("SetOutputResetAxleAO" , params);
+//            if (log != null)
+//            {
+//                log.LogInfo("SetOutputResetAxleAO(" + resetFlag + ") : " + rtn);
+//            }
+//            return rtn;
+//        }
+//        catch (Throwable e)
+//        {
+//            if (log != null)
+//            {
+//                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
+//            }
+//            return RobotError.ERR_RPC_ERROR;
+//        }
+//    }
+
+//    /**
+//     * @brief  设置扩展DO停止/暂停后输出是否复位
+//     * @param  resetFlag  0-不复位；1-复位
+//     * @return  错误码
+//     */
+//    public int SetOutputResetExtDO(int resetFlag)
+//    {
+//        if (IsSockComError())
+//        {
+//            return sockErr;
+//        }
+//        try
+//        {
+//            Object[] params = new Object[] {resetFlag};
+//            int rtn = (int)client.execute("SetOutputResetExtDO" , params);
+//            if (log != null)
+//            {
+//                log.LogInfo("SetOutputResetExtDO(" + resetFlag + ") : " + rtn);
+//            }
+//            return rtn;
+//        }
+//        catch (Throwable e)
+//        {
+//            if (log != null)
+//            {
+//                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
+//            }
+//            return RobotError.ERR_RPC_ERROR;
+//        }
+//    }
+
+
+//    /**
+//     * @brief  设置扩展AO停止/暂停后输出是否复位
+//     * @param  resetFlag  0-不复位；1-复位
+//     * @return  错误码
+//     */
+//    public int SetOutputResetExtAO(int resetFlag)
+//    {
+//        if (IsSockComError())
+//        {
+//            return sockErr;
+//        }
+//        try
+//        {
+//            Object[] params = new Object[] {resetFlag};
+//            int rtn = (int)client.execute("SetOutputResetExtAO" , params);
+//            if (log != null)
+//            {
+//                log.LogInfo("SetOutputResetExtAO(" + resetFlag + ") : " + rtn);
+//            }
+//            return rtn;
+//        }
+//        catch (Throwable e)
+//        {
+//            if (log != null)
+//            {
+//                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
+//            }
+//            return RobotError.ERR_RPC_ERROR;
+//        }
+//    }
+
+//    /**
+//     * @brief  设置SmartTool停止/暂停后输出是否复位
+//     * @param  resetFlag  0-不复位；1-复位
+//     * @return  错误码
+//     */
+//    public int SetOutputResetSmartToolDO(int resetFlag)
+//    {
+//        if (IsSockComError())
+//        {
+//            return sockErr;
+//        }
+//        try
+//        {
+//            Object[] params = new Object[] {resetFlag};
+//            int rtn = (int)client.execute("SetOutputResetSmartToolDO" , params);
+//            if (log != null)
+//            {
+//                log.LogInfo("SetOutputResetSmartToolDO(" + resetFlag + ") : " + rtn);
+//            }
+//            return rtn;
+//        }
+//        catch (Throwable e)
+//        {
+//            if (log != null)
+//            {
+//                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
+//            }
+//            return RobotError.ERR_RPC_ERROR;
+//        }
+//    }
+
+
     /**
-     * @brief  设置控制箱DO停止/暂停后输出是否复位
-     * @param  resetFlag  0-不复位；1-复位
-     * @return  错误码
+     * @brief 设置控制箱DO停止/暂停后输出是否复位
+     * @param resetFlag  0-不复位；1-复位
+     * @param reloadFlag 暂停恢复后是否重加载，0-不加载；1-加载
+     * @return 错误码
      */
-    public int SetOutputResetCtlBoxDO(int resetFlag)
+    public int SetOutputResetCtlBoxDO(int resetFlag, int reloadFlag)
     {
         if (IsSockComError())
         {
@@ -13711,11 +14350,11 @@ public class Robot
         }
         try
         {
-            Object[] params = new Object[] {resetFlag};
+            Object[] params = new Object[] {resetFlag,reloadFlag};
             int rtn = (int)client.execute("SetOutputResetCtlBoxDO" , params);
             if (log != null)
             {
-                log.LogInfo("SetOutputResetCtlBoxDO(" + resetFlag + ") : " + rtn);
+                log.LogInfo("SetOutputResetCtlBoxDO(" + resetFlag + ","+reloadFlag+") : " + rtn);
             }
             return rtn;
         }
@@ -13730,11 +14369,12 @@ public class Robot
     }
 
     /**
-     * @brief  设置控制箱AO停止/暂停后输出是否复位
-     * @param  resetFlag  0-不复位；1-复位
-     * @return  错误码
+     * @brief 设置控制箱AO停止/暂停后输出是否复位
+     * @param resetFlag  0-不复位；1-复位
+     * @param reloadFlag 暂停恢复后是否重加载，0-不加载；1-加载
+     * @return 错误码
      */
-    public int SetOutputResetCtlBoxAO(int resetFlag)
+    public int SetOutputResetCtlBoxAO(int resetFlag, int reloadFlag)
     {
         if (IsSockComError())
         {
@@ -13742,11 +14382,11 @@ public class Robot
         }
         try
         {
-            Object[] params = new Object[] {resetFlag};
+            Object[] params = new Object[] {resetFlag,reloadFlag};
             int rtn = (int)client.execute("SetOutputResetCtlBoxAO" , params);
             if (log != null)
             {
-                log.LogInfo("SetOutputResetCtlBoxAO(" + resetFlag + ") : " + rtn);
+                log.LogInfo("SetOutputResetCtlBoxAO(" + resetFlag + ","+reloadFlag+") : " + rtn);
             }
             return rtn;
         }
@@ -13760,12 +14400,14 @@ public class Robot
         }
     }
 
+
     /**
-     * @brief  设置末端工具DO停止/暂停后输出是否复位
-     * @param  resetFlag  0-不复位；1-复位
-     * @return  错误码
+     * @brief 设置末端工具DO停止/暂停后输出是否复位
+     * @param resetFlag  0-不复位；1-复位
+     * @param reloadFlag 暂停恢复后是否重加载，0-不加载；1-加载
+     * @return 错误码
      */
-    public int SetOutputResetAxleDO(int resetFlag)
+    public int SetOutputResetAxleDO(int resetFlag, int reloadFlag)
     {
         if (IsSockComError())
         {
@@ -13773,11 +14415,11 @@ public class Robot
         }
         try
         {
-            Object[] params = new Object[] {resetFlag};
+            Object[] params = new Object[] {resetFlag,reloadFlag};
             int rtn = (int)client.execute("SetOutputResetAxleDO" , params);
             if (log != null)
             {
-                log.LogInfo("SetOutputResetAxleDO(" + resetFlag + ") : " + rtn);
+                log.LogInfo("SetOutputResetAxleDO(" + resetFlag + ","+reloadFlag+") : " + rtn);
             }
             return rtn;
         }
@@ -13791,12 +14433,14 @@ public class Robot
         }
     }
 
+
     /**
-     * @brief  设置末端工具AO停止/暂停后输出是否复位
-     * @param  resetFlag  0-不复位；1-复位
-     * @return  错误码
+     * @brief 设置末端工具AO停止/暂停后输出是否复位
+     * @param resetFlag  0-不复位；1-复位
+     * @param reloadFlag 暂停恢复后是否重加载，0-不加载；1-加载
+     * @return 错误码
      */
-    public int SetOutputResetAxleAO(int resetFlag)
+    public int SetOutputResetAxleAO(int resetFlag, int reloadFlag)
     {
         if (IsSockComError())
         {
@@ -13804,11 +14448,11 @@ public class Robot
         }
         try
         {
-            Object[] params = new Object[] {resetFlag};
+            Object[] params = new Object[] {resetFlag,reloadFlag};
             int rtn = (int)client.execute("SetOutputResetAxleAO" , params);
             if (log != null)
             {
-                log.LogInfo("SetOutputResetAxleAO(" + resetFlag + ") : " + rtn);
+                log.LogInfo("SetOutputResetAxleAO(" + resetFlag + ","+reloadFlag+") : " + rtn);
             }
             return rtn;
         }
@@ -13822,12 +14466,14 @@ public class Robot
         }
     }
 
+
     /**
-     * @brief  设置扩展DO停止/暂停后输出是否复位
-     * @param  resetFlag  0-不复位；1-复位
-     * @return  错误码
+     * @brief 设置扩展DO停止/暂停后输出是否复位
+     * @param resetFlag  0-不复位；1-复位
+     * @param reloadFlag 暂停恢复后是否重加载，0-不加载；1-加载
+     * @return 错误码
      */
-    public int SetOutputResetExtDO(int resetFlag)
+    public int SetOutputResetExtDO(int resetFlag, int reloadFlag)
     {
         if (IsSockComError())
         {
@@ -13835,11 +14481,11 @@ public class Robot
         }
         try
         {
-            Object[] params = new Object[] {resetFlag};
+            Object[] params = new Object[] {resetFlag,reloadFlag};
             int rtn = (int)client.execute("SetOutputResetExtDO" , params);
             if (log != null)
             {
-                log.LogInfo("SetOutputResetExtDO(" + resetFlag + ") : " + rtn);
+                log.LogInfo("SetOutputResetExtDO(" + resetFlag + ","+reloadFlag+") : " + rtn);
             }
             return rtn;
         }
@@ -13853,13 +14499,13 @@ public class Robot
         }
     }
 
-
     /**
-     * @brief  设置扩展AO停止/暂停后输出是否复位
-     * @param  resetFlag  0-不复位；1-复位
-     * @return  错误码
+     * @brief 设置扩展AO停止/暂停后输出是否复位
+     * @param resetFlag  0-不复位；1-复位
+     * @param reloadFlag 暂停恢复后是否重加载，0-不加载；1-加载
+     * @return 错误码
      */
-    public int SetOutputResetExtAO(int resetFlag)
+    public int SetOutputResetExtAO(int resetFlag, int reloadFlag)
     {
         if (IsSockComError())
         {
@@ -13871,7 +14517,7 @@ public class Robot
             int rtn = (int)client.execute("SetOutputResetExtAO" , params);
             if (log != null)
             {
-                log.LogInfo("SetOutputResetExtAO(" + resetFlag + ") : " + rtn);
+                log.LogInfo("SetOutputResetExtAO(" + resetFlag + ","+ reloadFlag+") : " + rtn);
             }
             return rtn;
         }
@@ -13885,12 +14531,14 @@ public class Robot
         }
     }
 
+
     /**
-     * @brief  设置SmartTool停止/暂停后输出是否复位
-     * @param  resetFlag  0-不复位；1-复位
-     * @return  错误码
+     * @brief 设置SmartTool停止/暂停后输出是否复位
+     * @param resetFlag  0-不复位；1-复位
+     * @param reloadFlag 暂停恢复后是否重加载，0-不加载；1-加载
+     * @return 错误码
      */
-    public int SetOutputResetSmartToolDO(int resetFlag)
+    public int SetOutputResetSmartToolDO(int resetFlag, int reloadFlag)
     {
         if (IsSockComError())
         {
@@ -13898,11 +14546,11 @@ public class Robot
         }
         try
         {
-            Object[] params = new Object[] {resetFlag};
+            Object[] params = new Object[] {resetFlag,reloadFlag};
             int rtn = (int)client.execute("SetOutputResetSmartToolDO" , params);
             if (log != null)
             {
-                log.LogInfo("SetOutputResetSmartToolDO(" + resetFlag + ") : " + rtn);
+                log.LogInfo("SetOutputResetSmartToolDO(" + resetFlag +","+reloadFlag+ ") : " + rtn);
             }
             return rtn;
         }
@@ -14529,9 +15177,10 @@ public class Robot
 
     /**
      * @brief 关节扭矩控制开始
+     * @param  comType 指令下发类型；0-xmlrpc；1-UDP(对应机器人20007端口)
      * @return  错误码
      */
-    public int ServoJTStart()
+    public int ServoJTStart(int comType)
     {
         if (IsSockComError())
         {
@@ -14539,13 +15188,29 @@ public class Robot
         }
         try
         {
-            Object[] params = new Object[] {};
-            int rtn = (int)client.execute("ServoJTStart" , params);
-            if (log != null)
-            {
-                log.LogInfo("ServoJTStart() : " + rtn);
+            if (comType == 0) {
+                Object[] params = new Object[] {};
+                int rtn = (int)client.execute("ServoJTStart" , params);
+                if (log != null)
+                {
+                    log.LogInfo("ServoJTStart() : " + rtn);
+                }
+                return rtn;
+            } else if (comType == 1) {
+                String cmdStr = "ServoJTStart()";
+                Frame frame = new Frame(cmdFrameCnt, 1199, cmdStr);
+                int rtn = udpCmdClient.sendFrame(FrameHandle.packFrame(frame));
+                if (rtn != 0) {
+                    return RobotError.ERR_SOCKET_SEND_FAILED;
+                }
+                cmdFrameCnt++;
+                return rtn;
+            } else {
+                return RobotError.ERR_PARAM_VALUE;
             }
-            return rtn;
+            
+
+
         }
         catch (Throwable e)
         {
@@ -14590,10 +15255,105 @@ public class Robot
     }
 
     /**
+     * @brief 关节扭矩控制
+     * @param  torque j1~j6关节扭矩，单位Nm
+     * @param  interval 指令周期，单位s，范围[0.001~0.008]
+     * @return  错误码
+     */
+     public int ServoJT(double[] torque, double interval, int comType)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+        if (GetSafetyCode() != 0)
+        {
+            return GetSafetyCode();
+        }
+        int checkFlag = 0;
+        double[] jPowerLimit =new double[] { 0.0,0.0,0.0,0.0,0.0,0.0 };
+        double[] jVelLimit = new double[] { 0.0,0.0,0.0,0.0,0.0,0.0 };
+        int errcode = ServoJT(torque, interval, checkFlag, jPowerLimit, jVelLimit, comType);
+        return errcode;
+    }
+
+    /**
+     * @brief 关节扭矩控制
+     * @param  torque j1~j6关节扭矩，单位Nm
+     * @param  interval 指令周期，单位s，范围[0.001~0.008]
+     * @param  checkFlag 检测策略 0-不限制；1-限制功率；2-限制速度；3-功率和速度同时限制
+     * @param  jPowerLimit 关节最大功率限制(W)
+     * @param  jVelLimit 关节最大速度(°/s)
+     * @return  错误码
+     */
+    public int ServoJT(double[] torque, double interval, int checkFlag, double[] jPowerLimit, double[] jVelLimit, int comType)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+        if (GetSafetyCode() != 0)
+        {
+            return GetSafetyCode();
+        }
+
+        try
+        {
+            if (comType == 0) {
+                Object[] tor=new Object[]{torque[0],torque[1],torque[2],torque[3],torque[4],torque[5]};
+                Object[] jpow=new Object[]{jPowerLimit[0],jPowerLimit[1],jPowerLimit[2],jPowerLimit[3],jPowerLimit[4],jPowerLimit[5]};
+                Object[] jvel=new Object[]{jVelLimit[0],jVelLimit[1],jVelLimit[2],jVelLimit[3],jVelLimit[4],jVelLimit[5]};
+
+                Object[] params = new Object[] {tor, interval,checkFlag,jpow,jvel};
+                int rtn = (int)client.execute("ServoJT" , params);
+                if (log != null)
+                {
+                    log.LogInfo("ServoJT() : " + rtn);
+                }
+                return rtn;
+            } else if (comType == 1) {
+                String torqueStr = String.format("{%.3f,%.3f,%.3f,%.3f,%.3f,%.3f}",
+                        torque[0], torque[1], torque[2], torque[3], torque[4], torque[5]);
+                
+                String powerStr = String.format("{%.3f,%.3f,%.3f,%.3f,%.3f,%.3f}",
+                        jPowerLimit[0], jPowerLimit[1], jPowerLimit[2],
+                        jPowerLimit[3], jPowerLimit[4], jPowerLimit[5]);
+                
+                String velStr = String.format("{%.3f,%.3f,%.3f,%.3f,%.3f,%.3f}",
+                        jVelLimit[0], jVelLimit[1], jVelLimit[2],
+                        jVelLimit[3], jVelLimit[4], jVelLimit[5]);
+
+                String cmdStr = String.format("ServoJT(%s,%f,%d,%s,%s)",
+                        torqueStr, interval, checkFlag, powerStr, velStr);
+//                System.out.printf("cmdStr is %s\n", cmdStr);
+                Frame frame = new Frame(cmdFrameCnt, 1200, cmdStr);
+                int rtn = udpCmdClient.sendFrame(FrameHandle.packFrame(frame));
+//                System.out.printf("FrameHandle.packFrame(frame) is %s\n", FrameHandle.packFrame(frame));
+                if (rtn < 0) {
+                    return RobotError.ERR_SOCKET_SEND_FAILED;
+                }
+                cmdFrameCnt++;
+                return rtn;
+            } else {
+                return RobotError.ERR_PARAM_VALUE;
+            }
+
+        }
+        catch (Throwable e)
+        {
+            if (log != null)
+            {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
      * @brief 关节扭矩控制结束
      * @return  错误码
      */
-    public int ServoJTEnd()
+    public int ServoJTEnd(int comType)
     {
         if (IsSockComError())
         {
@@ -14601,13 +15361,27 @@ public class Robot
         }
         try
         {
-            Object[] params = new Object[] {};
-            int rtn = (int)client.execute("ServoJTEnd" , params);
-            if (log != null)
-            {
-                log.LogInfo("ServoJTEnd() : " + rtn);
+            if (comType == 0) {
+                Object[] params = new Object[] {};
+                int rtn = (int)client.execute("ServoJTEnd" , params);
+                if (log != null)
+                {
+                    log.LogInfo("ServoJTEnd() : " + rtn);
+                }
+                return rtn;
+            } else if (comType == 1) {
+                String cmdStr = "ServoJTEnd()";
+                Frame frame = new Frame(cmdFrameCnt, 1201, cmdStr);
+                int rtn = udpCmdClient.sendFrame(FrameHandle.packFrame(frame));
+                if (rtn != 0) {
+                    return RobotError.ERR_SOCKET_SEND_FAILED;
+                }
+                cmdFrameCnt++;
+                return rtn;
+            } else {
+                return RobotError.ERR_PARAM_VALUE;
             }
-            return rtn;
+
         }
         catch (Throwable e)
         {
@@ -14943,15 +15717,12 @@ public class Robot
             {
                 return (int)RobotError.ERR_UPLOAD_FILE_NOT_FOUND;
             }
-            System.out.println("1");
 
             int rtn = FileUpLoad(1, filePath);
             if (rtn == 0)
             {
                 Object[] params = new Object[] {};
-                System.out.println("2");
                 rtn = (int)client.execute("SoftwareUpgrade" , params);
-                System.out.println("2"+rtn);
 
                 if (rtn != 0)
                 {
@@ -15410,9 +16181,10 @@ public class Robot
      * @param forceSensorEnable 力传感器启用状态，0-不启用；1-启用
      * @param gripperEnable 夹爪启用状态，0-不启用；1-启用
      * @param IOEnable IO设备启用状态，0-不启用；1-启用
+     * @param dexhandEnable 灵巧手启用状态，0-不启用；1-启用
      * @return  错误码
      */
-    public int SetAxleLuaEnableDeviceType(int forceSensorEnable, int gripperEnable, int IOEnable)
+    public int SetAxleLuaEnableDeviceType(int forceSensorEnable, int gripperEnable, int IOEnable, int dexhandEnable)
     {
         if (IsSockComError())
         {
@@ -15420,7 +16192,7 @@ public class Robot
         }
         try
         {
-            Object[] params = new Object[] {forceSensorEnable, gripperEnable, IOEnable};
+            Object[] params = new Object[] {forceSensorEnable, gripperEnable, IOEnable, dexhandEnable};
             int rtn = (int)client.execute("SetAxleLuaEnableDeviceType" , params);
             if (log != null)
             {
@@ -15444,6 +16216,7 @@ public class Robot
      * @param enable enable[0]:forceSensorEnable 力传感器启用状态，0-不启用；1-启用
      * @param enable enable[1]:gripperEnable 夹爪启用状态，0-不启用；1-启用
      * @param enable enable[2]:IOEnable IO设备启用状态，0-不启用；1-启用
+     * @param enable enable[3]:dexhandEnable 灵巧手启用状态，0-不启用；1-启用
      * @return  错误码
      */
     public int GetAxleLuaEnableDeviceType(int[] enable)
@@ -15462,6 +16235,7 @@ public class Robot
                 enable[0] = (int)result[1];
                 enable[1] = (int)result[2];
                 enable[2] = (int)result[3];
+                enable[3] = (int)result[4];
             }
             if (log != null)
             {
@@ -15484,9 +16258,10 @@ public class Robot
      * @param forceSensorEnable 力传感器启用设备编号 0-未启用；1-启用
      * @param gripperEnable 夹爪启用设备编号，0-不启用；1-启用
      * @param IODeviceEnable IO设备启用设备编号，0-不启用；1-启用
+     * @param dexhandEnable 灵巧手启用状态，0-不启用；1-启用
      * @return  错误码
      */
-    public int GetAxleLuaEnableDevice(int[] forceSensorEnable, int[] gripperEnable, int[] IODeviceEnable)
+    public int GetAxleLuaEnableDevice(int[] forceSensorEnable, int[] gripperEnable, int[] IODeviceEnable, int[] dexhandEnable)
     {
         if (IsSockComError())
         {
@@ -15500,9 +16275,8 @@ public class Robot
             if ((int)result[0] == 0)
             {
                 paramStr = (String)result[1];
-                System.out.println("result str is " + paramStr);
                 String[] parS = paramStr.split(",");
-                if (parS.length != 24)
+                if (parS.length != 40)
                 {
                     log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "get segment weld point fail");
                     return -1;
@@ -15533,6 +16307,10 @@ public class Robot
                 IODeviceEnable[5] = Integer.parseInt(parS[21]);
                 IODeviceEnable[6] = Integer.parseInt(parS[22]);
                 IODeviceEnable[7] = Integer.parseInt(parS[23]);
+
+                for(int i = 0; i < 16; i++) {
+                    dexhandEnable[i] = Integer.parseInt(parS[24 + i]);
+                }
             }
             if (log != null)
             {
@@ -15564,7 +16342,8 @@ public class Robot
         }
         try
         {
-            Object[] funcs = new Object[]{func[0], func[1], func[2], func[3], func[4], func[5], func[6], func[7], func[8], func[9], func[10], func[11], func[12], func[13], func[14], func[15]};
+            Object[] funcs = new Object[]{func[0], func[1], func[2], func[3], func[4], func[5], func[6], func[7], func[8], func[9], func[10], func[11], func[12], func[13], func[14], func[15]
+            , func[16], func[17], func[18], func[19], func[20], func[21], func[22], func[23], func[24], func[25], func[26], func[27], func[28], func[29], func[30], func[31]};
             Object[] params = new Object[] {id, funcs};
             int rtn = (int)client.execute("SetAxleLuaGripperFunc" , params);
             if (log != null)
@@ -15606,7 +16385,7 @@ public class Robot
             {
                 paramStr = (String)result[1];
                 String[] parS = paramStr.split(",");
-                if (parS.length != 16)
+                if (parS.length != 32)
                 {
                     log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "get segment weld point fail");
                     return -1;
@@ -15627,6 +16406,22 @@ public class Robot
                 func[13] = Integer.parseInt(parS[13]);
                 func[14] = Integer.parseInt(parS[14]);
                 func[15] = Integer.parseInt(parS[15]);
+                func[16] = Integer.parseInt(parS[16]);
+                func[17] = Integer.parseInt(parS[17]);
+                func[18] = Integer.parseInt(parS[18]);
+                func[19] = Integer.parseInt(parS[19]);
+                func[20] = Integer.parseInt(parS[20]);
+                func[21] = Integer.parseInt(parS[21]);
+                func[22] = Integer.parseInt(parS[22]);
+                func[23] = Integer.parseInt(parS[23]);
+                func[24] = Integer.parseInt(parS[24]);
+                func[25] = Integer.parseInt(parS[25]);
+                func[26] = Integer.parseInt(parS[26]);
+                func[27] = Integer.parseInt(parS[27]);
+                func[28] = Integer.parseInt(parS[28]);
+                func[29] = Integer.parseInt(parS[29]);
+                func[30] = Integer.parseInt(parS[30]);
+                func[31] = Integer.parseInt(parS[31]);
             }
             if (log != null)
             {
@@ -15990,15 +16785,9 @@ public class Robot
             {
                 paramStr = (String)result[1];
                 String[] parS = paramStr.split(",");
-                if (parS.length != 16)
-                {
-                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "get segment weld point fail");
-                    return -1;
+                for (int i = 0; i < parS.length; i++) {
+                    name[i] = parS[i];
                 }
-                name[0] = parS[0];
-                name[1] = parS[1];
-                name[2] = parS[2];
-                name[3] = parS[3];
             }
             if (log != null)
             {
@@ -16184,6 +16973,10 @@ public class Robot
      */
     public int AxleLuaUpload(String filePath)
     {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
         try
         {
             File fileInfo = new File(filePath);
@@ -16359,6 +17152,10 @@ public class Robot
      */
     public int TractorStop()
     {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
         int rtn =ProgramStop();
         return rtn;
     }
@@ -16426,7 +17223,7 @@ public class Robot
 
     /**
      * @brief 设置焊机控制模式
-     * @param mode 焊机控制模式;0-一元化
+     * @param mode 焊机控制模式; 0-直流一元模式；1-脉冲一元模式；2-JOB模式；3-近控模式；4-分别模式；5-CC/CV模式；6-TIG；7-CMT
      * @return 错误码
      */
     public int SetWeldMachineCtrlMode(int mode)
@@ -16435,9 +17232,24 @@ public class Robot
         {
             return sockErr;
         }
+        return SetWeldMachineCtrlMode(mode, 1);
+    }
+
+    /**
+     * @brief 设置焊机控制模式
+     * @param mode 焊机控制模式; 0-直流一元模式；1-脉冲一元模式；2-JOB模式；3-近控模式；4-分别模式；5-CC/CV模式；6-TIG；7-CMT
+     * @param ioType 控制类型；0-控制箱IO;1-数字通信协议(UDP);2-数字通信协议(ModbusTCP)
+     * @return 错误码
+     */
+    public int SetWeldMachineCtrlMode(int mode, int ioType)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
 
         try{
-            Object[] params = new Object[] {mode};
+            Object[] params = new Object[] {ioType, mode};
             int rtn = (int)client.execute("SetWeldMachineCtrlMode" , params);
             if (log != null)
             {
@@ -16700,6 +17512,10 @@ public class Robot
 
     public int GetSafetyCode()
     {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
         ROBOT_STATE_PKG pkg = GetRobotRealTimeState();
         if (pkg.safety_stop0_state == 1 || pkg.safety_stop1_state == 1)
         {
@@ -18711,9 +19527,13 @@ public class Robot
      * @brief 根据编号获取工具坐标系
      * @param  id 工具坐标系编号
      * @param  coord 坐标系数值
+     * @param type 工具类型 0-工具；1-传感器
+     * @param install 安装位置 0-机器人末端；1-机器人外部
+     * @param toolID 工具ID 
+     * @param loadNo 负载编号
      * @return 错误码
      */
-    public int GetToolCoordWithID(int id, DescPose coord)
+    public int GetToolCoordWithID(int id, DescPose coord, int[] type, int[] install, int[] toolID, int[] loadNo)
     {
         if (IsSockComError()) {
             return sockErr;
@@ -18739,6 +19559,14 @@ public class Robot
                 coord.rpy.rx = (double)result[4];
                 coord.rpy.ry = (double)result[5];
                 coord.rpy.rz = (double)result[6];
+
+                if (result.length >= 11)
+                {
+                    type[0] = (int)result[7];
+                    install[0] = (int)result[8];
+                    toolID[0] = (int)result[9];
+                    loadNo[0] = (int)result[10];
+                }
             }
 
             if (log != null)
@@ -18759,21 +19587,20 @@ public class Robot
      * @brief 根据编号获取工件坐标系
      * @param  id 工件坐标系编号
      * @param  coord 坐标系数值
+     * @param  refFrame 参考坐标系
      * @return 错误码
      */
-    public int GetWObjCoordWithID(int id, DescPose coord)
+    public int GetWObjCoordWithID(int id, DescPose coord, int[] refFrame)
     {
-        int errcode = 0;
-
         if (id < 0 || id > 14)
         {
-            errcode = 4;
-            return errcode;
+            return 4;
         }
-
-        if (IsSockComError()) {
+        if (IsSockComError())
+        {
             return sockErr;
         }
+        int errcode = 0;
 
         try {
             Object[] params = new Object[]{id};
@@ -18788,6 +19615,11 @@ public class Robot
                 coord.rpy.rx = (double)result[4];
                 coord.rpy.ry = (double)result[5];
                 coord.rpy.rz = (double)result[6];
+
+                if (result.length >= 8)
+                {
+                    refFrame[0] = (int)result[7];
+                }
             }
 
             if (log != null)
@@ -18806,22 +19638,17 @@ public class Robot
 
     /**
      * @brief 根据编号获取外部工具坐标系
-     * @param  id 外部工具坐标系编号
+     * @param  id 外部工具坐标系编号，20-39对应外部工具坐标系0-19
      * @param  coord 坐标系数值
+     * @param  tcoord 机器人末端安装工件坐标系位姿
      * @return 错误码
      */
-    public int GetExToolCoordWithID(int id, DescPose coord)
+    public int GetExToolCoordWithID(int id, DescPose coord, DescPose tcoord)
     {
         if (IsSockComError()) {
             return sockErr;
         }
         int errcode = 0;
-
-        if (id < 0 || id > 14)
-        {
-            errcode = 4;
-            return errcode;
-        }
 
         try {
             Object[] params = new Object[]{id};
@@ -18836,6 +19663,16 @@ public class Robot
                 coord.rpy.rx = (double)result[4];
                 coord.rpy.ry = (double)result[5];
                 coord.rpy.rz = (double)result[6];
+
+                if (result.length >= 13)
+                {
+                    tcoord.tran.x = (double)result[7];
+                    tcoord.tran.y = (double)result[8];
+                    tcoord.tran.z = (double)result[9];
+                    tcoord.rpy.rx = (double)result[10];
+                    tcoord.rpy.ry = (double)result[11];
+                    tcoord.rpy.rz = (double)result[12];
+                }
             }
 
             if (log != null)
@@ -18856,20 +19693,21 @@ public class Robot
      * @brief 根据编号获取扩展轴坐标系
      * @param  id 外部工具坐标系编号
      * @param  coord 坐标系数值
+     * @param  axisCoordNum 扩展轴号；bit0-bit3对应扩展轴1-扩展轴4；如axisCoordNum值为3,对应应用扩展轴[1，2]
+     * @param  calibFlag 标定标志；0-未标定；1-已标定
      * @return 错误码
      */
-    public int GetExAxisCoordWithID(int id, DescPose coord)
+    public int GetExAxisCoordWithID(int id, DescPose coord, int[] axisCoordNum, int[] calibFlag)
     {
+        if (id < 0 || id > 4)
+        {
+            return 4;
+        }
+
         if (IsSockComError()) {
             return sockErr;
         }
         int errcode = 0;
-
-        if (id < 0 || id > 4)
-        {
-            errcode = 4;
-            return errcode;
-        }
 
         try {
             Object[] params = new Object[]{id};
@@ -18884,6 +19722,12 @@ public class Robot
                 coord.rpy.rx = (double)result[4];
                 coord.rpy.ry = (double)result[5];
                 coord.rpy.rz = (double)result[6];
+
+                if (result.length >= 9)
+                {
+                    axisCoordNum[0] = (int)result[7];
+                    calibFlag[0] = (int)result[8];
+                }
             }
 
             if (log != null)
@@ -19387,6 +20231,1426 @@ public class Robot
         }
     }
 
+
+    /**
+     * @brief 关节扭矩传感器灵敏度标定功能开启
+     * @param status 0-关闭；1-开启
+     * @return 错误码
+     */
+    public int JointSensitivityEnable(int status)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{status};
+            Object[] params1 = new Object[]{params};
+            int results = (int)client.execute("JointSensitivityEnable", params1);
+            int rtn = results;
+
+            if (rtn != 0) {
+                if (log != null) {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "execute JointSensitivityEnable fail: " + rtn);
+                }
+            }
+
+            if (log != null) {
+                log.LogInfo("JointSensitivityEnable:" + rtn);
+            }
+
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取关节扭矩传感器灵敏度标定结果
+     * @param calibResult j1~j6关节灵敏度[0-1]
+     * @return 错误码
+     */
+    public int JointSensitivityCalibration(double[] calibResult)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{};
+            Object[] results = (Object[])client.execute("JointSensitivityCalibration", params);
+            int rtn = (int)results[0];
+
+            if (rtn == 0) {
+                calibResult[0] = (double)results[1];
+                calibResult[1] = (double)results[2];
+                calibResult[2] = (double)results[3];
+                calibResult[3] = (double)results[4];
+                calibResult[4] = (double)results[5];
+                calibResult[5] = (double)results[6];
+            } else {
+                if (log != null) {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "execute JointSensitivityCalibration fail: " + rtn);
+                }
+            }
+
+            if (log != null) {
+                log.LogInfo("JointSensitivityCalibration:" + rtn);
+            }
+
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取关节扭矩传感器灵敏度标定结果
+     * @param calibResult j1~j6关节灵敏度[0-1]
+     * @param linearity j1~j6关节线性度[0-1]
+     * @return 错误码
+     */
+    public int JointSensitivityCalibration(double[] calibResult,double[] linearity)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{};
+            Object[] results = (Object[])client.execute("JointSensitivityCalibration", params);
+            int rtn = (int)results[0];
+
+            if (rtn == 0) {
+                calibResult[0] = (double)results[1];
+                calibResult[1] = (double)results[2];
+                calibResult[2] = (double)results[3];
+                calibResult[3] = (double)results[4];
+                calibResult[4] = (double)results[5];
+                calibResult[5] = (double)results[6];
+                linearity[0] = (double)results[7];
+                linearity[1] = (double)results[8];
+                linearity[2] = (double)results[9];
+                linearity[3] = (double)results[10];
+                linearity[4] = (double)results[11];
+                linearity[5] = (double)results[12];
+            } else {
+                if (log != null) {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "execute JointSensitivityCalibration fail: " + rtn);
+                }
+            }
+
+            if (log != null) {
+                log.LogInfo("JointSensitivityCalibration:" + rtn);
+            }
+
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 关节扭矩传感器灵敏度数据采集
+     * @return 错误码
+     */
+    public int JointSensitivityCollect()
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{};
+            int results = (int)client.execute("JointSensitivityCollect", params);
+            int rtn = results;
+
+            if (rtn != 0) {
+                if (log != null) {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "execute JointSensitivityCollect fail: " + rtn);
+                }
+            }
+
+            if (log != null) {
+                log.LogInfo("JointSensitivityCollect:" + rtn);
+            }
+
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 清空运动指令队列
+     * @return 错误码
+     */
+    public int MotionQueueClear()
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{};
+            int rtn = (int)client.execute("MotionQueueClear", params);
+
+            if (log != null) {
+                log.LogInfo("MotionQueueClear:" + rtn);
+            }
+
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取机器人8个从站端口错误帧数
+     * @param  inRecvErr 输入接收错误帧数
+     * @param  inCRCErr 输入CRC错误帧数
+     * @param  inTransmitErr 输入转发错误帧数
+     * @param  inLinkErr 输入链接错误帧数
+     * @param  outRecvErr 输出接收错误帧数
+     * @param  outCRCErr 输出CRC错误帧数
+     * @param  outTransmitErr 输出转发错误帧数
+     * @param  outLinkErr 输出链接错误帧数
+     * @return 错误码
+     */
+    public int GetSlavePortErrCounter(int[] inRecvErr, int[] inCRCErr, int[] inTransmitErr, int[] inLinkErr, int[] outRecvErr, int[] outCRCErr, int[] outTransmitErr, int[] outLinkErr)
+    {
+
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+
+        try
+        {
+            Object[] params = new Object[] {};
+            Object[] result = (Object[])client.execute("GetSlavePortErrCounter" , params);
+            int errcode=(int)result[0];
+
+            if (errcode == 0) {
+                String paramStr = (String) result[1];
+                String[] parS = paramStr.split(",");
+                if (parS.length != 64) {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "GetSlavePortErrCounter size fail");
+                    return -1;
+                }
+                for (int i = 0; i < 8; i++) {
+                    inRecvErr[i] = Integer.parseInt(parS[i * 4]);
+                    inCRCErr[i] = Integer.parseInt(parS[i * 4 + 1]);
+                    inTransmitErr[i] = Integer.parseInt(parS[i * 4 + 2]);
+                    inLinkErr[i] = Integer.parseInt(parS[i * 4 + 3]);
+
+                    outRecvErr[i] = Integer.parseInt(parS[i * 4 + 32]);
+                    outCRCErr[i] = Integer.parseInt(parS[i * 4 + 32 + 1]);
+                    outTransmitErr[i] = Integer.parseInt(parS[i * 4 + 32 + 2]);
+                    outLinkErr[i] = Integer.parseInt(parS[i * 4 + 32 + 3]);
+                }
+
+            }
+            if (log != null)
+            {
+                log.LogInfo("GetSlavePortErrCounter( : " +errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 从站端口错误帧清零
+     * @param slaveID 从站编号0~7
+     * @return 错误码
+     */
+    public int SlavePortErrCounterClear(int slaveID)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{slaveID};
+            int rtn = (int)client.execute("SlavePortErrCounterClear", params);
+
+            if (log != null) {
+                log.LogInfo("SlavePortErrCounterClear:" + rtn);
+            }
+
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 设置各轴速度前馈系数
+     * @param  radio 各轴速度前馈系数
+     * @return 错误码
+     */
+    public int SetVelFeedForwardRatio(double[] radio)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] param = new Object[]{radio[0],radio[1],radio[2],radio[3],radio[4],radio[5]};
+            Object[] params = new Object[]{param};
+            int rtn = (int)client.execute("SetVelFeedForwardRatio", params);
+
+            if (log != null) {
+                log.LogInfo("SetVelFeedForwardRatio:" + rtn);
+            }
+
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取各轴速度前馈系数
+     * @param  radio 各轴速度前馈系数
+     * @return 错误码
+     */
+    public int GetVelFeedForwardRatio(double[] radio)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[] {};
+            Object[] result = (Object[])client.execute("GetVelFeedForwardRatio" , params);
+            int errcode=(int)result[0];
+
+            if (errcode == 0) {
+                radio[0]=(double)result[1];
+                radio[1]=(double)result[2];
+                radio[2]=(double)result[3];
+                radio[3]=(double)result[4];
+                radio[4]=(double)result[5];
+                radio[5]=(double)result[6];
+            }
+            if (log != null)
+            {
+                log.LogInfo("GetVelFeedForwardRatio( : " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 机器人MCU日志生成
+     * @return 错误码
+     */
+    public int RobotMCULogCollect()
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[] {};
+            int errcode = (int)client.execute("RobotMCULogCollect" , params);
+            if (log != null)
+            {
+                log.LogInfo("RobotMCULogCollect( : " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 移动到相贯线起始点
+     * @param  mainPoint 主管6个示教点的笛卡尔位姿
+     * @param  piecePoint 辅管6个示教点的笛卡尔位姿
+     * @param  tool 工具坐标系编号
+     * @param  wobj 工件坐标系编号
+     * @param  vel 速度百分比
+     * @param  acc 加速度百分比
+     * @param  ovl 速度缩放因子
+     * @param  oacc 加速度缩放因子
+     * @param  moveType 运动类型; 0-PTP；1-LIN
+     * @return 错误码
+     */
+    public int MoveToIntersectLineStart(DescPose[] mainPoint, DescPose[] piecePoint, int tool, int wobj, double vel, double acc, double ovl, double oacc, int moveType)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        if (GetSafetyCode() != 0)
+        {
+            return GetSafetyCode();
+        }
+
+        ExaxisPos[] mainExaxisPos = {new ExaxisPos(),new ExaxisPos(),new ExaxisPos(),new ExaxisPos(),new ExaxisPos(),new ExaxisPos()};
+        ExaxisPos[] pieceExaxisPos = {new ExaxisPos(),new ExaxisPos(),new ExaxisPos(),new ExaxisPos(),new ExaxisPos(),new ExaxisPos()};
+        int extAxisFlag = 0;
+        ExaxisPos exaxisPos = new ExaxisPos();
+        int moveDirection = 0;
+        DescPose offset = new DescPose();
+        int errcode = MoveToIntersectLineStart(mainPoint, mainExaxisPos, piecePoint, pieceExaxisPos, extAxisFlag, exaxisPos, tool, wobj, vel, acc, ovl, oacc, moveType, moveDirection, offset);
+
+        return errcode;
+    }
+
+    /**
+     * @brief 移动到相贯线起始点
+     * @param mainPoint 主管6个示教点的笛卡尔位姿
+     * @param mainExaxisPos 主管6个示教点扩展轴位置
+     * @param piecePoint 辅管6个示教点的笛卡尔位姿
+     * @param pieceExaxisPos 拼接管6个示教点扩展轴位置
+     * @param extAxisFlag 是否启用扩展轴；0-不启用；1-启用
+     * @param exaxisPos 起点扩展轴位置
+     * @param tool 工具坐标系编号
+     * @param wobj 工件坐标系编号
+     * @param vel 速度百分比
+     * @param acc 加速度百分比
+     * @param ovl 速度缩放因子
+     * @param oacc 加速度缩放因子
+     * @param moveType 运动类型; 0-PTP；1-LIN
+     * @param moveDirection 运动方向；0-顺时针；1-逆时针
+     * @param offset 偏移量
+     * @return 错误码
+     */
+    public int MoveToIntersectLineStart(DescPose[] mainPoint, ExaxisPos[] mainExaxisPos, DescPose[] piecePoint, ExaxisPos[] pieceExaxisPos, int extAxisFlag, ExaxisPos exaxisPos, int tool, int wobj, double vel, double acc, double ovl, double oacc, int moveType, int moveDirection, DescPose offset)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        if (GetSafetyCode() != 0)
+        {
+            return GetSafetyCode();
+        }
+
+        int errcode=-1;
+
+        try {
+            Object[] param = new Object[139];
+            for (int i = 0; i < 6; i++)
+            {
+                param[i * 6 + 0] = mainPoint[i].tran.x;
+                param[i * 6 + 1] = mainPoint[i].tran.y;
+                param[i * 6 + 2] = mainPoint[i].tran.z;
+                param[i * 6 + 3] = mainPoint[i].rpy.rx;
+                param[i * 6 + 4] = mainPoint[i].rpy.ry;
+                param[i * 6 + 5] = mainPoint[i].rpy.rz;
+            }
+
+            for (int i = 0; i < 6; i++)
+            {
+                param[i * 4 + 0 + 36] = mainExaxisPos[i].axis1;
+                param[i * 4 + 1 + 36] = mainExaxisPos[i].axis2;
+                param[i * 4 + 2 + 36] = mainExaxisPos[i].axis3;
+                param[i * 4 + 3 + 36] = mainExaxisPos[i].axis4;
+            }
+
+            for (int i = 0; i < 6; i++)
+            {
+                param[i * 6 + 0 + 60] = piecePoint[i].tran.x;
+                param[i * 6 + 1 + 60] = piecePoint[i].tran.y;
+                param[i * 6 + 2 + 60] = piecePoint[i].tran.z;
+                param[i * 6 + 3 + 60] = piecePoint[i].rpy.rx;
+                param[i * 6 + 4 + 60] = piecePoint[i].rpy.ry;
+                param[i * 6 + 5 + 60] = piecePoint[i].rpy.rz;
+            }
+
+            for (int i = 0; i < 6; i++)
+            {
+                param[i * 4 + 0 + 96] = pieceExaxisPos[i].axis1;
+                param[i * 4 + 1 + 96] = pieceExaxisPos[i].axis2;
+                param[i * 4 + 2 + 96] = pieceExaxisPos[i].axis3;
+                param[i * 4 + 3 + 96] = pieceExaxisPos[i].axis4;
+            }
+
+            param[120] = extAxisFlag;
+            param[121] = exaxisPos.axis1;
+            param[122] = exaxisPos.axis2;
+            param[123] = exaxisPos.axis3;
+            param[124] = exaxisPos.axis4;
+
+            param[125] = tool;
+            param[126] = wobj;
+            param[127] = vel;
+            param[128] = acc;
+            param[129] = ovl;
+            param[130] = oacc;
+            param[131] = moveType;
+            param[132] = moveDirection;
+
+            param[133] = offset.tran.x;
+            param[134] = offset.tran.y;
+            param[135] = offset.tran.z;
+            param[136] = offset.rpy.rx;
+            param[137] = offset.rpy.ry;
+            param[138] = offset.rpy.rz;
+
+            Object[] params = new Object[]{param};
+
+            errcode = (int)client.execute("MoveToIntersectLineStart" , params);
+            if (log != null)
+            {
+                log.LogInfo("MoveToIntersectLineStart: " + errcode);
+            }
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+
+        ROBOT_STATE_PKG robot_state_pkg=GetRobotRealTimeState();
+        if ((robot_state_pkg.main_code != 0 || robot_state_pkg.sub_code != 0) && errcode == 0)
+        {
+            errcode = 14;
+        }
+
+        return errcode;
+    }
+
+    /**
+     * @brief 相贯线运动
+     * @param  mainPoint 主管6个示教点的笛卡尔位姿
+     * @param  piecePoint 辅管6个示教点的笛卡尔位姿
+     * @param  tool 工具坐标系编号
+     * @param  wobj 工件坐标系编号
+     * @param  vel 速度百分比
+     * @param  acc 加速度百分比
+     * @param  ovl 速度缩放因子
+     * @param  oacc 加速度缩放因子
+     * @param  moveDirection 运动方向; 0-顺时针；1-逆时针
+     * @return 错误码
+     */
+//    public int MoveIntersectLine(DescPose[] mainPoint, DescPose[] piecePoint, int tool, int wobj, double vel, double acc, double ovl, double oacc, int moveDirection)
+//    {
+//        if (IsSockComError()) {
+//            return sockErr;
+//        }
+//
+//        if (GetSafetyCode() != 0)
+//        {
+//            return GetSafetyCode();
+//        }
+//
+//        int errcode=-1;
+//
+//        try {
+//            Object[] param = new Object[79];
+//            for (int i = 0; i < 6; i++)
+//            {
+//                param[i * 6 + 0] = mainPoint[i].tran.x;
+//                param[i * 6 + 1] = mainPoint[i].tran.y;
+//                param[i * 6 + 2] = mainPoint[i].tran.z;
+//                param[i * 6 + 3] = mainPoint[i].rpy.rx;
+//                param[i * 6 + 4] = mainPoint[i].rpy.ry;
+//                param[i * 6 + 5] = mainPoint[i].rpy.rz;
+//            }
+//
+//            for (int i = 0; i < 6; i++)
+//            {
+//                param[i * 6 + 0 + 36] = piecePoint[i].tran.x;
+//                param[i * 6 + 1 + 36] = piecePoint[i].tran.y;
+//                param[i * 6 + 2 + 36] = piecePoint[i].tran.z;
+//                param[i * 6 + 3 + 36] = piecePoint[i].rpy.rx;
+//                param[i * 6 + 4 + 36] = piecePoint[i].rpy.ry;
+//                param[i * 6 + 5 + 36] = piecePoint[i].rpy.rz;
+//            }
+//
+//            param[72] = tool;
+//            param[73] = wobj;
+//            param[74] = vel;
+//            param[75] = acc;
+//            param[76] = ovl;
+//            param[77] = oacc;
+//            param[78] = moveDirection;
+//
+//            Object[] params = new Object[]{param};
+//
+//            errcode = (int)client.execute("MoveIntersectLine" , params);
+//            if (log != null)
+//            {
+//                log.LogInfo("MoveIntersectLine: " + errcode);
+//            }
+//        } catch (Throwable e) {
+//            if (log != null) {
+//                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+//                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+//                        "RPC exception " + e.getMessage());
+//            }
+//            return RobotError.ERR_RPC_ERROR;
+//        }
+//
+//        ROBOT_STATE_PKG robot_state_pkg=GetRobotRealTimeState();
+//        if ((robot_state_pkg.main_code != 0 || robot_state_pkg.sub_code != 0) && errcode == 0)
+//        {
+//            errcode = 14;
+//        }
+//
+//        return errcode;
+//    }
+
+
+    /**
+     * @brief 相贯线运动
+     * @param mainPoint 主管6个示教点的笛卡尔位姿
+     * @param piecePoint 辅管6个示教点的笛卡尔位姿
+     * @param tool 工具坐标系编号
+     * @param wobj 工件坐标系编号
+     * @param vel 速度百分比
+     * @param acc 加速度百分比
+     * @param ovl 速度缩放因子
+     * @param oacc 加速度缩放因子
+     * @param moveDirection 运动方向; 0-顺时针；1-逆时针
+     * @return 错误码
+     */
+    public int MoveIntersectLine(DescPose[] mainPoint, DescPose[] piecePoint, int tool, int wobj, double vel, double acc, double ovl, double oacc, int moveDirection)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        if (GetSafetyCode() != 0)
+        {
+            return GetSafetyCode();
+        }
+
+        int errcode = 0;
+        ExaxisPos[] mainExaxisPos = {new ExaxisPos(),new ExaxisPos(),new ExaxisPos(),new ExaxisPos(),new ExaxisPos(),new ExaxisPos()};
+        ExaxisPos[] pieceExaxisPos = {new ExaxisPos(),new ExaxisPos(),new ExaxisPos(),new ExaxisPos(),new ExaxisPos(),new ExaxisPos()};
+        int extAxisFlag = 0;
+        ExaxisPos[] exaxisPos = {new ExaxisPos(),new ExaxisPos(),new ExaxisPos(),new ExaxisPos()};
+        DescPose offset =new DescPose();
+        errcode = MoveIntersectLine(mainPoint, mainExaxisPos, piecePoint, pieceExaxisPos, extAxisFlag, exaxisPos, tool, wobj, vel, acc, ovl, oacc, moveDirection, offset);
+
+        return errcode;
+    }
+
+    /**
+     * @brief 相贯线运动
+     * @param mainPoint 主管6个示教点的笛卡尔位姿
+     * @param mainExaxisPos 主管6个示教点扩展轴位置
+     * @param piecePoint 辅管6个示教点的笛卡尔位姿
+     * @param pieceExaxisPos 拼接管6个示教点扩展轴位置
+     * @param extAxisFlag 是否启用扩展轴；0-不启用；1-启用
+     * @param exaxisPos 起点扩展轴位置
+     * @param tool 工具坐标系编号
+     * @param wobj 工件坐标系编号
+     * @param vel 速度百分比
+     * @param acc 加速度百分比
+     * @param ovl 速度缩放因子
+     * @param oacc 加速度缩放因子
+     * @param moveDirection 运动方向; 0-顺时针；1-逆时针
+     * @param offset 偏移量
+     * @return 错误码
+     */
+    public int MoveIntersectLine(DescPose[] mainPoint, ExaxisPos[] mainExaxisPos, DescPose[] piecePoint, ExaxisPos[] pieceExaxisPos, int extAxisFlag, ExaxisPos[] exaxisPos, int tool, int wobj, double vel, double acc, double ovl, double oacc, int moveDirection, DescPose offset)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        if (GetSafetyCode() != 0)
+        {
+            return GetSafetyCode();
+        }
+
+        int errcode=-1;
+
+        try {
+            Object[] param = new Object[150];
+            for (int i = 0; i < 6; i++)
+            {
+                param[i * 6 + 0] = mainPoint[i].tran.x;
+                param[i * 6 + 1] = mainPoint[i].tran.y;
+                param[i * 6 + 2] = mainPoint[i].tran.z;
+                param[i * 6 + 3] = mainPoint[i].rpy.rx;
+                param[i * 6 + 4] = mainPoint[i].rpy.ry;
+                param[i * 6 + 5] = mainPoint[i].rpy.rz;
+            }
+
+            for (int i = 0; i < 6; i++)
+            {
+                param[i * 4 + 0 + 36] = mainExaxisPos[i].axis1;
+                param[i * 4 + 1 + 36] = mainExaxisPos[i].axis2;
+                param[i * 4 + 2 + 36] = mainExaxisPos[i].axis3;
+                param[i * 4 + 3 + 36] = mainExaxisPos[i].axis4;
+            }
+
+            for (int i = 0; i < 6; i++)
+            {
+                param[i * 6 + 0 + 60] = piecePoint[i].tran.x;
+                param[i * 6 + 1 + 60] = piecePoint[i].tran.y;
+                param[i * 6 + 2 + 60] = piecePoint[i].tran.z;
+                param[i * 6 + 3 + 60] = piecePoint[i].rpy.rx;
+                param[i * 6 + 4 + 60] = piecePoint[i].rpy.ry;
+                param[i * 6 + 5 + 60] = piecePoint[i].rpy.rz;
+            }
+
+            for (int i = 0; i < 6; i++)
+            {
+                param[i * 4 + 0 + 96] = pieceExaxisPos[i].axis1;
+                param[i * 4 + 1 + 96] = pieceExaxisPos[i].axis2;
+                param[i * 4 + 2 + 96] = pieceExaxisPos[i].axis3;
+                param[i * 4 + 3 + 96] = pieceExaxisPos[i].axis4;
+            }
+
+            param[120] = extAxisFlag;
+
+            for (int i = 0; i < 4; i++)
+            {
+                param[121 + i * 4] = exaxisPos[i].axis1;
+                param[122 + i * 4] = exaxisPos[i].axis2;
+                param[123 + i * 4] = exaxisPos[i].axis3;
+                param[124 + i * 4] = exaxisPos[i].axis4;
+            }
+
+            param[137] = tool;
+            param[138] = wobj;
+            param[139] = vel;
+            param[140] = acc;
+            param[141] = ovl;
+            param[142] = oacc;
+            param[143] = moveDirection;
+
+            param[144] = offset.tran.x;
+            param[145] = offset.tran.y;
+            param[146] = offset.tran.z;
+            param[147] = offset.rpy.rx;
+            param[148] = offset.rpy.ry;
+            param[149] = offset.rpy.rz;
+
+            Object[] params = new Object[]{param};
+
+            errcode = (int)client.execute("MoveIntersectLine" , params);
+            if (log != null)
+            {
+                log.LogInfo("MoveIntersectLine: " + errcode);
+            }
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+
+        ROBOT_STATE_PKG robot_state_pkg=GetRobotRealTimeState();
+        if ((robot_state_pkg.main_code != 0 || robot_state_pkg.sub_code != 0) && errcode == 0)
+        {
+            errcode = 14;
+        }
+
+        return errcode;
+    }
+
+
+    /**
+     * @brief 获取关节扭矩传感器迟滞误差
+     * @param  hysteresisError j1~j6关节迟滞误差
+     * @return 错误码
+     */
+    public int JointHysteresisError(double[] hysteresisError)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        int errcode = 0;
+
+        try {
+            Object[] params = new Object[]{};
+            Object[] result = (Object[]) client.execute("JointHysteresisError", params);
+            errcode = (int) result[0];
+            if (errcode == 0) {
+                hysteresisError[0] = (double) result[1];
+                hysteresisError[1] = (double) result[2];
+                hysteresisError[2] = (double) result[3];
+                hysteresisError[3] = (double) result[4];
+                hysteresisError[4] = (double) result[5];
+                hysteresisError[5] = (double) result[6];
+            }
+            if (log != null) {
+                log.LogInfo("JointHysteresisError: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取关节扭矩传感器重复精度
+     * @param repeatability j1~j6关节重复精度
+     * @return 错误码
+     */
+    public int JointRepeatability(double[] repeatability)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        int errcode = 0;
+
+        try {
+            Object[] params = new Object[]{};
+            Object[] result = (Object[]) client.execute("JointRepeatability", params);
+            errcode = (int) result[0];
+            if (errcode == 0) {
+                repeatability[0] = (double) result[1];
+                repeatability[1] = (double) result[2];
+                repeatability[2] = (double) result[3];
+                repeatability[3] = (double) result[4];
+                repeatability[4] = (double) result[5];
+                repeatability[5] = (double) result[6];
+            }
+            if (log != null) {
+                log.LogInfo("JointRepeatability: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+
+    }
+
+    /**
+     * @brief 设置关节力传感器参数
+     * @param M J1-J6质量系数[]
+     * @param B J1-J6阻尼系数[]
+     * @param K J1-J6刚度系数[]
+     * @param threshold 力控制阈值，Nm
+     * @param sensitivity 灵敏度,Nm/V,[]
+     * @param setZeroFlag 功能开启标志位；0-关闭；1-开启；2-位置1记录零点；3-位置2记录零点
+     * @return 错误码
+     */
+    public int SetAdmittanceParams(double[] M, double[] B, double[] K, double[] threshold, double[] sensitivity, int setZeroFlag) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        if (GetSafetyCode() != 0) {
+            return GetSafetyCode();
+        }
+
+        int errcode = 0;
+        try {
+            Object[] param = new Object[31];
+            param[0] = M[0];
+            param[1] = M[1];
+            param[2] = M[2];
+            param[3] = M[3];
+            param[4] = M[4];
+            param[5] = M[5];
+            param[6] = B[0];
+            param[7] = B[1];
+            param[8] = B[2];
+            param[9] = B[3];
+            param[10] = B[4];
+            param[11] = B[5];
+            param[12] = K[0];
+            param[13] = K[1];
+            param[14] = K[2];
+            param[15] = K[3];
+            param[16] = K[4];
+            param[17] = K[5];
+            param[18] = threshold[0];
+            param[19] = threshold[1];
+            param[20] = threshold[2];
+            param[21] = threshold[3];
+            param[22] = threshold[4];
+            param[23] = threshold[5];
+            param[24] = sensitivity[0];
+            param[25] = sensitivity[1];
+            param[26] = sensitivity[2];
+            param[27] = sensitivity[3];
+            param[28] = sensitivity[4];
+            param[29] = sensitivity[5];
+            param[30] = setZeroFlag;
+
+            Object[] params = new Object[]{param};
+
+            errcode = (int) client.execute("SetAdmittanceParams", params);
+
+            if (log != null) {
+                log.LogInfo("SetAdmittanceParams: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+
+    /**
+     * @brief 开启力矩补偿功能及补偿系数
+     * @param  status 开关，0-关闭；1-开启
+     * @param  torqueCoeff J1-J6力矩补偿系数[0-1]
+     * @return 错误码
+     */
+    public int SerCoderCompenParams(int status, double[] torqueCoeff)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        if (GetSafetyCode() != 0) {
+            return GetSafetyCode();
+        }
+
+        int errcode = 0;
+
+        try {
+            Object[] param = new Object[]{status,torqueCoeff[0],torqueCoeff[1],
+                    torqueCoeff[2],torqueCoeff[3],torqueCoeff[4],torqueCoeff[5]};
+            Object[] params = new Object[]{param};
+            errcode=(int) client.execute("SerCoderCompenParams", params);
+            if (log != null) {
+                log.LogInfo("SerCoderCompenParams: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+
+    }
+
+    /**
+     * @brief 激光焊缝轨迹复现
+     * @param delayMode 模式 0-延时时间 1-延时距离
+     * @param delayTime 延时时间 单位ms
+     * @param delayDisExAxisNum 扩展轴编号
+     * @param delayDis 延时距离 单位mm
+     * @param sensitivePara 补偿灵敏系数
+     * @param trackMode 定点跟踪类型。0-扩展轴异步运动；1-机器人
+     * @param triggerMode 定点跟踪触发方式。0-跟踪时长；1-IO
+     * @param runTime 机器人定点跟踪时长(s)
+     * @param speed 速度 单位%
+     * @return 错误码
+     */
+    public int LaserSensorRecordandReplay(int delayMode, int delayTime, int delayDisExAxisNum, double delayDis, double sensitivePara, int trackMode, int triggerMode, double runTime, double speed)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        int errcode = 0;
+
+        try {
+            Object[] params = new Object[]{4, delayTime, speed, delayMode, delayDisExAxisNum, delayDis,
+                                sensitivePara, trackMode, triggerMode, runTime};
+            errcode=(int) client.execute("LaserSensorRecordandReplay", params);
+            if (log != null) {
+                log.LogInfo("LaserSensorRecordandReplay: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 原地空运动
+     * @return 错误码
+     */
+    public int MoveStationary()
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        int errcode = 0;
+
+        try {
+            Object[] params = new Object[]{};
+            errcode=(int) client.execute("MoveStationary", params);
+            if (log != null) {
+                log.LogInfo("MoveStationary: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 旋转插入
+     * @param rcs 参考坐标系，0-工具坐标系，1-基坐标系
+     * @param angVelRot 旋转角速度，单位deg/s
+     * @param ft  力/扭矩阈值，fx,fy,fz,tx,ty,tz，范围[0~100]
+     * @param max_angle 最大旋转角度，单位deg
+     * @param orn 力/扭矩方向，1-沿z轴方向，2-绕z轴方向
+     * @param max_angAcc 最大旋转加速度，单位deg/s^2，暂不使用，默认为0
+     * @param rotorn  旋转方向，1-顺时针，2-逆时针
+     * @param strategy 未检测到力/力矩的处理策略，0-报错；1-警告，继续运动
+     * @return  错误码
+     */
+    public int FT_RotInsertion(int rcs, double angVelRot, double ft, double max_angle, int orn, double max_angAcc, int rotorn, int strategy)
+    {
+
+
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        if (GetSafetyCode() != 0) {
+            return GetSafetyCode();
+        }
+
+        int errcode = 0;
+
+        try {
+            Object[] params = new Object[]{rcs,angVelRot,ft,max_angle,orn,max_angAcc,rotorn,strategy};
+            errcode=(int) client.execute("FT_RotInsertion", params);
+            if (log != null) {
+                log.LogInfo("FT_RotInsertion: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 光电传感器TCP标定-计算工具RPY
+     * @param  Btool 机器人笛卡尔位置
+     * @param  Etool 当前工具坐标系数值
+     * @param  sensor 当前传感器坐标系数值(暂未开放)
+     * @param  radius 圆周运动半径mm(暂未开放)
+     * @param  dz 沿基座标系z轴负方向运动距离；当dz = 10000时，函数直接返回工具RPY
+     * @param  TCPRPY 工具RPY数值
+     * @return 错误码
+     */
+    public int TCPComputeRPY(DescPose Btool, DescPose Etool, DescPose sensor, double radius, double dz, Rpy TCPRPY)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        int errcode = 0;
+
+        try {
+            Object[] param = new Object[24];
+            param[0] = Btool.tran.x;
+            param[1] = Btool.tran.y;
+            param[2] = Btool.tran.z;
+            param[3] = Btool.rpy.rx;
+            param[4] = Btool.rpy.ry;
+            param[5] = Btool.rpy.rz;
+            param[6] = Etool.tran.x;
+            param[7] = Etool.tran.y;
+            param[8] = Etool.tran.z;
+            param[9] = Etool.rpy.rx;
+            param[10] = Etool.rpy.ry;
+            param[11] = Etool.rpy.rz;
+            param[12] = sensor.tran.x;
+            param[13] = sensor.tran.y;
+            param[14] = sensor.tran.z;
+            param[15] = sensor.rpy.rx;
+            param[16] = sensor.rpy.ry;
+            param[17] = sensor.rpy.rz;
+            param[18] = radius;
+            param[19] = dz;
+            param[20] = 0.0;
+            param[21] = 0.0;
+            param[22] = 0.0;
+            param[23] = 0.0;
+            Object[] params = new Object[]{param};
+            Object[] result = (Object[]) client.execute("TCPComputeRPY", params);
+            errcode=(int)result[0];
+            if(errcode==0){
+                TCPRPY.rx = (Double)(result[1]);
+                TCPRPY.ry = (double)(result[2]);
+                TCPRPY.rz = (double)(result[3]);
+            }
+
+            if (log != null) {
+                log.LogInfo("TCPComputeRPY: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 光电传感器TCP标定-计算工具XYZ
+     * @param  select 0-计算工具TCP；1-计算传感器原点；2-计算传感器姿态；3-直接返回工具TCP；4-记录当前工件坐标系和工具坐标系
+     * @param  originDirection 0-X方向；1-Y方向；2-Z方向
+     * @param  pos1 机器人笛卡尔位置1
+     * @param  pos2 机器人笛卡尔位置2
+     * @param  pos3 机器人笛卡尔位置3
+     * @param  pos4 机器人笛卡尔位置4
+     * @param  TCP 工具XYZ数值
+     * @return 错误码
+     */
+    public int TCPComputeXYZ(int select, double originDirection, DescTran pos1, DescTran pos2, DescTran pos3, DescTran pos4, DescTran TCP)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+
+        int errcode = 0;
+
+        try {
+            Object[] param = new Object[14];
+            param[0] = select;
+            param[1] = originDirection;
+            param[2] = pos1.x;
+            param[3] = pos1.y;
+            param[4] = pos1.z;
+            param[5] = pos2.x;
+            param[6] = pos2.y;
+            param[7] = pos2.z;
+            param[8] = pos3.x;
+            param[9] = pos3.y;
+            param[10] = pos3.z;
+            param[11] = pos4.x;
+            param[12] = pos4.y;
+            param[13] = pos4.z;
+            Object[] params = new Object[]{param};
+            Object[] result = (Object[]) client.execute("TCPComputeXYZ", params);
+            errcode=(int)result[0];
+            if(errcode==0){
+                TCP.x = (double)(result[1]);
+                TCP.y = (double)(result[2]);
+                TCP.z = (double)(result[3]);
+            }
+
+            if (log != null) {
+                log.LogInfo("TCPComputeXYZ: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 光电传感器TCP标定-开始记录末端法兰中心位置
+     * @return 错误码
+     */
+    public int TCPRecordFlangePosStart()
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+
+        int errcode = 0;
+
+        try {
+            Object[] params = new Object[]{};
+            errcode = (int) client.execute("TCPRecordFlangePosStart", params);
+
+            if (log != null) {
+                log.LogInfo("TCPRecordFlangePosStart: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 光电传感器TCP标定-停止记录末端法兰中心位置
+     * @return 错误码
+     */
+    public int TCPRecordFlangePosEnd()
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+
+        int errcode = 0;
+
+        try {
+            Object[] params = new Object[]{};
+            errcode = (int) client.execute("TCPRecordFlangePosEnd", params);
+
+            if (log != null) {
+                log.LogInfo("TCPRecordFlangePosEnd: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+
+    /**
+     * @brief 光电传感器TCP标定-获取末端工具中心点位置
+     * @param  TCP 工具中心点位置(x,y,z)
+     * @return 错误码
+     */
+    public int TCPGetRecordFlangePos(DescTran TCP)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+
+        int errcode = 0;
+
+        try {
+            Object[] params = new Object[]{};
+            Object[] result = (Object[]) client.execute("TCPGetRecordFlangePos", params);
+            errcode=(int)result[0];
+            if(errcode==0){
+                TCP.x = (double)(result[1]);
+                TCP.y = (double)(result[2]);
+                TCP.z = (double)(result[3]);
+            }
+
+            if (log != null) {
+                log.LogInfo("TCPGetRecordFlangePos: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 光电传感器TCP标定
+     * @param luaPath 自动标定lua程序路径：QX版本机器人-"/fruser/FR_CalibrateTheToolTcp.lua";LA版本机器人-"/usr/local/etc/controller/lua/FR_CalibrateTheToolTcp.lua"
+     * @param offset 示教点偏移(x,y,z)mm
+     * @param TCP 标定后的工具坐标系(x,y,z,rx,ry,rz)
+     * @return 错误码
+     */
+    public int PhotoelectricSensorTCPCalibration(String luaPath, DescTran offset, DescPose TCP)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        int rtn = 0;
+
+        rtn = SetSysVarValue(1, offset.x);
+        if (rtn != 0)
+        {
+            return rtn;
+        }
+        rtn = SetSysVarValue(2, offset.y);
+        if (rtn != 0)
+        {
+            return rtn;
+        }
+        rtn = SetSysVarValue(3, offset.z);
+        if (rtn != 0)
+        {
+            return rtn;
+        }
+
+        rtn = Mode(0);
+        if (rtn != 0)
+        {
+            return rtn;
+        }
+
+        rtn = ProgramLoad(luaPath);
+        if (rtn != 0)
+        {
+            return rtn;
+        }
+        rtn = ProgramRun();
+        if (rtn != 0)
+        {
+            return rtn;
+        }
+
+        Sleep(2 * 1000);
+
+        ROBOT_STATE_PKG robot_state_pkg=GetRobotRealTimeState();
+        while (robot_state_pkg.program_state != 1)
+        {
+            robot_state_pkg=GetRobotRealTimeState();
+            Sleep(200);
+        }
+
+        DescTran pos1 = new DescTran();
+        DescTran pos2 = new DescTran();
+        DescTran pos3 = new DescTran();
+        DescTran pos4 = new DescTran();
+
+        rtn = TCPComputeXYZ(3, 0, pos1, pos2, pos3, pos4, TCP.tran);
+        if (rtn != 0)
+        {
+            return rtn;
+        }
+        DescPose Btool = new DescPose();
+        DescPose Etool = new DescPose();
+        DescPose sensor = new DescPose();
+        double radius = 1.0;
+        rtn = TCPComputeRPY(Btool, Etool, sensor, radius, 10000, TCP.rpy);
+        return rtn;
+    }
+
+    /**
+     * @brief 运动到TPD轨迹记录起点
+     * @param name 轨迹文件名
+     * @param moveType 运动类型；0-PTP; 1-LIN
+     * @param ovl 速度缩放百分比，范围[0~100]
+     * @return 错误码
+     */
+    public int MoveToTPDStart(String name, int moveType, double ovl)
+    {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        int errcode = 0;
+
+        try {
+            Object[] params = new Object[]{name, moveType, ovl};
+            errcode = (int) client.execute("MoveToTPDStart", params);
+
+            if (log != null) {
+                log.LogInfo("MoveToTPDStart: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
     /**
      * 截取byte数组   不改变原数组
      * @param b 原数组
@@ -19400,6 +21664,191 @@ public class Robot
         System.arraycopy(b, off, b1, 0, length);
         return b1;
     }
+
+    /**
+     * @brief 开启末端通用透传功能
+     * @param mode 使能，0-关闭，1-开启
+     * @return 错误码
+     */
+    public int SetAxleGenComEnable(int mode) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{mode};
+            int errcode = (int) client.execute("SetAxleGenComEnable", params);
+
+            if (log != null) {
+                log.LogInfo("SetAxleGenComEnable: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 按长度获取周期数据
+     * @param len 返回的长度
+     * @param cycleData 周期数据
+     * @return 错误码
+     */
+    public int GetAxleGenComCycleData(int len, int[] cycleData) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{len};
+            Object[] result = (Object[]) client.execute("GetAxleGenComCycleData", params);
+            int errcode = (int) result[0];
+
+            if (errcode == 0) {
+                for (int i = 0; i < len; i++) {
+                    cycleData[i] = (int) result[i + 1];
+                }
+            } else {
+                if (log != null) {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "execute GetAxleGenComCycleData fail: " + errcode);
+                }
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 末端发送非周期数据并等待应答
+     * @param lenSnd 发送的长度
+     * @param sndBuff 发送数据
+     * @param lenRcv 选择接受的长度
+     * @param rcvData 应答的数据
+     * @return 错误码
+     */
+    public int SndRcvAxleGenComCmdData(int lenSnd, int[] sndBuff, int lenRcv, int[] rcvData) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] tmpSenbuf =new Object[lenSnd];
+            for (int i = 0; i < lenSnd; i++)
+            {
+                tmpSenbuf[i] = sndBuff[i];
+            }
+            Object[] params = new Object[]{lenSnd, tmpSenbuf, lenRcv};
+            Object[] result = (Object[]) client.execute("SndRcvAxleGenComCmdData", params);
+            int errcode = (int) result[0];
+
+            if (errcode == 0) {
+                for (int i = 0; i < lenRcv; i++) {
+                    rcvData[i] = (int) result[i + 1];
+                }
+            } else {
+                if (log != null) {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "execute SndRcvAxleGenComCmdData fail: " + errcode);
+                }
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 设置端口通讯断开时停止机器人运行
+     * @param pordID 端口编号 0-8080；1-8083；2-20002；3-20004
+     * @param enable true-开启；false-关闭
+     * @param confirmTime 通讯中断确认时长(ms)[0-5000]
+     * @return 错误码
+     */
+    public int SetRobotStopOnComDisc(int pordID, boolean enable, int confirmTime) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] tmpparams = new Object[]{pordID, enable ? 1 : 0, confirmTime};
+            Object[] params = new Object[]{tmpparams};
+
+            int errcode = (int) client.execute("SetRobotStopOnComDisc", params);
+
+            if (log != null) {
+                log.LogInfo("SetRobotStopOnComDisc: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取端口通讯断开时停止机器人运行参数
+     * @param pordID 端口编号 0-8080；1-8083；2-20002；3-20004
+     * @param enable 结果数组，index 0: 0-关闭；1-开启
+     * @param confirmTime 结果数组，index 0: 通讯中断确认时长(ms)[0-5000]
+     * @return 错误码
+     */
+    public int GetRobotStopOnComDisc(int pordID, int[] enable, int[] confirmTime) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] tmp = new Object[]{pordID};
+            Object[] params = new Object[]{tmp};
+
+            Object[] result = (Object[]) client.execute("GetRobotStopOnComDisc", params);
+            int errcode = (int) result[0];
+
+            if (errcode == 0) {
+                enable[0] = (int) result[1];
+                confirmTime[0] = (int) result[2];
+            } else {
+                if (log != null) {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "execute GetRobotStopOnComDisc fail: " + errcode);
+                }
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+
 
     public static char[] getChars(byte[] bytes) {
         Charset cs = Charset.forName("UTF-8");
@@ -19419,5 +21868,3136 @@ public class Robot
             System.out.println("Got an exception in Sleep!  :  " +  e.getMessage());
         }
     }
+
+/**
+ * 验证帧字符串的格式是否正确
+ * @param frameStr 待验证的帧字符串，格式如：/f/bIII20III303III7IIIMode(0)III/b/f
+ * @return true 表示格式正确，false 表示格式错误
+ */
+public boolean VerifyFrame(String frameStr) {
+    if (frameStr == null || frameStr.length() < 20) {
+        return false;
+    }
+    // 检查帧头帧尾
+    if (!frameStr.startsWith("/f/b") || !frameStr.endsWith("/b/f")) {
+        return false;
+    }
+
+    // 提取中间数据部分（去掉帧头帧尾）
+    String data = frameStr.substring(4, frameStr.length() - 4);
+    List<String> parts = new ArrayList<>();
+    int start = 0;
+
+    // 按 "III" 分割前5个字段（包括可能为空的第一个字段）
+    for (int i = 0; i < 5; i++) {
+        int pos = data.indexOf("III", start);
+        if (pos == -1) {
+            return false; // 缺少分隔符
+        }
+        parts.add(data.substring(start, pos));
+        start = pos + 3;
+    }
+    // 添加剩余部分（最后一个分隔符之后的内容，可能为空）
+    parts.add(data.substring(start));
+
+    try {
+        // 必须正好有6个部分
+        if (parts.size() != 6) {
+            return false;
+        }
+        // 检查关键字段（索引1~4）是否非空
+        if (parts.get(1).isEmpty() || parts.get(2).isEmpty() ||
+            parts.get(3).isEmpty() || parts.get(4).isEmpty()) {
+            return false;
+        }
+        // 验证内容长度字段（索引3）是否等于实际内容（索引4）的长度
+        int contentLen = Integer.parseInt(parts.get(3));
+        return contentLen == parts.get(4).length();
+    } catch (NumberFormatException e) {
+        return false; // 内容长度字段无法解析为整数
+    }
+}
+
+/**
+ * UDP 发送一帧指令
+ * @param frame 待发送的帧字符串，格式如：/f/bIII20III303III7IIIMode(0)III/b/f
+ * @return 错误码（0 表示成功，非零表示失败）
+ */
+public int SendUDPFrame(String frame) {
+    // 1. 验证帧格式
+    if (!VerifyFrame(frame)) {
+        return RobotError.ERR_PARAM_VALUE;  // 参数错误
+    }
+
+    // 2. 发送数据
+    int rtn = udpCmdClient.sendFrame(frame);
+    if (rtn < 0) {
+        return RobotError.ERR_SOCKET_SEND_FAILED;  // 发送失败
+    }
+
+    // 3. 更新帧计数器
+    cmdFrameCnt++;
+    return 0;  // 成功
+}
+
+    /**
+     * @brief 设置安全速度参数
+     * @param enable 0-关；1-手动模式启用；2-所有模式启用(不支持自动限速)
+     * @param maxTCPVel 限制最大TCP速度;[0-1000]mm/s
+     * @param strategy 超速后策略；0-停止报警；1-自动限速；2-停止报警并去使能
+     * @param maxJointVel 6个关节最大速度(°/s) 默认为45°/s
+     * @return 错误码
+     */
+    public int SetVelReducePara(int enable, double maxTCPVel, int strategy, double[] maxJointVel) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        if (enable == 2 && strategy == 1) {
+            return RobotError.ERR_PARAM_VALUE;
+        }
+
+        try {
+//            Object[] maxJointVelParam = new Object[]{maxJointVel[0],maxJointVel[1],
+//                    maxJointVel[2],maxJointVel[3],maxJointVel[4],maxJointVel[5]};
+            Object[] tmp = new Object[]{enable, maxTCPVel, strategy, maxJointVel[0],maxJointVel[1],
+                    maxJointVel[2],maxJointVel[3],maxJointVel[4],maxJointVel[5]};
+            Object[] params = new Object[]{tmp};
+            int errcode = (int) client.execute("SetVelReducePara", params);
+
+            if (log != null) {
+                log.LogInfo("SetVelReducePara: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+    /**
+     * @brief 定点摆动开始
+     * @param weaveNum 摆动编号[0-7]
+     * @param mode 0-工具坐标系；1-参考点
+     * @param refPoint 参考点笛卡尔坐标[x,y,z,a,b,c]
+     * @param weaveTime 摆动时间[s]
+     * @return 错误码
+     */
+    public int OriginPointWeaveStart(int weaveNum, int mode, DescPose refPoint, double weaveTime) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] tmp = new Object[]{weaveNum, mode, 
+                    refPoint.tran.x, refPoint.tran.y, refPoint.tran.z,
+                    refPoint.rpy.rx, refPoint.rpy.ry, refPoint.rpy.rz, 
+                    weaveTime};
+                    
+            Object[] params = new Object[]{tmp};
+            int errcode = (int) client.execute("OriginPointWeaveStart", params);
+
+            if (log != null) {
+                log.LogInfo("OriginPointWeaveStart: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 定点摆动结束
+     * @return 错误码
+     */
+    public int OriginPointWeaveEnd() {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] tmp = new Object[]{};
+            Object[] params = new Object[]{tmp};
+            int errcode = (int) client.execute("OriginPointWeaveEnd", params);
+
+            if (log != null) {
+                log.LogInfo("OriginPointWeaveEnd: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 设置可配置CI端口功能
+     * @param config CI0-CI7功能编码；
+     * 0-无;1-起弧成功;2-焊机准备;3-传送带检测;4-暂停;5-恢复;6-启动;7-停止;
+     * 8-暂停/恢复;9-启动/停止;10-脚踏拖动;11-移至作业原点;12-手自动切换;
+     * 13-焊丝寻位成功;14-运动中断;15-启动主程序;16-启动倒带;17-启动确认;
+     * 18-光电检测信号X;19-光电检测信号Y;20-外部急停输入信号1;21-外部急停输入信号2;
+     * 22-一级缩减模式;23-二级缩减模式;24-三级缩减模式(停止);25-恢复焊接;26-终止焊接;
+     * 27-辅助拖动开启;28-辅助拖动关闭;29-辅助拖动开启/关闭;30-清除所有错误;
+     * 31-手自动切换(高低电平);32-使能;33-去使能;34-使能/去使能(上升下降沿);35-定点跟踪开始/结束
+     * 36-进入安全速度移动;37-电流环拖动锁定;38-力传感器辅助锁定
+     * @return 错误码
+     */
+    public int SetDIConfig(int[] config) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[1];
+            Integer[] configArray = new Integer[8];
+            for (int i = 0; i < 8; i++) {
+                configArray[i] = config[i];
+            }
+            params[0] = configArray;
+            int errcode = (int) client.execute("SetDIConfig", params);
+
+            if (log != null) {
+                log.LogInfo("SetDIConfig: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取控制箱可配置CI端口功能
+     * @param config CI0-CI7功能编码；
+     * 0-无;1-起弧成功;2-焊机准备;3-传送带检测;4-暂停;5-恢复;6-启动;7-停止;
+     * 8-暂停/恢复;9-启动/停止;10-脚踏拖动;11-移至作业原点;12-手自动切换;
+     * 13-焊丝寻位成功;14-运动中断;15-启动主程序;16-启动倒带;17-启动确认;
+     * 18-光电检测信号X;19-光电检测信号Y;20-外部急停输入信号1;21-外部急停输入信号2;
+     * 22-一级缩减模式;23-二级缩减模式;24-三级缩减模式(停止);25-恢复焊接;26-终止焊接;
+     * 27-辅助拖动开启;28-辅助拖动关闭;29-辅助拖动开启/关闭;30-清除所有错误;
+     * 31-手自动切换(高低电平);32-使能;33-去使能;34-使能/去使能(上升下降沿);35-定点跟踪开始/结束
+     * 36-进入安全速度移动;37-电流环拖动锁定;38-力传感器辅助锁定
+     * 201-外部急停输入信号1-双通道; 202-外部急停输入信号2-双通道; 203-一级缩减模式-双通道;
+     * 204-二级缩减模式-双通道; 205-三级缩减模式-双通道; 206-常规停止-双通道; 207-安全墙1-双通道; 208-安全墙2-双通道;
+     * 209-安全墙3-双通道; 210-安全墙4-双通道; 211-安全墙5-双通道; 212-安全墙6-双通道; 213-安全墙7-双通道;
+     * 214-安全墙8-双通道; 215-安全停止重置-双通道;
+     * @return 错误码
+     */
+    public int GetDIConfig(int[] config) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{};
+            Object[] result = (Object[]) client.execute("GetDIConfig", params);
+            int errcode = (int) result[0];
+
+            if (errcode == 0) {
+                for (int i = 0; i < 8; i++) {
+                    config[i] = (int) result[i + 1];
+                }
+            } else {
+                if (log != null) {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "execute GetDIConfig fail: " + errcode);
+                }
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 设置可配置CO端口功能
+     * @param config CO0-CO7功能编码；
+     * 0-无;1-机器人报错;2-机器人运动中;3-喷涂启停;4-喷涂清枪;5-送气信号;6-起弧信号;7-点动送丝;
+     * 8-反向送丝;9-JOB输入口1;10-JOB输入口2;11-JOB输入口3;12-传送带启停控制;13-机器人暂停中;14-到达作业原点;
+     * 15-到达干涉区;16-焊丝寻位启停控制;17-机器人启动完成;18-程序启动停止;19-自动手动模式;20-急停输出信号1-安全;
+     * 21-急停输出信号2-安全;22-LUA脚本程序运行停止;23-安全状态输出-安全;24-保护性停止状态输出-安全;
+     * 25-机器人运动中-安全;26-机器人缩减模式-安全;27-机器人非缩减模式-安全;28-机器人非停止;29-机器人报错-指令点错误;
+     * 30-机器人报错-驱动器错误;31-机器人报错-超出软限位错误;32-机器人报错-碰撞错误;33-机器人报错-活动从站数量错误;
+     * 34-机器人报错-从站错误;35-机器人报错-IO错误;36-机器人报错-夹爪错误;37-机器人报错-文件错误;38-机器人报错-奇异位姿错误;
+     * 39-机器人报错-驱动器通信错误;40-机器人报错-参数错误;41-机器人报错-外部轴超出软限位错误;42-机器人警告-警告;
+     * 43-机器人警告-安全门警告;44-机器人警告-运动警告;45-机器人警告-干涉区警告;46-机器人警告-安全墙警告;
+     * 47-使能状态;48-断线自动抬升中;49-立方体1干涉警告;50-立方体2干涉警告;51-立方体3干涉警告;52-立方体4干涉警告;
+     * 201-急停输出信号1-双通道; 202-急停输出信号2-双通道; 203-安全状态输出-双通道; 
+     * 204-保护性停止状态输出-双通道; 205-机器人运动中-双通道;
+     * 206-机器人缩减模式-双通道; 207-机器人非缩减模式-双通道;
+     * @return 错误码
+     */
+    public int SetDOConfig(int[] config) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[1];
+            Integer[] configArray = new Integer[8];
+            for (int i = 0; i < 8; i++) {
+                configArray[i] = config[i];
+            }
+            params[0] = configArray;
+            int errcode = (int) client.execute("SetDOConfig", params);
+
+            if (log != null) {
+                log.LogInfo("SetDOConfig: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取可配置CO端口功能
+     * @param config CO0-CO7功能编码；
+     * 0-无;1-机器人报错;2-机器人运动中;3-喷涂启停;4-喷涂清枪;5-送气信号;6-起弧信号;7-点动送丝;
+     * 8-反向送丝;9-JOB输入口1;10-JOB输入口2;11-JOB输入口3;12-传送带启停控制;13-机器人暂停中;14-到达作业原点;
+     * 15-到达干涉区;16-焊丝寻位启停控制;17-机器人启动完成;18-程序启动停止;19-自动手动模式;20-急停输出信号1-安全;
+     * 21-急停输出信号2-安全;22-LUA脚本程序运行停止;23-安全状态输出-安全;24-保护性停止状态输出-安全;
+     * 25-机器人运动中-安全;26-机器人缩减模式-安全;27-机器人非缩减模式-安全;28-机器人非停止;29-机器人报错-指令点错误;
+     * 30-机器人报错-驱动器错误;31-机器人报错-超出软限位错误;32-机器人报错-碰撞错误;33-机器人报错-活动从站数量错误;
+     * 34-机器人报错-从站错误;35-机器人报错-IO错误;36-机器人报错-夹爪错误;37-机器人报错-文件错误;38-机器人报错-奇异位姿错误;
+     * 39-机器人报错-驱动器通信错误;40-机器人报错-参数错误;41-机器人报错-外部轴超出软限位错误;42-机器人警告-警告;
+     * 43-机器人警告-安全门警告;44-机器人警告-运动警告;45-机器人警告-干涉区警告;46-机器人警告-安全墙警告;
+     * 47-使能状态;48-断线自动抬升中;49-立方体1干涉警告;50-立方体2干涉警告;51-立方体3干涉警告;52-立方体4干涉警告;
+     * 201-急停输出信号1-双通道; 202-急停输出信号2-双通道; 203-安全状态输出-双通道; 
+     * 204-保护性停止状态输出-双通道; 205-机器人运动中-双通道;
+     * 206-机器人缩减模式-双通道; 207-机器人非缩减模式-双通道;
+     * @return 错误码
+     */
+    public int GetDOConfig(int[] config) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{};
+            Object[] result = (Object[]) client.execute("GetDOConfig", params);
+            int errcode = (int) result[0];
+
+            if (errcode == 0) {
+                for (int i = 0; i < 8; i++) {
+                    config[i] = (int) result[i + 1];
+                }
+            } else {
+                if (log != null) {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "execute GetDOConfig fail: " + errcode);
+                }
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 设置末端可配置End-CI端口功能
+     * @param config End CI0-CI1功能编码；
+     * 0-无;1-拖动示教工具开关;2-点记录信号;3-手自动切换（脉冲信号）;4-TPD记录启动/停止;5-暂停运动;
+     * 6-恢复运动;7-启动;8-停止;9-暂停/恢复;10-启动/停止;11-力传感器辅助拖动开启;12-力传感器辅助拖动关闭;
+     * 13-力传感器辅助拖动开启/关闭;14-激光检测信号X;15-激光检测信号Y;16-PTP运动至作业原点;17-运动中断，根据信号停止当前运动;
+     * 18-启动主程序;19-启动倒带;20-启动确认;21-恢复焊接;22-终止焊接;23-清除错误;24-手自动切换（高低电平）
+     * 25-使能;26-去使能;27-使能/去使能;28-激光伺服跟踪启停信号;
+     * @return 错误码
+     */
+    public int SetToolDIConfig(int[] config) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[1];
+            Integer[] configArray = new Integer[2];
+            for (int i = 0; i < 2; i++) {
+                configArray[i] = config[i];
+            }
+            params[0] = configArray;
+            int errcode = (int) client.execute("SetToolDIConfig", params);
+
+            if (log != null) {
+                log.LogInfo("SetToolDIConfig: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取末端可配置End-CI端口功能
+     * @param config End CI0-CI1功能编码；
+     * 0-无;1-拖动示教工具开关;2-点记录信号;3-手自动切换（脉冲信号）;4-TPD记录启动/停止;5-暂停运动;
+     * 6-恢复运动;7-启动;8-停止;9-暂停/恢复;10-启动/停止;11-力传感器辅助拖动开启;12-力传感器辅助拖动关闭;
+     * 13-力传感器辅助拖动开启/关闭;14-激光检测信号X;15-激光检测信号Y;16-PTP运动至作业原点;17-运动中断，根据信号停止当前运动;
+     * 18-启动主程序;19-启动倒带;20-启动确认;21-恢复焊接;22-终止焊接;23-清除错误;24-手自动切换（高低电平）
+     * 25-使能;26-去使能;27-使能/去使能;28-激光伺服跟踪启停信号;
+     * @return 错误码
+     */
+    public int GetToolDIConfig(int[] config) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{};
+            Object[] result = (Object[]) client.execute("GetToolDIConfig", params);
+            int errcode = (int) result[0];
+
+            if (errcode == 0) {
+                for (int i = 0; i < 2; i++) {
+                    config[i] = (int) result[i + 1];
+                }
+            } else {
+                if (log != null) {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "execute GetToolDIConfig fail: " + errcode);
+                }
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 设置控制箱可配置CI有效状态
+     * @param config CI0-CI7端口有效状态；0-高电平有效；1-低电平有效
+     * @return 错误码
+     */
+    public int SetDIConfigLevel(int[] config) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[1];
+            Integer[] configArray = new Integer[8];
+            for (int i = 0; i < 8; i++) {
+                configArray[i] = config[i];
+            }
+            params[0] = configArray;
+            int errcode = (int) client.execute("SetDIConfigLevel", params);
+
+            if (log != null) {
+                log.LogInfo("SetDIConfigLevel: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取控制箱可配置CI有效状态
+     * @param config CI0-CI7端口有效状态；0-高电平有效；1-低电平有效
+     * @return 错误码
+     */
+    public int GetDIConfigLevel(int[] config) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{};
+            Object[] result = (Object[]) client.execute("GetDIConfigLevel", params);
+            int errcode = (int) result[0];
+
+            if (errcode == 0) {
+                for (int i = 0; i < 8; i++) {
+                    config[i] = (int) result[i + 1];
+                }
+            } else {
+                if (log != null) {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "execute GetDIConfigLevel fail: " + errcode);
+                }
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 设置控制箱可配置CO有效状态
+     * @param config CO0-CO7端口有效状态；0-高电平有效；1-低电平有效
+     * @return 错误码
+     */
+    public int SetDOConfigLevel(int[] config) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[1];
+            Integer[] configArray = new Integer[2];
+            for (int i = 0; i < 2; i++) {
+                configArray[i] = config[i];
+            }
+            params[0] = configArray;
+            int errcode = (int) client.execute("SetDOConfigLevel", params);
+
+            if (log != null) {
+                log.LogInfo("SetDOConfigLevel: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取控制箱可配置CO有效状态
+     * @param config CO0-CO7端口有效状态；0-高电平有效；1-低电平有效
+     * @return 错误码
+     */
+    public int GetDOConfigLevel(int[] config) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{};
+            Object[] result = (Object[]) client.execute("GetDOConfigLevel", params);
+            int errcode = (int) result[0];
+
+            if (errcode == 0) {
+                for (int i = 0; i < 8; i++) {
+                    config[i] = (int) result[i + 1];
+                }
+            } else {
+                if (log != null) {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "execute GetDOConfigLevel fail: " + errcode);
+                }
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 设置末端可配置CI有效状态
+     * @param config CI0-CI1端口有效状态；0-高电平有效；1-低电平有效
+     * @return 错误码
+     */
+    public int SetToolDIConfigLevel(int[] config) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[1];
+            Integer[] configArray = new Integer[2];
+            for (int i = 0; i < 2; i++) {
+                configArray[i] = config[i];
+            }
+            params[0] = configArray;
+            int errcode = (int) client.execute("SetToolDIConfigLevel", params);
+
+            if (log != null) {
+                log.LogInfo("SetToolDIConfigLevel: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取末端可配置CI有效状态
+     * @param config CI0-CI1端口有效状态；0-高电平有效；1-低电平有效
+     * @return 错误码
+     */
+    public int GetToolDIConfigLevel(int[] config) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{};
+            Object[] result = (Object[]) client.execute("GetToolDIConfigLevel", params);
+            int errcode = (int) result[0];
+
+            if (errcode == 0) {
+                for (int i = 0; i < 2; i++) {
+                    config[i] = (int) result[i + 1];
+                }
+            } else {
+                if (log != null) {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "execute GetToolDIConfigLevel fail: " + errcode);
+                }
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 设置控制箱标准DI有效状态
+     * @param config DI0-DI7端口有效状态；0-高电平有效；1-低电平有效
+     * @return 错误码
+     */
+    public int SetStandardDILevel(int[] config) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[1];
+            Integer[] configArray = new Integer[8];
+            for (int i = 0; i < 8; i++) {
+                configArray[i] = config[i];
+            }
+            params[0] = configArray;
+            int errcode = (int) client.execute("SetStandardDILevel", params);
+
+            if (log != null) {
+                log.LogInfo("SetStandardDILevel: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取控制箱标准DI有效状态
+     * @param config DI0-DI7端口有效状态；0-高电平有效；1-低电平有效
+     * @return 错误码
+     */
+    public int GetStandardDILevel(int[] config) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{};
+            Object[] result = (Object[]) client.execute("GetStandardDILevel", params);
+            int errcode = (int) result[0];
+
+            if (errcode == 0) {
+                for (int i = 0; i < 8; i++) {
+                    config[i] = (int) result[i + 1];
+                }
+            } else {
+                if (log != null) {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "execute GetStandardDILevel fail: " + errcode);
+                }
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 设置控制箱标准DO有效状态
+     * @param config DO0-DO7端口有效状态；0-高电平有效；1-低电平有效
+     * @return 错误码
+     */
+    public int SetStandardDOLevel(int[] config) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[1];
+            Integer[] configArray = new Integer[8];
+            for (int i = 0; i < 8; i++) {
+                configArray[i] = config[i];
+            }
+            params[0] = configArray;
+            int errcode = (int) client.execute("SetStandardDOLevel", params);
+
+            if (log != null) {
+                log.LogInfo("SetStandardDOLevel: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取控制箱标准DO有效状态
+     * @param config DO0-DO7端口有效状态；0-高电平有效；1-低电平有效
+     * @return 错误码
+     */
+    public int GetStandardDOLevel(int[] config) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{};
+            Object[] result = (Object[]) client.execute("GetStandardDOLevel", params);
+            int errcode = (int) result[0];
+
+            if (errcode == 0) {
+                for (int i = 0; i < 8; i++) {
+                    config[i] = (int) result[i + 1];
+                }
+            } else {
+                if (log != null) {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "execute GetStandardDOLevel fail: " + errcode);
+                }
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief UDP扩展轴定位完成时间设置
+     * @param time 定位完成时间[ms]
+     * @return 错误码
+     */
+    public int SetExAxisCmdDoneTime(double time) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] tmp = new Object[]{time};
+            Object[] params = new Object[]{tmp};
+            int errcode = (int) client.execute("SetExAxisCmdDoneTime", params);
+
+            if (log != null) {
+                log.LogInfo("SetExAxisCmdDoneTime: " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 下载开放协议Lua文件
+     * @param fileName 开放协议文件名称"CtrlDev_XXX.lua"
+     * @param savePath 开放协议保存文件路径
+     * @return 错误码
+     */
+    public int OpenLuaDownload(String fileName, String savePath) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        if (fileName == null || fileName.isEmpty()) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "file name can not be empty.");
+            }
+            return RobotError.ERR_UPLOAD_FILE_NOT_FOUND;
+        }
+
+        String[] fileParts = fileName.split("\\.");
+        if (fileParts.length != 2 || !"lua".equals(fileParts[1])) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "can not download " + fileName + ", file name should be xxx.lua");
+            }
+            return RobotError.ERR_FILE_NAME;
+        }
+
+        if (log != null) {
+            log.LogInfo("download open lua.");
+        }
+
+        return FileDownLoad(11, fileName, savePath);
+    }
+
+    /**
+     * @brief 设置用户自定义机器人末端灯色
+     * @param r 末端红灯控制；false-灭；true-亮
+     * @param g 末端绿灯控制；false-灭；true-亮
+     * @param b 末端蓝灯控制；false-灭；true-亮
+     * @return 错误码
+     */
+    public int SetUserLEDColor(boolean r, boolean g, boolean b) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{r ? 1 : 0, g ? 1 : 0, b ? 1 : 0};
+            int rtn = (int) client.execute("SetUserLEDColor", params);
+            if (log != null) {
+                log.LogInfo("SetUserLEDColor(" + (r ? 1 : 0) + ", " + (g ? 1 : 0) + ", " + (b ? 1 : 0) + ") : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 删除开放协议Lua文件
+     * @param fileName 要删除的开放协议lua文件名“CtrlDev_XXX.lua”
+     * @return 错误码
+     */
+    public int OpenLuaDelete(String fileName) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        int rtn = FileDelete(11, fileName);
+        if (log != null) {
+            log.LogInfo("OpenLuaDelete(" + fileName + ") : " + rtn);
+        }
+        return rtn;
+    }
+
+    /**
+     * @brief 删除所有开放协议Lua文件
+     * @return 错误码
+     */
+    public int AllOpenLuaDelete() {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+        int rtn = FileDelete(12, "openluas");
+        return rtn;
+    }
+
+    /**
+     * @brief 配置机器人状态反馈，将state列表和period暂时存储起来
+     * @param state 机器人状态枚举列表，如 RobotState.ProgramState, RobotState.RobotState 等
+     * @param period 状态反馈周期，范围8-1000
+     * @return 错误码，正常-0，参数异常-4，状态字段不存在-18，字节总数超过4K-20
+     */
+    public int SetRobotRealtimeStateConfig(List<RobotState> state, int period)
+    {
+        if (period < 8 || period > 1000)
+        {
+            return 4; // 参数异常
+        }
+
+        // 检查所有状态字段是否存在
+        if (state != null)
+        {
+            for (RobotState s : state)
+            {
+                if (s == null || RobotStateParser.getStateType(s) == null)
+                {
+                    return -18; // 状态字段不存在
+                }
+            }
+
+            // 检查字节总数是否超过4K
+            int totalSize = RobotStateParser.calculateTotalSize(state);
+            if (totalSize > 4096)
+            {
+                return -20; // 字节总数超过4K
+            }
+        }
+
+        robotRealtimeStateList.clear();
+        if (state != null)
+        {
+            robotRealtimeStateList.addAll(state);
+        }
+        robotRealtimeStatePeriod = period;
+        return 0;
+    }
+
+    /**
+     * @brief 添加一个机器人状态到配置列表
+     * @param state 机器人状态枚举，如 RobotState.ProgramState, RobotState.RobotState, RobotState.JtCurPos 等
+     * @return 错误码，正常-0，状态已存在-17，状态字段不存在-18，超过4K-20
+     */
+    public int AddRobotRealtimeState(RobotState state)
+    {
+        if (state == null || RobotStateParser.getStateType(state) == null)
+        {
+            return -18; // 状态字段不存在
+        }
+
+        // 检查状态是否已存在
+        if (robotRealtimeStateList.contains(state))
+        {
+            return -17; // 状态已存在
+        }
+
+        // 检查添加后是否超过4K
+        int currentSize = RobotStateParser.calculateTotalSize(robotRealtimeStateList);
+        int stateSize = RobotStateParser.getStateSize(state);
+        if (currentSize + stateSize > 4096)
+        {
+            return -20; // 超过4K
+        }
+
+        robotRealtimeStateList.add(state);
+        return 0;
+    }
+
+    /**
+     * @brief 从配置列表删除一个机器人状态
+     * @param state 机器人状态枚举，如 RobotState.ProgramState, RobotState.RobotState, RobotState.JtCurPos 等
+     * @return 错误码，正常-0，状态不存在-18，至少保留一个状态-19
+     */
+    public int DeleteRobotRealtimeState(RobotState state)
+    {
+        if (state == null)
+        {
+            return -18; // 状态不存在
+        }
+
+        // 检查状态是否存在列表中
+        if (!robotRealtimeStateList.contains(state))
+        {
+            return -18; // 状态不存在
+        }
+
+        // 检查是否至少保留一个状态
+        if (robotRealtimeStateList.size() <= 1)
+        {
+            return -19; // 至少保留一个状态
+        }
+
+        robotRealtimeStateList.remove(state);
+        return 0;
+    }
+
+    /**
+     * @brief 设置状态反馈周期
+     * @param period 状态反馈周期，范围8-1000
+     * @return 错误码，正常-0，参数异常-4
+     */
+    public int SetRobotRealtimeStatePeriod(int period)
+    {
+        if (period < 8 || period > 1000)
+        {
+            return 4; // 参数异常
+        }
+        robotRealtimeStatePeriod = period;
+        return 0;
+    }
+
+    /**
+     * 配置结果类，包含状态列表和周期
+     */
+    public static class StateConfigResult {
+        public final List<RobotState> stateList;
+        public final int period;
+
+        public StateConfigResult(List<RobotState> stateList, int period) {
+            this.stateList = stateList;
+            this.period = period;
+        }
+
+        @Override
+        public String toString() {
+            return "StateConfigResult{stateCount=" + stateList.size() + ", period=" + period + "ms}";
+        }
+    }
+
+    /**
+     * @brief 获取当前所有状态集合和周期
+     * @return 包含状态列表和周期的配置结果
+     */
+    public StateConfigResult GetRobotRealtimeStateConfig()
+    {
+        return new StateConfigResult(new ArrayList<>(robotRealtimeStateList), robotRealtimeStatePeriod);
+    }
+
+    /**
+     * @brief 连接 CNDE 服务
+     * @param ip 机器人 IP
+     * @param port 机器人 CNDE 端口 (默认 20005)
+     * @return 0-成功，其他-错误码
+     */
+    public int CNDEConnect(String ip, int port)
+    {
+        // 创建新的CNDE客户端，使用内部状态包
+        cndeClient = new FRCNDEClient(ip, port);
+        return cndeClient.Connect(ip, port);
+    }
+
+    /**
+     * @brief 关闭 CNDE 连接
+     * @return 0-成功
+     */
+    public int CNDEClose()
+    {
+        if (cndeClient != null)
+        {
+            return cndeClient.Close();
+        }
+        return 0;
+    }
+
+    /**
+     * @brief 启动 CNDE 状态上报
+     * @return 0-成功，其他-错误码
+     */
+    public int CNDEStart()
+    {
+        if (cndeClient != null)
+        {
+            return cndeClient.SetCNDEStart();
+        }
+        return -1;
+    }
+
+    /**
+     * @brief 停止 CNDE 状态上报
+     * @return 0-成功，其他-错误码
+     */
+    public int CNDEStop()
+    {
+        if (cndeClient != null)
+        {
+            return cndeClient.SetCNDEStop();
+        }
+        return -1;
+    }
+
+    /**
+     * @brief 设置 CNDE 状态反馈周期
+     * @param period 周期 (ms)，范围 8-1000
+     * @return 错误码，正常-0，参数异常-4
+     */
+    public int CNDESetRobotStatePeriod(int period)
+    {
+        if (cndeClient != null)
+        {
+            return cndeClient.SetCNDERobotStatePeriod(period);
+        }
+        return -1;
+    }
+
+    /**
+     * @brief 获取 CNDE 状态反馈周期
+     * @return 周期 (ms)，未连接返回-1
+     */
+    public int CNDEGetRobotStatePeriod()
+    {
+        if (cndeClient != null)
+        {
+            return cndeClient.getRobotStatePeriod();
+        }
+        return -1;
+    }
+
+    /**
+     * @brief 设置 CNDE 状态配置
+     * @param configList 状态配置列表
+     */
+    public void CNDESetStateConfig(List<RobotState> configList)
+    {
+        if (cndeClient != null)
+        {
+            cndeClient.SetStateConfig(configList);
+        }
+    }
+
+    /**
+     * @brief 发送 CNDE 状态配置到服务器
+     * @return 0-成功，-1-失败
+     */
+    public int CNDESendStateConfig()
+    {
+        if (cndeClient != null)
+        {
+            return cndeClient.SendStateConfig();
+        }
+        return -1;
+    }
+
+    /**
+     * @brief 获取 CNDE 状态配置
+     * @return 状态配置列表
+     */
+    public List<RobotState> CNDEGetStateConfig()
+    {
+        if (cndeClient != null)
+        {
+            return cndeClient.GetStateConfig();
+        }
+        return null;
+    }
+    
+    /**
+     * @brief 获取 CNDE 状态数据
+     * @return 状态数据结构体
+     */
+    public ROBOT_STATE_PKG CNDEGetStateData()
+    {
+        if (cndeClient != null)
+        {
+            return cndeClient.GetStatePkg();
+        }
+        return null;
+    }
+
+    /**
+     * @brief  关节空间速度伺服模式运动
+     * @param  joint_vel  6个目标关节速度,单位deg/s
+     * @param  exis_vel  4个外部轴速度,单位deg/s
+     * @param  acc  加速度百分比，范围[0~100],暂不开放，默认为0
+     * @param  vel  速度百分比，范围[0~100]，暂不开放，默认为0
+     * @param  cmdT  指令下发周期，单位s，建议范围[0.001~0.0016]
+     * @param  filterT 滤波时间，单位s，暂不开放，默认为0
+     * @param  gain  目标位置的比例放大器，暂不开放，默认为0
+     * @return  错误码
+     */
+    public int ServoJV(double[] joint_vel, double[] exis_vel, double acc, double vel, double cmdT, double filterT, double gain)
+    {
+        return ServoJV(joint_vel, exis_vel, acc, vel, cmdT, filterT, gain, 0, 1);
+    }
+
+    /**
+     * @brief  关节空间速度伺服模式运动
+     * @param  joint_vel  6个目标关节速度,单位deg/s
+     * @param  exis_vel  4个外部轴速度,单位deg/s
+     * @param  acc  加速度百分比，范围[0~100],暂不开放，默认为0
+     * @param  vel  速度百分比，范围[0~100]，暂不开放，默认为0
+     * @param  cmdT  指令下发周期，单位s，建议范围[0.001~0.0016]
+     * @param  filterT 滤波时间，单位s，暂不开放，默认为0
+     * @param  gain  目标位置的比例放大器，暂不开放，默认为0
+     * @param  id  servoJ指令ID,默认为0
+     * @param  comType 指令下发类型；0-xmlrpc；1-UDP(对应机器人20007端口)
+     * @return  错误码
+     */
+    public int ServoJV(double[] joint_vel, double[] exis_vel, double acc, double vel, double cmdT, double filterT, double gain, int id, int comType)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+        if (GetSafetyCode() != 0)
+        {
+            return GetSafetyCode();
+        }
+        try
+        {
+            if (comType == 0)
+            {
+                Object[] param_joint = new Object[]{joint_vel[0],joint_vel[1],
+                        joint_vel[2],joint_vel[3],joint_vel[4],joint_vel[5]};
+                Object[] param_exis = new Object[]{exis_vel[0],exis_vel[1],
+                        exis_vel[2],exis_vel[3]};
+                Object[] params = new Object[] {param_joint, param_exis, acc, vel, cmdT, filterT, gain, id};
+                int rtn = (int)client.execute("ServoJV", params);
+                if (log != null)
+                {
+                    log.LogInfo("111 ServoJV() : " + rtn);
+                }
+                return rtn;
+            }
+            else if (comType == 1)
+            {
+                // 格式化数组为字符串，保留3位小数
+                String jointVelStr = formatDoubleArray(joint_vel, 3);
+                String exisVelStr = formatDoubleArray(exis_vel, 3);
+
+                // 构建命令字符串
+                String cmdStr = String.format("ServoJV(%s,%s,%.3f,%.3f,%.3f,%.3f,%.3f,%d)",
+                        jointVelStr, exisVelStr, acc, vel, cmdT, filterT, gain, id);
+
+                Frame frame = new Frame(cmdFrameCnt++, 1337, cmdStr);
+                int sendResult = udpCmdClient.sendFrame(FrameHandle.packFrame(frame));
+                if (sendResult <= 0)
+                {
+                    if (log != null)
+                    {
+                        log.LogError("ServoJV UDP send failed: " + sendResult);
+                    }
+                    return RobotError.ERR_SOCKET_SEND_FAILED;
+                }
+                return 0;
+            }
+            else
+            {
+                if (log != null)
+                {
+                    log.LogError("ServoJV invalid comType: " + comType);
+                }
+                return RobotError.ERR_PARAM_VALUE;
+            }
+        }
+        catch (Throwable e)
+        {
+            if (IsSockComError())
+            {
+                if (log != null)
+                {
+                    log.LogError("ServoJV RPC exception: " + e.getMessage());
+                }
+                return sockErr;
+            }
+            else
+            {
+                return RobotError.ERR_SUCCESS;
+            }
+        }
+    }
+
+    /**
+     * @brief 关节MIT控制开始
+     * @return  错误码
+     */
+    public int ServoMITStart()
+    {
+        return ServoMITStart(0);
+    }
+
+    /**
+     * @brief 关节MIT控制开始
+     * @param  comType 指令下发类型；0-xmlrpc；1-UDP(对应机器人20007端口)
+     * @return  错误码
+     */
+    public int ServoMITStart(int comType)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+        if (GetSafetyCode() != 0)
+        {
+            return GetSafetyCode();
+        }
+
+        try
+        {
+            if (comType == 0)
+            {
+                int rtn = (int)client.execute("ServoMITStart", new Object[]{});
+                if (log != null)
+                {
+                    log.LogInfo("ServoMITStart() : " + rtn);
+                }
+                return rtn;
+            }
+            else if (comType == 1)
+            {
+                String cmdStr = "ServoMITStart()";
+                Frame frame = new Frame(cmdFrameCnt++, 1334, cmdStr);
+                int sendResult = udpCmdClient.sendFrame(FrameHandle.packFrame(frame));
+                if (sendResult != 0)
+                {
+                    if (log != null)
+                    {
+                        log.LogError("ServoMITStart UDP send failed: " + sendResult);
+                    }
+                    return RobotError.ERR_SOCKET_SEND_FAILED;
+                }
+                return 0;
+            }
+            else
+            {
+                if (log != null)
+                {
+                    log.LogError("ServoMITStart invalid comType: " + comType);
+                }
+                return RobotError.ERR_PARAM_VALUE;
+            }
+        }
+        catch (Throwable e)
+        {
+            if (IsSockComError())
+            {
+                if (log != null)
+                {
+                    log.LogError("ServoMITStart RPC exception: " + e.getMessage());
+                }
+                return sockErr;
+            }
+            else
+            {
+                return RobotError.ERR_SUCCESS;
+            }
+        }
+    }
+
+    /**
+     * @brief 关节MIT控制结束
+     * @return  错误码
+     */
+    public int ServoMITEnd()
+    {
+        return ServoMITEnd(0);
+    }
+
+    /**
+     * @brief 关节MIT控制结束
+     * @param  comType 指令下发类型；0-xmlrpc；1-UDP(对应机器人20007端口)
+     * @return  错误码
+     */
+    public int ServoMITEnd(int comType)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+        if (GetSafetyCode() != 0)
+        {
+            return GetSafetyCode();
+        }
+
+        try
+        {
+            if (comType == 0)
+            {
+                int rtn = (int)client.execute("ServoMITEnd", new Object[]{});
+                if (log != null)
+                {
+                    log.LogInfo("ServoMITEnd() : " + rtn);
+                }
+                return rtn;
+            }
+            else if (comType == 1)
+            {
+                String cmdStr = "ServoMITEnd()";
+                Frame frame = new Frame(cmdFrameCnt++, 1335, cmdStr);
+                int sendResult = udpCmdClient.sendFrame(FrameHandle.packFrame(frame));
+                if (sendResult != 0)
+                {
+                    if (log != null)
+                    {
+                        log.LogError("ServoMITEnd UDP send failed: " + sendResult);
+                    }
+                    return RobotError.ERR_SOCKET_SEND_FAILED;
+                }
+                return 0;
+            }
+            else
+            {
+                if (log != null)
+                {
+                    log.LogError("ServoMITEnd invalid comType: " + comType);
+                }
+                return RobotError.ERR_PARAM_VALUE;
+            }
+        }
+        catch (Throwable e)
+        {
+            if (IsSockComError())
+            {
+                if (log != null)
+                {
+                    log.LogError("ServoMITEnd RPC exception: " + e.getMessage());
+                }
+                return sockErr;
+            }
+            else
+            {
+                return RobotError.ERR_SUCCESS;
+            }
+        }
+    }
+
+    /**
+     * @brief 关节MIT控制
+     * @param  posGain j1~j6关节位置增益
+     * @param  desPos j1~j6关节期望位置 单位:deg
+     * @param  velGain j1~j6关节速度增益
+     * @param  desVel j1~j6关节期望速度 单位:deg/s
+     * @param  torque_ff j1~j6前馈力矩 单位:Nm
+     * @param  interval 指令周期，单位s，范围[0.001~0.008]
+     * @return 错误码
+     */
+    public int ServoMIT(double[] posGain, double[] desPos, double[] velGain, double[] desVel, double[] torque_ff, double interval)
+    {
+        return ServoMIT(posGain, desPos, velGain, desVel, torque_ff, interval, 0);
+    }
+
+    /**
+     * @brief 关节MIT控制
+     * @param  posGain j1~j6关节位置增益
+     * @param  desPos j1~j6关节期望位置 单位:deg
+     * @param  velGain j1~j6关节速度增益
+     * @param  desVel j1~j6关节期望速度 单位:deg/s
+     * @param  torque_ff j1~j6前馈力矩 单位:Nm
+     * @param  interval 指令周期，单位s，范围[0.001~0.008]
+     * @param  comType 指令下发类型；0-xmlrpc；1-UDP(对应机器人20007端口)
+     * @return 错误码
+     */
+    public int ServoMIT(double[] posGain, double[] desPos, double[] velGain, double[] desVel, double[] torque_ff, double interval, int comType)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+
+        try
+        {
+            if (comType == 0)
+            {
+                // XML-RPC 方式
+                Object[] posGainP = new Object[]{posGain[0],posGain[1],
+                        posGain[2],posGain[3],posGain[4],posGain[5]};
+                Object[] desPosP = new Object[]{desPos[0],desPos[1],
+                        desPos[2],desPos[3],desPos[4],desPos[5]};
+                Object[] velGainP = new Object[]{velGain[0],velGain[1],
+                        velGain[2],velGain[3],velGain[4],velGain[5]};
+                Object[] desVelP = new Object[]{desVel[0],desVel[1],
+                        desVel[2],desVel[3],desVel[4],desVel[5]};
+                Object[] torque_ffP = new Object[]{torque_ff[0],torque_ff[1],
+                        torque_ff[2],torque_ff[3],torque_ff[4],torque_ff[5]};
+
+
+
+                Object[] params = new Object[] {posGainP, desPosP, velGainP, desVelP, torque_ffP, interval};
+                int rtn = (int)client.execute("ServoMIT", params);
+                if (log != null)
+                {
+                    log.LogInfo("ServoMIT() : " + rtn);
+                }
+                return rtn;
+            }
+            else if (comType == 1)
+            {
+                // UDP 方式
+                // 格式化数组为字符串，保留3位小数
+                String posGainStr = formatDoubleArray(posGain, 3);
+                String desPosStr = formatDoubleArray(desPos, 3);
+                String velGainStr = formatDoubleArray(velGain, 3);
+                String desVelStr = formatDoubleArray(desVel, 3);
+                String torqueStr = formatDoubleArray(torque_ff, 3);
+
+                String cmdStr = String.format("ServoMIT(%s,%s,%s,%s,%s,%.3f)",
+                        posGainStr, desPosStr, velGainStr, desVelStr, torqueStr, interval);
+
+                Frame frame = new Frame(cmdFrameCnt++, 1336, cmdStr);
+                int sendResult = udpCmdClient.sendFrame(FrameHandle.packFrame(frame));
+                if (sendResult <= 0)
+                {
+                    if (log != null)
+                    {
+                        log.LogError("ServoMIT UDP send failed: " + sendResult);
+                    }
+                    return RobotError.ERR_SOCKET_SEND_FAILED;
+                }
+                return 0;
+            }
+            else
+            {
+                if (log != null)
+                {
+                    log.LogError("ServoMIT invalid comType: " + comType);
+                }
+                return RobotError.ERR_PARAM_VALUE;
+            }
+        }
+        catch (Throwable e)
+        {
+            if (IsSockComError())
+            {
+                if (log != null)
+                {
+                    log.LogError("ServoMIT RPC exception: " + e.getMessage());
+                }
+                return sockErr;
+            }
+            else
+            {
+                return RobotError.ERR_SUCCESS;
+            }
+        }
+    }
+
+    /**
+     * 辅助方法：将double数组格式化为字符串
+     * @param arr double数组
+     * @param precision 小数位精度
+     * @return 格式化后的字符串，如 "{1.234,2.345,3.456}"
+     */
+    private String formatDoubleArray(double[] arr, int precision)
+    {
+        if (arr == null || arr.length == 0)
+        {
+            return "{}";
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("{");
+        for (int i = 0; i < arr.length; i++)
+        {
+            if (i > 0)
+            {
+                sb.append(",");
+            }
+            sb.append(String.format("%." + precision + "f", arr[i]));
+        }
+        sb.append("}");
+        return sb.toString();
+    }
+
+    /**
+     * @brief 写入激光焊机10个工艺组中某一个的配置参数并配置给焊机
+     * @param io_type 通信类型 0-IO 1-UDP
+     * @param num 需要设置的组号（1~10）
+     * @param scanSpeed 扫描速度
+     * @param scanWidth 扫描宽度
+     * @param peakPower 峰值功率
+     * @param dutyCycle 占空比
+     * @param freq 频率
+     * @return 错误码
+     */
+    public int SetLaserWeldingParam(int io_type, int num, int scanSpeed, int scanWidth, int peakPower, int dutyCycle, int freq) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{io_type, num, scanSpeed, scanWidth, peakPower, dutyCycle, freq};
+            int rtn = (int) client.execute("SetLaserWeldingParam", params);
+            if (log != null) {
+                log.LogInfo("SetLaserWeldingParam(" + io_type + ", " + num + ", " + scanSpeed + ", " + scanWidth + ", " + peakPower + ", " + dutyCycle + ", " + freq + ") : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 设置激光焊机开启关闭
+     * @param io_type 通信类型 0-IO 1-UDP
+     * @param status 控制字 0-收光 1-出光
+     * @param max_waittime 最大等待时间
+     * @return 错误码
+     */
+    public int SetLaserWeldingStartEnd(int io_type, int status, int max_waittime) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{io_type, status, max_waittime};
+            int rtn = (int) client.execute("SetLaserWeldingStartEnd", params);
+            if (log != null) {
+                log.LogInfo("SetLaserWeldingStartEnd(" + io_type + ", " + status + ", " + max_waittime + ") : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 激光焊机使能去使能
+     * @param io_type 通信类型 0-IO 1-UDP
+     * @param status 0-去使能 1-使能
+     * @return 错误码
+     */
+    public int SetLaserWeldingEnable(int io_type, int status) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{io_type, status};
+            int rtn = (int) client.execute("SetLaserWeldingEnable", params);
+            if (log != null) {
+                log.LogInfo("SetLaserWeldingEnable(" + io_type + ", " + status + ") : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 激光焊机故障复位
+     * @param io_type 通信类型 0-IO 1-UDP
+     * @param status 控制字 0-无效 1-故障复位
+     * @return 错误码
+     */
+    public int ResetLaserWeldingErr(int io_type, int status) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{io_type, status};
+            int rtn = (int) client.execute("ResetLaserWeldingErr", params);
+            if (log != null) {
+                log.LogInfo("ResetLaserWeldingErr(" + io_type + ", " + status + ") : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取激光焊机运行状态
+     * @param io_type 通信类型 0-IO 1-UDP
+     * @param status 输出参数，控制字 0-停机 1-运行
+     * @return 错误码
+     */
+    public int GetLaserWeldingRunningState(int io_type, int[] status) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{io_type};
+            Object[] result = (Object[]) client.execute("GetLaserWeldingRunningState", params);
+            int errcode = (int) result[0];
+            if (errcode != 0) {
+                if (log != null) {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "Execute GetLaserWeldingRunningState fail: " + errcode);
+                }
+                return errcode;
+            } else {
+                if (status != null && status.length > 0) {
+                    status[0] = (int) result[1];
+                }
+                if (log != null) {
+                    log.LogInfo("GetLaserWeldingRunningState executed successfully: " + errcode);
+                }
+                return errcode;
+            }
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取激光焊机故障状态
+     * @param io_type 通信类型 0-IO 1-UDP
+     * @param status 输出参数，0-无故障 1-存在故障
+     * @return 错误码
+     */
+    public int GetLaserWeldingErrState(int io_type, int[] status) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{io_type};
+            Object[] result = (Object[]) client.execute("GetLaserWeldingErrState", params);
+            int errcode = (int) result[0];
+            if (errcode != 0) {
+                if (log != null) {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "Execute GetLaserWeldingErrState fail: " + errcode);
+                }
+                return errcode;
+            } else {
+                if (status != null && status.length > 0) {
+                    status[0] = (int) result[1];
+                }
+                if (log != null) {
+                    log.LogInfo("GetLaserWeldingErrState executed successfully: " + errcode);
+                }
+                return errcode;
+            }
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取激光焊机10个工艺组中某一个的配置参数
+     * @param num 需要设置的组号（1~10）
+     * @param params 输出参数数组：[scanSpeed, scanWidth, peakPower, dutyCycle, freq]
+     * @return 错误码
+     */
+    public int GetLaserWeldingParamTarget(int num, int[] params) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] rpcParams = new Object[]{num};
+            Object[] result = (Object[]) client.execute("GetLaserWeldingParamTarget", rpcParams);
+            int errcode = (int) result[0];
+            if (errcode != 0) {
+                if (log != null) {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "Execute GetLaserWeldingParamTarget fail: " + errcode);
+                }
+                return errcode;
+            } else {
+                if (params != null && params.length >= 5) {
+                    params[0] = (int) result[1]; // scanSpeed
+                    params[1] = (int) result[2]; // scanWidth
+                    params[2] = (int) result[3]; // peakPower
+                    params[3] = (int) result[4]; // dutyCycle
+                    params[4] = (int) result[5]; // freq
+                }
+                if (log != null) {
+                    log.LogInfo("GetLaserWeldingParamTarget executed successfully: " + errcode);
+                }
+                return errcode;
+            }
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取当前激光焊机生效的配置参数
+     * @param io_type 通信类型 0-IO 1-UDP
+     * @param params 输出参数数组：[scanSpeed, scanWidth, peakPower, dutyCycle, freq]
+     * @return 错误码
+     */
+    public int GetLaserWeldingParamActual(int io_type, int[] params) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] rpcParams = new Object[]{io_type};
+            Object[] result = (Object[]) client.execute("GetLaserWeldingParamActual", rpcParams);
+            int errcode = (int) result[0];
+            if (errcode != 0) {
+                if (log != null) {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "Execute GetLaserWeldingParamActual fail: " + errcode);
+                }
+                return errcode;
+            } else {
+                if (params != null && params.length >= 5) {
+                    params[0] = (int) result[1]; // scanSpeed
+                    params[1] = (int) result[2]; // scanWidth
+                    params[2] = (int) result[3]; // peakPower
+                    params[3] = (int) result[4]; // dutyCycle
+                    params[4] = (int) result[5]; // freq
+                }
+                if (log != null) {
+                    log.LogInfo("GetLaserWeldingParamActual executed successfully: " + errcode);
+                }
+                return errcode;
+            }
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 激光焊机设置扩展IO，使能的DO端口
+     * @param ctrlModeDONum 激光焊机使能的扩展DO端口号
+     * @return 错误码
+     */
+    public int SetLaserWeldingEnableExtDoNum(int ctrlModeDONum) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{ctrlModeDONum};
+            int rtn = (int) client.execute("SetLaserWeldingEnableExtDoNum", params);
+            if (log != null) {
+                log.LogInfo("SetLaserWeldingEnableExtDoNum(" + ctrlModeDONum + ") : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 激光焊机设置扩展IO，启动的DO端口
+     * @param ctrlModeDONum 激光焊机启动（出光收光）的扩展DO端口号
+     * @return 错误码
+     */
+    public int SetLaserWeldingStartExtDoNum(int ctrlModeDONum) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{ctrlModeDONum};
+            int rtn = (int) client.execute("SetLaserWeldingStartExtDoNum", params);
+            if (log != null) {
+                log.LogInfo("SetLaserWeldingStartExtDoNum(" + ctrlModeDONum + ") : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 激光焊机设置扩展IO，故障复位的DO端口
+     * @param ctrlModeDONum 激光焊机故障复位的扩展DO端口号
+     * @return 错误码
+     */
+    public int SetLaserWeldingErrResetExtDoNum(int ctrlModeDONum) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{ctrlModeDONum};
+            int rtn = (int) client.execute("SetLaserWeldingErrResetExtDoNum", params);
+            if (log != null) {
+                log.LogInfo("SetLaserWeldingErrResetExtDoNum(" + ctrlModeDONum + ") : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+
+    /**
+     * @brief UDP扩展轴参数获取
+     * @param axisID 扩展轴号[1-4]
+     * @param params 输出参数数组，长度为12，顺序为：
+     *               [0] axisType 扩展轴类型 0-平移；1-旋转
+     *               [1] axisDirection 扩展轴方向 0-正向；1-方向
+     *               [2] axisMax 扩展轴最大位置 mm
+     *               [3] axisMin 扩展轴最小位置 mm
+     *               [4] axisVel 速度mm/s
+     *               [5] axisAcc 加速度mm/s2
+     *               [6] axisLead 导程mm
+     *               [7] encResolution 编码器分辨率
+     *               [8] axisOffect 焊缝起始点扩展轴偏移量
+     *               [9] axisCompany 驱动器厂家 1-禾川；2-汇川；3-松下
+     *               [10] axisModel 驱动器型号
+     *               [11] axisEncType 编码器类型 0-增量；1-绝对值
+     * @return 错误码
+     */
+    public int ExtAxisGetParamConfig(int axisID, Object[] params) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] rpcParams = new Object[]{axisID};
+            Object[] result = (Object[]) client.execute("ExtAxisGetParamConfig", rpcParams);
+            int errcode = (int) result[0];
+            if (errcode != 0) {
+                if (log != null) {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "Execute ExtAxisGetParamConfig fail: " + errcode);
+                }
+                return errcode;
+            } else {
+                if (params != null && params.length >= 12) {
+                    params[0] = (int) result[1];     // axisType
+                    params[1] = (int) result[2];     // axisDirection
+                    params[2] = (double) result[3];   // axisMax
+                    params[3] = (double) result[4];   // axisMin
+                    params[4] = (double) result[5];   // axisVel
+                    params[5] = (double) result[6];   // axisAcc
+                    params[6] = (double) result[7];   // axisLead
+                    params[7] = (int) result[8];      // encResolution
+                    params[8] = (double) result[9];   // axisOffect
+                    params[9] = (int) result[10];     // axisCompany
+                    params[10] = (int) result[11];    // axisModel
+                    params[11] = (int) result[12];   // axisEncType
+                }
+                if (log != null) {
+                    log.LogInfo("ExtAxisGetParamConfig executed successfully: " + errcode);
+                }
+                return errcode;
+            }
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 配置激光焊机运行状态（出光状态）扩展DI
+     * @param diNum 配置激光焊机运行状态（出光状态）扩展DI端口
+     * @return 错误码
+     */
+    public int SetLaserWeldingRunningStateExtDiNum(int diNum) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{diNum};
+            int rtn = (int) client.execute("SetLaserWeldingRunningStateExtDiNum", params);
+            if (log != null) {
+                log.LogInfo("SetLaserWeldingRunningStateExtDiNum(" + diNum + ") : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 配置激光焊机故障状态扩展DI
+     * @param diNum 配置激光焊机故障状态 扩展DI端口
+     * @return 错误码
+     */
+    public int SetLaserWeldingErrStateExtDiNum(int diNum) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        try {
+            Object[] params = new Object[]{diNum};
+            int rtn = (int) client.execute("SetLaserWeldingErrStateExtDiNum", params);
+            if (log != null) {
+                log.LogInfo("SetLaserWeldingErrStateExtDiNum(" + diNum + ") : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 设置启用灵巧手动作控制功能
+     * @param id 灵巧手从站编号
+     * @param func 功能数组，长度为32，Bit0-夹持触发、Bit1-夹爪初始化、Bit2-位置设置、Bit3-速度设置、Bit4-力矩设置、Bit6-读夹爪状态、Bit7-读初始化状态、Bit8-读故障码、Bit9-读位置、Bit10-读速度、Bit11-读力矩、Bit12-旋转圈数设置、Bit13-旋转速度设置、Bit14-旋转力矩设置、Bit15-读旋转夹爪状态、Bit16-读旋转初始化状态、Bit17-读旋转圈数、Bit18-读旋转速度、Bit19-读旋转力矩、Bit20-多轴同步运动设置、Bit21-故障清除指令、Bit22-单轴运行状态、Bit23-所有轴运行状态
+     * @return 错误码
+     */
+    public int SetDexterousHandsFunc(int id, int[] func) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{id, func};
+            int rtn = (int) client.execute("SetDexterousHandsFunc", params);
+            if (log != null) {
+                StringBuilder sb = new StringBuilder();
+                sb.append("SetDexterousHandsFunc(id:").append(id).append("; func:");
+                for (int i = 0; i < func.length; i++) {
+                    sb.append(func[i]);
+                    if (i < func.length - 1) sb.append(", ");
+                }
+                sb.append(") : ").append(rtn);
+                log.LogInfo(sb.toString());
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取启用灵巧手动作控制功能
+     * @param id 灵巧手设备编号
+     * @param func 输出参数数组，长度为32，Bit0-夹持触发、Bit1-夹爪初始化、Bit2-位置设置、Bit3-速度设置、Bit4-力矩设置、Bit6-读夹爪状态、Bit7-读初始化状态、Bit8-读故障码、Bit9-读位置、Bit10-读速度、Bit11-读力矩、Bit12-旋转圈数设置、Bit13-旋转速度设置、Bit14-旋转力矩设置、Bit15-读旋转夹爪状态、Bit16-读旋转初始化状态、Bit17-读旋转圈数、Bit18-读旋转速度、Bit19-读旋转力矩、Bit20-多轴同步运动设置、Bit21-故障清除指令、Bit22-单轴运行状态、Bit23-所有轴运行状态
+     * @return 错误码
+     */
+    public int GetDexterousHandsFunc(int id, int[] func) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{id};
+            Object[] result = (Object[]) client.execute("GetDexterousHandsFunc", params);
+            int errcode = (int) result[0];
+            if (errcode == 0) {
+                String resultStr = (String) result[1];
+                String[] parS = resultStr.split(",");
+                if (parS.length != 32) {
+                    if (log != null) {
+                        log.LogError("GetDexterousHandsFunc fail");
+                    }
+                    return -1;
+                }
+                for (int i = 0; i < 32; i++) {
+                    func[i] = Integer.parseInt(parS[i].trim());
+                }
+                if (log != null) {
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("GetDexterousHandsFunc(").append(id).append(",");
+                    for (int i = 0; i < func.length; i++) {
+                        sb.append(func[i]);
+                        if (i < func.length - 1) sb.append(", ");
+                    }
+                    sb.append(") : ").append(errcode);
+                    log.LogInfo(sb.toString());
+                }
+                return errcode;
+            }
+            if (log != null) {
+//                log.LogInfo("GetDexterousHandsFunc(ref " + resultStr + ") : " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 控制灵巧手运动
+     * @param idstart 起始从站号
+     * @param slaveNum 数量
+     * @param pos 位置数组，长度16，范围(-360~360)
+     * @param speed 速度百分比数组，长度16，范围[0~100]
+     * @param force 力矩百分比数组，长度16，范围[0~100]
+     * @param max_time 最大等待时间，范围[0~30000]，单位ms
+     * @return 错误码
+     */
+    public int SetDexterousHandsMove(int idstart, int slaveNum, double[] pos, int[] speed, int[] force, int max_time) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] posParam = new Object[]{pos[0], pos[1], pos[2], pos[3], pos[4], pos[5], pos[6], pos[7], pos[8], pos[9], pos[10], pos[11], pos[12], pos[13], pos[14], pos[15]};
+            Object[] speedParam = new Object[]{speed[0], speed[1], speed[2], speed[3], speed[4], speed[5], speed[6], speed[7], speed[8], speed[9], speed[10], speed[11], speed[12], speed[13], speed[14], speed[15]};
+            Object[] forceParam = new Object[]{force[0], force[1], force[2], force[3], force[4], force[5], force[6], force[7], force[8], force[9], force[10], force[11], force[12], force[13], force[14], force[15]};
+
+            Object[] params = new Object[]{idstart, slaveNum, posParam, speedParam, forceParam, max_time};
+            int rtn = (int) client.execute("SetDexterousHandsMove", params);
+            System.out.println("SetDexterousHandsMove(" + idstart + "," + slaveNum + "," + pos[0] + "," + speed[0] + "," + force[0] + "," + max_time + ") : " + rtn);
+
+            if (log != null) {
+                log.LogInfo("SetDexterousHandsMove(" + idstart + "," + slaveNum + "," + pos[0] + "," + speed[0] + "," + force[0] + "," + max_time + ") : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 控制灵巧手复位激活
+     * @param id 从站号
+     * @param act 0-复位 1-激活
+     * @return 错误码
+     */
+    public int SetDexterousHandsAct(int id, int act) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{id, act};
+            int rtn = (int) client.execute("SetDexterousHandsAct", params);
+            if (log != null) {
+                log.LogInfo("SetDexterousHandsAct(" + id + "," + act + ") : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 清除灵巧手错误
+     * @return 错误码
+     */
+    public int ClearDexterousHandsError() {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{};
+            int rtn = (int) client.execute("ClearDexterousHandsError", params);
+            if (log != null) {
+                log.LogInfo("ClearDexterousHandsError() : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief  螺旋线探索
+     * @param  [in] rcs 参考坐标系，0-工具坐标系，1-基坐标系
+     * @param  [in] dr 每圈半径进给量
+     * @param  [in] ft 力/扭矩阈值，fx,fy,fz,tx,ty,tz，范围[0~100]
+     * @param  [in] max_t_ms 最大探索时间，单位ms
+     * @param  [in] max_vel 最大线速度，单位mm/s
+     * @param  [in] strategy 未检测到力/力矩的处理策略，0-报错；1-警告，继续运动
+     * @return  错误码
+     */
+    public int FT_SpiralSearch(int rcs, double dr, double ft, double max_t_ms, double max_vel, int strategy)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+
+        if (GetSafetyCode() != 0)
+        {
+            return GetSafetyCode();
+        }
+
+        try
+        {
+            Object[] params = new Object[]{rcs, dr, ft, max_t_ms, max_vel, strategy};
+            int rtn = (int) client.execute("FT_SpiralSearch", params);
+
+            if (log != null)
+            {
+                log.LogInfo("FT_SpiralSearch: " + rtn);
+            }
+            return rtn;
+        }
+        catch (Throwable e)
+        {
+            if (log != null)
+            {
+                log.LogError("RPC exception: " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+
+
+    /**
+     * @brief 直线插入
+     * @param rcs 参考坐标系，0-工具坐标系，1-基坐标系
+     * @param ft 力/扭矩阈值，fx,fy,fz,tx,ty,tz，范围[0~100]
+     * @param lin_v 直线速度，单位mm/s
+     * @param lin_a 直线加速度，单位mm/s^2，暂不使用
+     * @param max_dis 最大插入距离，单位mm
+     * @param linorn 插入方向，0-负方向，1-正方向
+     * @return 错误码
+     */
+    public int FT_LinInsertion(int rcs, double ft, double lin_v, double lin_a, double max_dis, int linorn, int strategy) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{rcs, ft, lin_v, lin_a, max_dis, linorn, strategy};
+            int rtn = (int) client.execute("FT_LinInsertion", params);
+            if (log != null) {
+                log.LogInfo("FT_LinInsertion() : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    public int FT_LinInsertion(int rcs, double ft, double lin_v, double lin_a, double max_dis, int linorn) {
+        int errcode = FT_LinInsertion(rcs, ft, lin_v, lin_a, max_dis, linorn, 0);
+
+        return errcode;
+    }
+
+    /**
+     * @brief 表面定位
+     * @param rcs 参考坐标系，0-工具坐标系，1-基坐标系
+     * @param dir 移动方向，1-正方向，2-负方向
+     * @param axis 移动轴，1-x轴，2-y轴，3-z轴
+     * @param lin_v 探索直线速度，单位mm/s
+     * @param lin_a 探索直线加速度，单位mm/s^2，暂不使用，默认为0
+     * @param max_dis 最大探索距离，单位mm
+     * @param ft 动作终止力/扭矩阈值，fx,fy,fz,tx,ty,tz
+     * @return 错误码
+     */
+    public int FT_FindSurface(int rcs, int dir, int axis, double lin_v, double lin_a, double max_dis, double ft, int strategy) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{rcs, dir, axis, lin_v, lin_a, max_dis, ft, strategy};
+            int rtn = (int) client.execute("FT_FindSurface", params);
+            if (log != null) {
+                log.LogInfo("FT_FindSurface() : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    public int FT_FindSurface(int rcs, int dir, int axis, double lin_v, double lin_a, double max_dis, double ft) {
+        int errcode = FT_FindSurface(rcs, dir, axis, lin_v, lin_a, max_dis, ft, 0);
+
+        return errcode;
+    }
+
+    /**
+     * @brief 计算中间平面位置开始
+     * @return 错误码
+     */
+    public int FT_CalCenterStart() {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{};
+            int rtn = (int) client.execute("FT_CalCenterStart", params);
+            if (log != null) {
+                log.LogInfo("FT_CalCenterStart() : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 计算中间平面位置结束
+     * @param pos 中间平面位姿（输出参数）
+     * @return 错误码
+     */
+    public int FT_CalCenterEnd(DescPose pos) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{};
+            Object[] result = (Object[]) client.execute("FT_CalCenterEnd", params);
+            int errcode = (int) result[0];
+            if (errcode == 0) {
+                // 解析返回的位姿数据
+                pos.tran.x = (double) result[1];
+                pos.tran.y = (double) result[2];
+                pos.tran.z = (double) result[3];
+                pos.rpy.rx = (double) result[4];
+                pos.rpy.ry = (double) result[5];
+                pos.rpy.rz = (double) result[6];
+            } else {
+                if (log != null) {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "execute FT_CalCenterEnd fail " + errcode);
+                }
+            }
+            if (log != null) {
+                log.LogInfo("FT_CalCenterEnd() : " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+
+    /**
+     * @brief 获取摆动结束回周期零点参数
+     * @param flag 摆动结束是否回周期零点；0-不回周期零点；1-回周期零点
+     * @return 错误码
+     */
+    public int GetWeaveBackCenterConfig(int[] flag) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{};
+            Object[] result = (Object[]) client.execute("GetWeaveBackCenterConfig", params);
+            int errcode = (int) result[0];
+            if (errcode == 0) {
+                flag[0] = (int) result[1];
+                if (log != null) {
+                    log.LogInfo("GetWeaveBackCenterConfig() : " + errcode + ", flag: " + flag[0]);
+                }
+            } else {
+                if (log != null) {
+                    log.LogError("GetWeaveBackCenterConfig fail: " + errcode);
+                }
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 设置摆动结束回周期零点
+     * @param flag 摆动结束是否回周期零点；0-不回周期零点；1-回周期零点
+     * @return 错误码
+     */
+    public int SetWeaveBackCenterConfig(int flag) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{flag};
+            int rtn = (int) client.execute("SetWeaveBackCenterConfig", params);
+            if (log != null) {
+                log.LogInfo("SetWeaveBackCenterConfig(" + flag + ") : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 设置速度(指令帧，低延迟)
+     * @param vel 速度百分比，范围[0~100]
+     * @return 错误码
+     */
+    public int SetSpeedInstant(int vel) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        while (isSendCmd) {
+            try {
+                Thread.sleep(10);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        String content = String.format("SetSpeed(%d)", vel);
+        sendBuf = String.format("/f/bIII%dIII983III%dIII%sIII/b/f",
+            cmdFrameCnt++, content.length(), content);
+
+        isSendCmd = true;
+        if (log != null) {
+            log.LogInfo("SetSpeedInstant(" + vel + ")");
+        }
+        return 0;
+    }
+    /**
+     * @brief 设置摆动实时偏移
+     * @param offset 实时偏移量[mm，°]
+     * @return 错误码
+     */
+    public int SetWeaveOffsetRT(DescPose offset) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+
+        int errcode = 0;
+        sendBuf = String.format("/f/bIII%dIII1368III%dIIISetWeaveOffsetRT(%.6f,%.6f,%.6f,%.6f,%.6f,%.6f)III/b/f",
+            cmdFrameCnt++, 26,
+            offset.tran.x, offset.tran.y, offset.tran.z,
+            offset.rpy.rx, offset.rpy.ry, offset.rpy.rz);
+
+        isSendCmd = true;
+
+        if (log != null) {
+            log.LogInfo("SetWeaveOffsetRT().");
+        }
+
+        return errcode;
+    }
+
+    /**
+     * @brief 工件坐标系点位转换开始
+     * @param workpieceID 工件号[0-14]
+     * @return 错误码，成功返回0
+     */
+    public int WorkPieceTrsfStart(int workpieceID) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{workpieceID};
+            int rtn = (int) client.execute("WorkPieceTrsfStart", params);
+            if (log != null) {
+                log.LogInfo("WorkPieceTrsfStart(" + workpieceID + ") : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 工件坐标系点位转换结束
+     * @return 错误码，成功返回0
+     */
+    public int WorkPieceTrsfEnd() {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{};
+            int rtn = (int) client.execute("WorkPieceTrsfEnd", params);
+            if (log != null) {
+                log.LogInfo("WorkPieceTrsfEnd() : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief  传送带原地跟踪参数配置
+     * @param  [in] trackMode 0-时间；1-距离；2-时间和距离任意满足一个
+     * @param  [in] trackTime 跟踪时间，单位s
+     * @param  [in] trackDis 跟踪距离
+     * @return  错误码
+     */
+    public int SetStationaryTrackPara(int trackMode, double trackTime, int trackDis)
+    {
+        if (IsSockComError())
+            return sockErr;
+
+        try
+        {
+            Object[] params = new Object[]{trackMode, trackTime, trackDis};
+            int errcode = (int) client.execute("SetStationaryTrackPara", params);
+            if (errcode != 0)
+            {
+                if (log != null) {
+                    log.LogError("execute SetStationaryTrackPara fail " + errcode);
+                }
+                return errcode;
+            }
+            if (log != null) {
+                log.LogInfo("SetStationaryTrackPara(" + trackMode + "," + trackTime + "," + trackDis + ") : " + errcode);
+            }
+            return errcode;
+        }
+        catch (Throwable e)
+        {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 等待原地空运动完成
+     * @return 错误码
+     */
+    public int WaitStationaryMotionDone()
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+        int errcode = 0;
+
+        try
+        {
+            Object[] params = new Object[]{};
+            int rtn = (int) client.execute("WaitStationaryMotionDone", params);
+            if (0 != rtn)
+            {
+                if (log != null) {
+                    log.LogError("execute WaitStationaryMotionDone fail: " + rtn);
+                }
+                return rtn;
+            }
+            if (log != null) {
+                log.LogInfo("WaitStationaryMotionDone() : " + rtn);
+            }
+            return rtn;
+        }
+        catch (Throwable e)
+        {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+
+    /**
+     * @brief 获取扩展DI功能配置
+     * @param DIConfig 扩展DI输入配置；DIConfig[0]-焊机准备扩展DI端口；
+     * DIConfig[1]-起弧成功扩展DI端口；
+     * DIConfig[2]-焊接中断恢复扩展DI端口；
+     * DIConfig[3]-焊接中断退出扩展DI端口；
+     * DIConfig[4]-焊丝寻位成功扩展DI端口；
+     * DIConfig[5]-激光焊机运行状态扩展DI端口；
+     * DIConfig[6]-激光焊机故障状态扩展DI端口；
+     * DIConfig[7-15]-预留
+     * @return  错误码
+     */
+    public int GetExtDIConfig(int[] DIConfig)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+
+        int errcode = 0;
+
+        try
+        {
+            Object[] params = new Object[]{};
+            Object[] result = (Object[]) client.execute("GetExtDIConfig", params);
+            errcode = (int) result[0];
+            if (errcode == 0)
+            {
+                for (int i = 0; i < 16; i++)
+                {
+                    DIConfig[i] = (int) result[i + 1];
+                }
+            }
+            else
+            {
+                if (log != null) {
+                    log.LogError("execute GetExtDIConfig fail " + errcode);
+                }
+            }
+            if (log != null) {
+                log.LogInfo("GetExtDIConfig() : " + errcode);
+            }
+            return errcode;
+        }
+        catch (Throwable e)
+        {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取扩展DO功能配置
+     * @param DOConfig 扩展DO输入配置；DOConfig[0]-焊机起弧扩展DO端口；
+     * DOConfig[1]-气体检测扩展DO端口；
+     * DOConfig[2]-正向送丝扩展DO端口；
+     * DOConfig[3]-反向送丝扩展DO端口；
+     * DOConfig[4]-焊丝寻位扩展DO端口；
+     * DOConfig[5]-焊机控制模式扩展DO端口；
+     * DOConfig[6]-激光焊机使能扩展DO端口；
+     * DOConfig[7]-激光焊机启动(出光)扩展DO端口；
+     * DOConfig[8]-激光焊机复位扩展DO端口；
+     * DOConfig[9-15]-预留
+     * @return  错误码
+     */
+    public int GetExtDOConfig(int[] DOConfig)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+
+        int errcode = 0;
+
+        try
+        {
+            Object[] params = new Object[]{};
+            Object[] result = (Object[]) client.execute("GetExtDOConfig", params);
+            errcode = (int) result[0];
+            if (errcode == 0)
+            {
+                for (int i = 0; i < 16; i++)
+                {
+                    DOConfig[i] = (int) result[i + 1];
+                }
+            }
+            else
+            {
+                if (log != null) {
+                    log.LogError("execute GetExtDOConfig fail " + errcode);
+                }
+            }
+            if (log != null) {
+                log.LogInfo("GetExtDOConfig() : " + errcode);
+            }
+            return errcode;
+        }
+        catch (Throwable e)
+        {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+
+    /**
+    * @brief 获取焊机控制模式
+    * @param mode 焊机控制模式;0-直流一元模式；1-脉冲一元模式；2-JOB模式；3-近控模式；4-分别模式；5-CC/CV模式；6-TIG；7-CMT
+    * @return 错误码
+    */
+    public int GetWeldMachineCtrlMode(int[] mode)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+
+        int errcode = 0;
+
+        try
+        {
+            Object[] params = new Object[]{};
+            Object[] result = (Object[]) client.execute("GetWeldMachineCtrlMode", params);
+            errcode = (int) result[0];
+            if (errcode == 0)
+            {
+                mode[0] = (int) result[1];
+            }
+            else
+            {
+                if (log != null) {
+                    log.LogError("execute GetWeldMachineCtrlMode fail " + errcode);
+                }
+            }
+            if (log != null) {
+                log.LogInfo("GetWeldMachineCtrlMode() : " + errcode);
+            }
+            return errcode;
+        }
+        catch (Throwable e)
+        {
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取安全配置参数校验和
+     * @param status 校验状态，0-有效，1-校验中，2-校验失败
+     * @param checksum 校验和 8位16进制
+     * @return 错误码
+     */
+    public int GetSafetyParamsCheckSum(int[] status, long[] checksum)
+    {
+        if (IsSockComError())
+        {
+            return sockErr; // 使用sockErr替代g_sock_com_err
+        }
+
+        int errcode = 0;
+
+        try
+        {
+            Object[] params = new Object[]{};
+            Object[] result = (Object[]) client.execute("GetSafetyParamsCheckSum", params);
+
+            // 处理返回值 - 可能是Double类型
+            errcode = ((Number) result[0]).intValue();
+            if (errcode == 0)
+            {
+                status[0] = ((Number) result[1]).intValue();
+                // 处理checksum，可能是Double或Long
+                if (result[2] instanceof Number) {
+                    checksum[0] = ((Number) result[2]).longValue() & 0xFFFFFFFFL;
+                } else {
+                    checksum[0] = 0;
+                }
+            }
+            else
+            {
+                if (log != null)
+                {
+                    log.LogError("execute GetSafetyParamsCheckSum fail " + errcode);
+                }
+            }
+
+            if (log != null)
+            {
+                log.LogInfo(String.format("GetSafetyParamsCheckSum(ref %d,ref 0x%08X) : %d",
+                        status[0], checksum[0], errcode));
+            }
+            return errcode;
+        }
+        catch (Throwable e)
+        {
+            if (IsSockComError())
+            {
+                if (log != null)
+                {
+                    log.LogError("RPC exception: " + e.getMessage());
+                }
+                return sockErr; // 使用sockErr替代g_sock_com_err
+            }
+            if (log != null)
+            {
+                log.LogWarn("RPC non-communication exception: " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 安全操作密码校验
+     * @param status 校验，0-开启，1-关闭
+     * @param password 密码
+     * @return 错误码
+     */
+    public int SafetyOPPasswordCheck(int status, String password)
+    {
+        if (IsSockComError())
+        {
+            return sockErr; // 使用sockErr替代g_sock_com_err
+        }
+
+        int errcode = 0;
+
+        try
+        {
+            Object[] params = new Object[]{status, password};
+            // 可能返回值不是Object数组，而是单个值
+            Object result = client.execute("SafetyOPPasswordCheck", params);
+
+            // 处理返回值 - 可能是Double或Integer
+            if (result instanceof Number) {
+                errcode = ((Number) result).intValue();
+            } else if (result instanceof Object[]) {
+                Object[] resultArray = (Object[]) result;
+                errcode = ((Number) resultArray[0]).intValue();
+            } else {
+                errcode = RobotError.ERR_RPC_ERROR;
+            }
+
+            if (log != null)
+            {
+                log.LogInfo(String.format("SafetyOPPasswordCheck(%d,%s) : %d",
+                        status, password, errcode));
+            }
+            return errcode;
+        }
+        catch (Throwable e)
+        {
+            if (IsSockComError())
+            {
+                if (log != null)
+                {
+                    log.LogError("RPC exception: " + e.getMessage());
+                }
+                return sockErr; // 使用sockErr替代g_sock_com_err
+            }
+            if (log != null)
+            {
+                log.LogWarn("RPC non-communication exception: " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+    * @brief 获取当前上位机系统时间并发送给机器人，同步系统时间（由于QNX系统限制，同步精度为分钟级）
+    * @return 错误码
+    */
+    public int SetRobotTime()
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+
+        java.time.LocalDateTime now = java.time.LocalDateTime.now(java.time.ZoneId.systemDefault());
+        java.time.format.DateTimeFormatter dateFormatter = java.time.format.DateTimeFormatter.ofPattern("dd MM yyyy");
+        java.time.format.DateTimeFormatter timeFormatter = java.time.format.DateTimeFormatter.ofPattern("HHmm");
+        String dateStr = now.format(dateFormatter);
+        String timeStr = now.format(timeFormatter);
+
+        String cmdStr = "SetQNXSystemTime(\"" + dateStr + "\",\"" + timeStr + "\")";
+
+        Frame frame = new Frame(cmdFrameCnt, 343, cmdStr);
+        int rtn = udpCmdClient.sendFrame(FrameHandle.packFrame(frame));
+        if (rtn <= 0) {
+            return RobotError.ERR_SOCKET_SEND_FAILED;
+        }
+        cmdFrameCnt++;
+
+        if (log != null) {
+            log.LogInfo("SetRobotTime() : " + cmdStr);
+        }
+
+        return 0;
+    }
+
+    /**
+     * @brief  等待夹爪运动状态
+     * @param  [in]  staus  0-运动未完成，1-运动完成未检测到物体 2-运动完成检测到物体
+     * @param  [in] timeout 超时时间（ms） -1永久等待
+     * @param  [in] strategy  0-停止报错，1-继续运行
+     * @param  [in] type  0-平行夹爪，1-旋转夹爪
+     * @return  错误码
+     */
+    public int GripperWaitMotionDone(int staus, int timeout, int strategy, int type)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+
+        try
+        {
+            Object[] params = new Object[]{staus, timeout, strategy, type};
+            int rtn = (int) client.execute("GripperWaitMotionDone", params);
+            if (log != null)
+            {
+                log.LogInfo("GripperWaitMotionDone(" + staus + "," + timeout + "," + strategy + "," + type + ") : " + rtn);
+            }
+            return rtn;
+        }
+        catch (Throwable e)
+        {
+            if (IsSockComError())
+            {
+                if (log != null)
+                {
+                    log.LogError("RPC exception: " + e.getMessage());
+                }
+                return sockErr;
+            }
+            if (log != null)
+            {
+                log.LogWarn("RPC non-communication exception: " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 安全双通道CI功能配置
+     * @param [in] ID 双通道ID; [0-3]
+     * @param [in] config 功能配置; 0-无配置; 201-外部急停输入信号1; 202-外部急停输入信号2; 203-一级缩减模式; 204-二级缩减模式; 205-三级缩减模式;
+                                 206-常规停止; 207-安全墙1; 208-安全墙2; 209-安全墙3; 210-安全墙4; 211-安全墙5; 212-安全墙6; 213-安全墙7;
+                                214-安全墙8; 215-安全停止重置;
+    * @return 错误码
+    */
+    public int SetSafetyDIConfig(int ID, int config)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+
+        try
+        {
+            Object[] params = new Object[]{ID, config};
+            int errcode = (int) client.execute("SetSafetyDIConfig", params);
+            if (0 != errcode)
+            {
+                if (log != null) {
+                    log.LogError("execute SetSafetyDIConfig fail: " + errcode);
+                }
+                return errcode;
+            }
+            return errcode;
+        }
+        catch (Throwable e)
+        {
+            if (log != null) {
+                log.LogError("RPC exception: " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 安全双通道CO功能配置
+     * @param [in] ID 双通道ID; [0-3]
+     * @param [in] config 功能配置; 0-无配置; 201-急停输出信号1; 202-急停输出信号2; 203-安全状态输出; 204-保护性停止状态输出; 205-机器人运动中;
+                                 206-机器人缩减模式; 207-机器人非缩减模式;
+    * @return 错误码
+     */
+    public int SetSafetyDOConfig(int ID, int config)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+
+        try
+        {
+            Object[] params = new Object[]{ID, config};
+            int errcode = (int) client.execute("SetSafetyDOConfig", params);
+            if (0 != errcode)
+            {
+                if (log != null) {
+                    log.LogError("execute SetSafetyDOConfig fail: " + errcode);
+                }
+                return errcode;
+            }
+            return errcode;
+        }
+        catch (Throwable e)
+        {
+            if (log != null) {
+                log.LogError("RPC exception: " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 切换手动高速模式
+     * @param [in] state 0-退出手动高速；1-进入手动高速
+     * @return 错误码
+     */
+    public int HiSpeedManualSwitch(int state)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+
+        try
+        {
+            Object[] params = new Object[]{state};
+            int errcode = (int) client.execute("HiSpeedManualSwitch", params);
+            return errcode;
+        }
+        catch (Throwable e)
+        {
+            if (log != null) {
+                log.LogError("RPC exception: " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+
 
 }

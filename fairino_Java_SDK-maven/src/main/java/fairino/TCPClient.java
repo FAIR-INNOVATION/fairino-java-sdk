@@ -114,7 +114,7 @@ public class TCPClient
             this.mSocket = new Socket();
             this.mSocket.setKeepAlive(true);
             this.mSocketAddress = new InetSocketAddress(ip, port);
-            this.mSocket.connect( mSocketAddress, reconnPeriod * 10);
+            this.mSocket.connect( mSocketAddress, reconnPeriod * 100);
 
             this.mOutputStream = mSocket.getOutputStream();
             this.mInputStream = mSocket.getInputStream();
@@ -133,6 +133,9 @@ public class TCPClient
 
     public void Close()
     {
+        // 禁用重连，防止主动关闭后触发重连机制
+        reconnEnable = false;
+
         if (this.mSocket != null) {
             try
             {

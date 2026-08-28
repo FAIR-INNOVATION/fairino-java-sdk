@@ -9,6 +9,12 @@ import java.io.Console;
 import java.util.ArrayList;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
+<<<<<<< HEAD
+=======
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+>>>>>>> 3.9.9
 
 public class Main {
     public static void main(String[] args) throws InterruptedException {
@@ -17,6 +23,7 @@ public class Main {
         robot.SetReconnectParam(true, 1000, 50);//设置重连次数、间隔
         robot.LoggerInit(FrLogType.DIRECT, FrLogLevel.INFO, "D://log", 10, 10);
 //
+<<<<<<< HEAD
 //        int rtn = robot.RPC("192.168.58.2");
 //        if (rtn == 0) {
 //            System.out.println("rpc连接 success");
@@ -27,6 +34,24 @@ public class Main {
 //        robot.Sleep(1000);
 
 
+=======
+        int rtn = robot.RPC("192.168.58.2");
+        if (rtn == 0) {
+            System.out.println("rpc连接 success");
+        } else {
+            System.out.println("rpc连接 fail");
+            return;
+        }
+        robot.Sleep(1000);
+        testSetAndGetRobotTime(robot);
+//        TestSafetyIOConfig(robot);
+
+
+//TestLaserRecordReplayExaxisWithWave(robot);
+// TestLaserReproduceNormalWeave(robot);
+// TestFTStrategy(robot);
+        // TestGripperWaitMotionDone(robot);
+>>>>>>> 3.9.9
 //        TestSetWeldParam(robot);//焊接参数配置
 //        TestExtDIConfig(robot);//设置扩展IO焊接信号
 //        TestCoord(robot);
@@ -103,7 +128,11 @@ public class Main {
 //        TestSetTrajectoryJSpeed(robot);//测试示例1
 
 
+<<<<<<< HEAD
 
+=======
+//TestSafetyParamsCheckSum(robot);
+>>>>>>> 3.9.9
 
 
 
@@ -133,7 +162,11 @@ public class Main {
     //    TestSetTrajectoryJSpeed(robot);
 
         // 测试新增CNDE状态配置
+<<<<<<< HEAD
        TestCNDEStarte(robot);
+=======
+//       TestCNDEStarte(robot);
+>>>>>>> 3.9.9
 
         // 测试读取默认的状态值
 //        TestReadBasicStates(robot);
@@ -141,7 +174,11 @@ public class Main {
         // 测试参数异常
 //        TestCNDEParamError(robot);
         // 测试默认值打印
+<<<<<<< HEAD
 //          TestDefault(robot);
+=======
+        //   TestDefault(robot);
+>>>>>>> 3.9.9
         // 验证SDK配置和获取机器人关节位置、笛卡尔位置、关节力矩等机器人本体相关状态数据正常生效
         // TestExtendedStates(robot);
         // TestExtendedStates2(robot);
@@ -656,7 +693,11 @@ public class Main {
         ROBOT_STATE_PKG pkg=robot.GetRobotRealTimeState();
         int toolnum = pkg.tool;
         int workPcsNum = pkg.user;
+<<<<<<< HEAD
         robot.GetInverseKinExaxis(0, desc, exaxis, toolnum, workPcsNum, jointPos);
+=======
+        robot.GetInverseKinExaxis(0, desc, exaxis, toolnum, workPcsNum, jointPos, 0);
+>>>>>>> 3.9.9
         System.out.printf("GetInverseKinExaxis joint is %f, %f, %f, %f, %f, %f\n", jointPos.J1, jointPos.J2, jointPos.J3, jointPos.J4, jointPos.J5, jointPos.J6);
 
         robot.ExtAxisMove(exaxis, 100, -1);
@@ -3080,6 +3121,7 @@ public class Main {
 
     public static int TestRobotCtrl(Robot robot)
     {
+        int rtn = -1;
         String version = "";
         version = robot.GetSDKVersion();
         System.out.println("SDK version:"+version);
@@ -3109,7 +3151,14 @@ public class Main {
         robot.Sleep(1000);
         robot.Mode(1);
 
-        System.out.println("Press any key to exit！");
+        robot.Sleep(1000);
+        rtn = robot.HiSpeedManualSwitch(1);
+        System.out.println("change high speed mode"+ rtn);
+        robot.Sleep(1000);
+        rtn = robot.HiSpeedManualSwitch(0);
+        System.out.println("change low speed mode"+ rtn);
+        robot.Sleep(3000);
+        System.out.println("Press any key to exit!");
         return 0;
     }
 
@@ -12806,4 +12855,515 @@ public static void TestRobotUDP (Robot robot) {
         return 0;
     }
 
+<<<<<<< HEAD
+=======
+    public static void TestSafetyParamsCheckSum(Robot robot)
+    {
+        int[] status = new int[1];
+        long[] checksum = new long[1];
+
+        int error = robot.GetSafetyParamsCheckSum(status, checksum);
+        System.out.println(String.format("GetSafetyParamsCheckSum: error=%d, status=%d, hex_code=%08X", 
+            error, status[0], checksum[0]));
+        
+        try {
+            Thread.sleep(3000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        error = robot.SafetyOPPasswordCheck(0, "12345678");
+        System.out.println(String.format("SafetyOPPasswordCheck: error=%d", error));
+
+        if (error == 0)
+        {
+            Object[] level = {2.0, 2.0, 2.0, 2.0, 2.0, 2.0};
+            error = robot.SetAnticollision(0, level, 1);
+            System.out.println(String.format("SetAnticollision: error=%d", error));
+
+            error = robot.SetCollisionStrategy(0, 1000, 150, 0, new int[]{10, 10, 10, 10, 10, 10});
+            System.out.println(String.format("SetCollisionStrategy: error=%d", error));
+        }
+
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        error = robot.GetSafetyParamsCheckSum(status, checksum);
+        System.out.println(String.format("GetSafetyParamsCheckSum(again): error=%d, status=%d, hex_code=%08X", 
+            error, status[0], checksum[0]));
+    }
+
+    public static void testSetAndGetRobotTime(Robot robot) {
+        // 1. 获取设置前的时间
+        List<Number> resultBefore = robot.GetSystemClock();
+        int retBefore = (int) resultBefore.get(0);
+        
+        if (retBefore == 0) {
+            double t_ms = (double) resultBefore.get(1);
+            System.out.println("system clock : " + t_ms);
+            
+            // Convert millisecond timestamp to DateTime (UTC time)
+            java.time.Instant instant = java.time.Instant.ofEpochMilli((long) t_ms);
+            java.time.LocalDateTime utcTime = java.time.LocalDateTime.ofInstant(instant, java.time.ZoneOffset.UTC);
+            System.out.println("BEFORE UTC Time   : " + 
+                utcTime.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+        } else {
+            System.out.println("GetSystemClock failed, ret:" + retBefore);
+        }
+
+        // 2. 设置机器人时间
+        int retSet = robot.SetRobotTime();
+        if (retSet != 0) {
+            System.out.println("SetRobotTime failed, ret:" + retSet);
+            return;
+        }
+
+        // 3. 获取设置后的时间
+        List<Number> resultAfter = robot.GetSystemClock();
+        int retAfter = (int) resultAfter.get(0);
+        
+        if (retAfter == 0) {
+            double t_ms_after = (double) resultAfter.get(1);
+            System.out.println("system clock after: " + t_ms_after);
+            
+            // 转换为UTC时间
+            java.time.Instant instantAfter = java.time.Instant.ofEpochMilli((long) t_ms_after);
+            java.time.LocalDateTime robotTimeAfter = java.time.LocalDateTime.ofInstant(instantAfter, java.time.ZoneOffset.UTC);
+
+            // 获取PC当前时间（作为期望值）
+            java.time.LocalDateTime pcTimeBefore = java.time.LocalDateTime.now(java.time.ZoneOffset.UTC);
+
+            // 截断到分钟级别进行比较（因为QNX系统限制，同步精度为分钟级）
+            java.time.LocalDateTime pcMinute = pcTimeBefore.withSecond(0).withNano(0);
+            java.time.LocalDateTime robotMinute = robotTimeAfter.withSecond(0).withNano(0);
+
+            // 比较一致性
+            boolean isConsistent = pcMinute.equals(robotMinute);
+            if (isConsistent) {
+                System.out.println("Consistent     | PC time: " + 
+                    pcMinute.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")) + 
+                    "  | Robot time: " + 
+                    robotMinute.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+            } else {
+                System.out.println("[Inconsistent | PC time: " + 
+                    pcMinute.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")) + 
+                    "  | Robot time: " + 
+                    robotMinute.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+            }
+        } else {
+            System.out.println("GetSystemClock failed, ret:" + retAfter);
+        }
+    }
+    
+
+    public static void TestGripperWaitMotionDone(Robot robot)
+    {
+        int rtn;
+
+        // 夹爪张开
+        rtn = robot.MoveGripper(1, 0, 100, 100, 30000, 0, 0, 0, 0, 0);
+        System.out.println("MoveGripper(张开) ret=" + rtn);
+        try {
+            Thread.sleep(4000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        // 夹爪闭合
+        rtn = robot.MoveGripper(1, 90, 100, 100, 30000, 0, 0, 0, 0, 0);
+        System.out.println("MoveGripper(闭合) ret=" + rtn);
+
+        // 等待运动完成未检测到物体，超时30s，停止报错
+        rtn = robot.GripperWaitMotionDone(2, 30000, 0, 0);
+        System.out.println("GripperWaitMotionDone(等待完成未检测到物体) ret=" + rtn);
+
+        // 夹爪张开
+        rtn = robot.MoveGripper(1, 0, 100, 100, 30000, 0, 0, 0, 0, 0);
+        System.out.println("MoveGripper(张开) ret=" + rtn);
+    }
+
+    public static void TestFTStrategy(Robot robot)
+    {
+        int rtn;
+
+        //========== FT_SpiralSearch: strategy 0 / 1 ==========
+        System.out.println("=== FT_SpiralSearch strategy=0 ===");
+        rtn = robot.FT_SpiralSearch(0, 0.7f, 5.0f, 3000.0f, 3.0f, 0);
+        System.out.println("FT_SpiralSearch(0) rtn is " + rtn);
+        try {
+            Thread.sleep(5000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        robot.ResetAllError();
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        System.out.println("=== FT_SpiralSearch strategy=1 ===");
+        rtn = robot.FT_SpiralSearch(0, 0.7f, 1.0f, 3000.0f, 3.0f, 1);
+        System.out.println("FT_SpiralSearch(1) rtn is " + rtn);
+        try {
+            Thread.sleep(5000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        robot.ResetAllError();
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        // ========== FT_LinInsertion: strategy 0/1 ==========
+        System.out.println("=== FT_LinInsertion strategy=0 ===");
+        rtn = robot.FT_LinInsertion(0, 20.0f, 15.0f, 1.0f, 10.0f, 1, 0);
+        System.out.println("FT_LinInsertion(0) rtn is " + rtn);
+        try {
+            Thread.sleep(5000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        robot.ResetAllError();
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        System.out.println("=== FT_LinInsertion strategy=1 ===");
+        rtn = robot.FT_LinInsertion(0, 20.0f, 15.0f, 1.0f, 10.0f, 1, 1);
+        System.out.println("FT_LinInsertion(1) rtn is " + rtn);
+        try {
+            Thread.sleep(5000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        robot.ResetAllError();
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        // ========== FT_FindSurface: strategy 0/1 ==========
+        System.out.println("=== FT_FindSurface strategy=0 ===");
+        rtn = robot.FT_FindSurface(0, 1, 1, 15.0f, 0.0f, 50.0f, 20.0f, 0);
+        System.out.println("FT_FindSurface(0) rtn is " + rtn);
+        try {
+            Thread.sleep(10000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        robot.ResetAllError();
+        try {
+            Thread.sleep(5000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        System.out.println("=== FT_FindSurface strategy=1 ===");
+        rtn = robot.FT_FindSurface(0, 1, 1, 15.0f, 0.0f, 50.0f, 20.0f, 1);
+        System.out.println("FT_FindSurface(1) rtn is " + rtn);
+        try {
+            Thread.sleep(10000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        robot.ResetAllError();
+
+        System.out.println("finish");
+    }
+
+    // Laser record replay + extended axis asynchronous motion + fixed-point weave
+    public static void TestLaserRecordReplayExaxisWithWave(Robot robot)
+    {
+        JointPos startjointPos = new JointPos(105.600, -65.393, -93.638, -79.687, 79.175, 134.046);
+        DescPose startdescPose = new DescPose(42.376, 533.597, 362.564, -34.957, -0.564, 169.063);
+        JointPos endjointPos = new JointPos(105.600, -65.393, -93.638, -79.687, 79.175, 134.046);
+        DescPose enddescPose = new DescPose(42.376, 533.597, 362.564, -34.957, -0.564, 169.063);
+        DescPose offdese = new DescPose(0, 0, 0, 0, 0, 0);
+        ExaxisPos exaxis0Pos = new ExaxisPos(0, 134.296, 0, 0);
+        ExaxisPos exaxis1Pos = new ExaxisPos(0, 74.335, 0, 0);
+        // MoveJ to safe point(Exaxis 0,174.957,0,0)
+        int rtn = robot.MoveJ(startjointPos, startdescPose, 5, 0, 100, 100, 50, exaxis0Pos, -1, 0, offdese);
+        System.out.printf("MoveJ start: %d\n", rtn);
+
+        // Exaxis async move to start position 105.003
+        rtn = robot.ExtAxisMove(exaxis1Pos, 50, -1);
+        System.out.printf("ExtAxisMove 105.003: %d\n", rtn);
+
+        robot.Sleep(3000);
+
+        // MoveL to start point
+        rtn = robot.MoveL(endjointPos, enddescPose, 5, 0, 100, 100, 50, -1, 0, exaxis1Pos, 0, 0, offdese, 100, 0, 0, 10);
+        System.out.printf("MoveL end: %d\n", rtn);
+
+        // Start laser record
+        rtn = robot.LaserSensorRecord1(2, 10);
+        System.out.printf("LaserSensorRecord start: %d\n", rtn);
+
+        // Exaxis move to 174.957 during recording
+        rtn = robot.ExtAxisMove(exaxis0Pos, 50, -1);
+        System.out.printf("ExtAxisMove 174.957: %d\n", rtn);
+
+        robot.Sleep(3000);
+
+        // Stop laser record
+        rtn = robot.LaserSensorRecord1(0, 10);
+        System.out.printf("LaserSensorRecord stop: %d\n", rtn);
+
+        // Exaxis move back to 105.003, MoveL return to start point
+        rtn = robot.ExtAxisMove(exaxis1Pos, 50, -1);
+        System.out.printf("ExtAxisMove back: %d\n", rtn);
+
+        // MoveL to start point
+        rtn = robot.MoveL(endjointPos, enddescPose, 5, 0, 100, 100, 50, -1, 0, exaxis1Pos, 0, 0, offdese, 100, 0, 0, 10);
+        System.out.printf("MoveL back: %d\n", rtn);
+
+        // PTP move to laser record weld start point
+        rtn = robot.MoveToLaserRecordStart(0, 30);
+        System.out.printf("MoveToLaserRecordStart: %d\n", rtn);
+
+        // Start replay
+        rtn = robot.LaserSensorRecord1(3, 10);
+        System.out.printf("LaserSensorRecord replay: %d\n", rtn);
+
+        // Start fixed-point weave
+        DescPose refPoint = new DescPose(49.381, 533.608, 362.556, -34.961, -0.564, 169.062);
+        rtn = robot.OriginPointWeaveStart(0, 1, refPoint, 5);
+        System.out.printf("OriginPointWeaveStart: %d\n", rtn);
+
+        // Exaxis move to 174.957 during weaving
+        rtn = robot.ExtAxisMove(exaxis0Pos, 50, -1);
+        System.out.printf("ExtAxisMove replay: %d\n", rtn);
+
+        // Stop weave
+        rtn = robot.OriginPointWeaveEnd();
+        System.out.printf("OriginPointWeaveEnd: %d\n", rtn);
+
+        // Stop replay
+        rtn = robot.LaserSensorRecord1(0, 10);
+        System.out.printf("LaserSensorRecord stop: %d\n", rtn);
+
+        robot.Sleep(1000);
+    }
+
+    // Laser record replay + normal weave
+    public static void TestLaserReproduceNormalWeave(Robot robot)
+    {
+        JointPos startjointPos = new JointPos(68.930, -70.217, -121.821, -75.522, 91.216, 137.289);
+        DescPose startdescPose = new DescPose(216.097, 304.517, 34.164, -3.871, 0.792, 132.864);
+        JointPos endjointPos = new JointPos(58.092, -78.843, -115.569, -73.420, 91.662, 126.457);
+        DescPose enddescPose = new DescPose(296.276, 307.453, 34.803, -3.868, 0.783, 132.864);
+        DescPose offdese = new DescPose(0, 0, 0, 0, 0, 0);
+        ExaxisPos exaxis0Pos = new ExaxisPos(0, 174.957, 0, 0);
+        ExaxisPos exaxis1Pos = new ExaxisPos(0, 105.003, 0, 0);
+
+        robot.Sleep(1000);
+
+        // MoveL to start position(Exaxis 0,174.957,0,0)
+        int rtn = robot.MoveL(startjointPos, startdescPose, 5, 0, 100, 100, 100, -1, 0, exaxis0Pos, 0, 0, offdese, 100, 0, 0, 10);
+        System.out.printf("MoveL start: %d\n", rtn);
+
+        // Start laser record
+        rtn = robot.LaserSensorRecord1(2, 10);
+        System.out.printf("LaserSensorRecord start: %d\n", rtn);
+
+        // MoveL to end position
+        rtn = robot.MoveL(endjointPos, enddescPose, 5, 0, 100, 100, 100, -1, 0, exaxis0Pos, 0, 0, offdese, 100, 0, 0, 10);
+        System.out.printf("MoveL end: %d\n", rtn);
+
+        // Stop laser record
+        rtn = robot.LaserSensorRecord1(0, 10);
+        System.out.printf("LaserSensorRecord stop: %d\n", rtn);
+
+        // MoveL return to start position
+        rtn = robot.MoveL(startjointPos, startdescPose, 5, 0, 100, 100, 100, -1, 0, exaxis0Pos, 0, 0, offdese, 100, 0, 0, 10);
+        System.out.printf("MoveL back: %d\n", rtn);
+
+        // LIN move to laser record weld start point
+        rtn = robot.MoveToLaserRecordStart(1, 30);
+        System.out.printf("MoveToLaserRecordStart: %d\n", rtn);
+
+        // Start normal weave
+        rtn = robot.WeaveStart(0);
+        System.out.printf("WeaveStart: %d\n", rtn);
+
+        // Start record replay
+        rtn = robot.LaserSensorRecord1(3, 10);
+        System.out.printf("LaserSensorRecord replay: %d\n", rtn);
+
+        // Laser track replay motion
+        rtn = robot.MoveLTR();
+        System.out.printf("MoveLTR: %d\n", rtn);
+
+        robot.Sleep(3000);
+
+        // Stop record replay
+        rtn = robot.LaserSensorRecord1(0, 10);
+        System.out.printf("LaserSensorRecord stop: %d\n", rtn);
+
+        // Stop normal weave
+        rtn = robot.WeaveEnd(0);
+        System.out.printf("WeaveEnd: %d\n", rtn);
+
+        robot.Sleep(1000);
+    }
+
+
+    public static int TestSafetyIOConfig(Robot robot)
+    {
+        int[] getDIConfig = new int[8];
+        int rtn = robot.SetSafetyDIConfig(0, 201);
+        System.out.printf("SetSafetyDIConfig rtn is %d\n", rtn);
+        rtn = robot.SetSafetyDIConfig(1, 202);
+        System.out.printf("SetSafetyDIConfig rtn is %d\n", rtn);
+        rtn = robot.SetSafetyDIConfig(2, 203);
+        System.out.printf("SetSafetyDIConfig rtn is %d\n", rtn);
+        rtn = robot.SetSafetyDIConfig(3, 204);
+        System.out.printf("SetSafetyDIConfig rtn is %d\n", rtn);
+        rtn = robot.GetDIConfig(getDIConfig);
+        System.out.printf("GetDIConfig rtn is %d, value is %d %d %d %d %d %d %d %d \n", rtn,
+            getDIConfig[0], getDIConfig[1], getDIConfig[2], getDIConfig[3], getDIConfig[4], getDIConfig[5], getDIConfig[6], getDIConfig[7]);
+
+        rtn = robot.SetSafetyDIConfig(0, 0);
+        System.out.printf("SetSafetyDIConfig rtn is %d\n", rtn);
+        rtn = robot.SetSafetyDIConfig(1, 0);
+        System.out.printf("SetSafetyDIConfig rtn is %d\n", rtn);
+        rtn = robot.SetSafetyDIConfig(2, 0);
+        System.out.printf("SetSafetyDIConfig rtn is %d\n", rtn);
+        rtn = robot.SetSafetyDIConfig(3, 0);
+        System.out.printf("SetSafetyDIConfig rtn is %d\n", rtn);
+        rtn = robot.GetDIConfig(getDIConfig);
+        System.out.printf("GetDIConfig rtn is %d, value is %d %d %d %d %d %d %d %d \n", rtn,
+            getDIConfig[0], getDIConfig[1], getDIConfig[2], getDIConfig[3], getDIConfig[4], getDIConfig[5], getDIConfig[6], getDIConfig[7]);
+
+
+        int[] getDOConfig = new int[8];
+        rtn = robot.SetSafetyDOConfig(0, 204);
+        System.out.printf("SetSafetyDOConfig rtn is %d\n", rtn);
+        rtn = robot.SetSafetyDOConfig(1, 205);
+        System.out.printf("SetSafetyDOConfig rtn is %d\n", rtn);
+        rtn = robot.SetSafetyDOConfig(2, 206);
+        System.out.printf("SetSafetyDOConfig rtn is %d\n", rtn);
+        rtn = robot.SetSafetyDOConfig(3, 207);
+        System.out.printf("SetSafetyDOConfig rtn is %d\n", rtn);
+        rtn = robot.GetDOConfig(getDOConfig);
+        System.out.printf("GetDOConfig rtn is %d, value is %d %d %d %d %d %d %d %d \n", rtn,
+            getDOConfig[0], getDOConfig[1], getDOConfig[2], getDOConfig[3], getDOConfig[4], getDOConfig[5], getDOConfig[6], getDOConfig[7]);
+
+        rtn = robot.SetSafetyDOConfig(0, 0);
+        System.out.printf("SetSafetyDOConfig rtn is %d\n", rtn);
+        rtn = robot.SetSafetyDOConfig(1, 0);
+        System.out.printf("SetSafetyDOConfig rtn is %d\n", rtn);
+        rtn = robot.SetSafetyDOConfig(2, 0);
+        System.out.printf("SetSafetyDOConfig rtn is %d\n", rtn);
+        rtn = robot.SetSafetyDOConfig(3, 0);
+        System.out.printf("SetSafetyDOConfig rtn is %d\n", rtn);
+        rtn = robot.GetDOConfig(getDOConfig);
+        System.out.printf("GetDOConfig rtn is %d, value is %d %d %d %d %d %d %d %d \n", rtn,
+            getDOConfig[0], getDOConfig[1], getDOConfig[2], getDOConfig[3], getDOConfig[4], getDOConfig[5], getDOConfig[6], getDOConfig[7]);
+
+        robot.Sleep(2000);
+        robot.CloseRPC();
+        robot.Sleep(1000);
+        return 0;
+    }
+
+    public static void TestServoJPath(Robot robot)
+    {
+        // Read the ServoJ path file, taking columns 2~7 of each line as 6 joint positions
+        String filePath = "D:\\zUP\\ServoJPath.txt";
+        List<JointPos> allJointData = new ArrayList<>();
+        try (BufferedReader reader = new BufferedReader(new FileReader(filePath)))
+        {
+            String line;
+            while ((line = reader.readLine()) != null)
+            {
+                String[] cols = line.split("[ \\t]+");
+                if (cols.length < 7)
+                    continue;
+                JointPos pose = new JointPos(0, 0, 0, 0, 0, 0);
+                pose.J1 = Double.parseDouble(cols[1]);
+                pose.J2 = Double.parseDouble(cols[2]);
+                pose.J3 = Double.parseDouble(cols[3]);
+                pose.J4 = Double.parseDouble(cols[4]);
+                pose.J5 = Double.parseDouble(cols[5]);
+                pose.J6 = Double.parseDouble(cols[6]);
+                allJointData.add(pose);
+            }
+        }
+        catch (IOException e)
+        {
+            System.out.println("Failed to read file: " + e.getMessage());
+            return;
+        }
+        System.out.println("Total " + allJointData.size() + " joint position sets read");
+        if (allJointData.isEmpty())
+            return;
+
+        // Build a back-and-forth path: forward order + reverse order
+        List<JointPos> backForthPath = new ArrayList<>(allJointData);
+        for (int i = allJointData.size() - 2; i >= 0; i--)
+        {
+            backForthPath.add(allJointData.get(i));
+        }
+
+        ExaxisPos epos = new ExaxisPos(0.0, 0.0, 0.0, 0.0);
+        DescPose offsetPos = new DescPose(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        robot.MoveJ(allJointData.get(0), 0, 0, 100, 100, 100, epos, -1, 0, offsetPos);
+
+        robot.Sleep(1000);
+
+        ROBOT_STATE_PKG pkg = new ROBOT_STATE_PKG();
+        while (true)
+        {
+            robot.ResetAllError();
+            robot.MoveJ(allJointData.get(0), 0, 0, 100, 100, 100, epos, -1, 0, offsetPos);
+            int moveCount = 0;
+            while (moveCount < backForthPath.size() - 10)
+            {
+                pkg = robot.GetRobotRealTimeState();
+
+                int singleServoJCount = 50 - pkg.mc_queue_len;
+                if (singleServoJCount <= 0)
+                {
+                    robot.Sleep(100);
+                    continue;
+                }
+                if (singleServoJCount > 10)
+                {
+                    singleServoJCount = 10;
+                }
+
+                List<JointPos> jointPos = new ArrayList<>();
+                for (int j = 0; j < singleServoJCount; j++)
+                {
+                    jointPos.add(backForthPath.get(moveCount));
+                    moveCount++;
+                }
+
+                System.out.println("Sending " + singleServoJCount + " waypoints, moveCount=" + moveCount);
+
+                ExaxisPos axisPos = new ExaxisPos(0.0, 0.0, 0.0, 0.0);
+                int[] servoJCmdCount = new int[1];
+                int rtn = robot.ServoJ(jointPos, axisPos, 100.0f, 100.0f, 0.008f, 0.008f, 1.0f, servoJCmdCount, 0, 0);
+                if (rtn != 0)
+                {
+                    System.out.println("ServoJ failed: " + rtn);
+                    break;
+                }
+            }
+            robot.Sleep(4000);
+        }
+    }
+
+
+>>>>>>> 3.9.9
 }

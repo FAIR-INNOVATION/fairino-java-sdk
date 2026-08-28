@@ -17,7 +17,6 @@ echo "分支: $BRANCH"
 echo "标签: $TAG"
 
 # 1. 切换到发布分支，拉取最新（若远程存在则拉取，否则忽略）
-git branch $BRANCH
 git checkout $BRANCH
 git pull origin $BRANCH 2>/dev/null || echo "远程无分支 $BRANCH，跳过拉取"
 

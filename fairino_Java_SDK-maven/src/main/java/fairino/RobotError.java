@@ -57,4 +57,7 @@ public class RobotError
     public final static int ERR_DOWN_LOAD_FILE_WRITE_FAILED = -10;    /* 下载文件写入失败 */
     public final static int ERR_DOWN_LOAD_FILE_CHECK_FAILED = -9;     /* 文件下载校验失败 */
     public final static int ERR_DOWN_LOAD_FILE_FAILED = -8;     /* 文件下载失败 */
+    public final static int ERR_CNDE_STATES_START_FAILED  = -21;     /* 机器人CNDE状态启动失败 */
+    public final static int ERR_CMD_TLS_ENABLE_STATE  = -22;     /* 机器人SDK与服务端的指令协议加密开启状态不一致*/
+    public final static int ERR_CMD_TLS_CERT_NOT_FOUND = -23; /* 已开启mTLS但证书文件缺失(client.crt/client.key/ca.crt) */
 }

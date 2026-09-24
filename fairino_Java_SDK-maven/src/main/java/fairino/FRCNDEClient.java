@@ -12,13 +12,16 @@ public class FRCNDEClient {
     private static final int CNDE_MAX_PKG_SIZE = 4096;
 
     // TCP 客户端
-    private TCPClient rtClient;
+    public TCPClient rtClient;
 
     // 机器人状态包引用
     private ROBOT_STATE_PKG robotStatePkg;
 
     // 运行标志
     private boolean robotStateRunFlag = false;
+
+    // 重连状态标志：true=正在重连（与 C# GetReconnectState 一致，供 IsSockComError 等待）
+    private volatile boolean reconnectState = false;
 
     // 状态周期 (ms)
     private int robotStatePeriod = 8;
@@ -232,9 +235,9 @@ public class FRCNDEClient {
      * @return 状态数据结构体 (ROBOT_STATE_PKG)，如果连接断开则返回null
      */
     public ROBOT_STATE_PKG GetStatePkg() {
-        if (!isConnected) {
-            return null;
-        }
+        // if (!isConnected) {
+        //     return null;
+        // }
         return statePkg;
     }
 
@@ -462,6 +465,7 @@ public class FRCNDEClient {
                                 continue;  // 重连成功，继续接收循环
                             } else {
                                 System.err.println("[CNDE] Reconnect failed, stopping reception thread");
+                                robotStateRunFlag = false;  /* 重连失败：清运行标志，isRunning() 返回 false */
                                 return;  // 重连失败，结束线程
                             }
                         } else if (recvLen == 0) {
@@ -514,7 +518,11 @@ public class FRCNDEClient {
      * @return true-运行中，false-已停止
      */
     public boolean isRunning() {
-        return robotStateRunFlag;
+        /* 三重确认：运行标志 + 连接标志 + 接收线程存活。
+         * 重连失败/中断时 robotStateRunFlag 已被清 false，
+         * 但 isConnected 和 recvThread 可能残留旧状态，一并检查 */
+        return robotStateRunFlag && isConnected
+                && recvThread != null && recvThread.isAlive();
     }
 
     /**
@@ -544,6 +552,8 @@ public class FRCNDEClient {
             return false;
         }
 
+        reconnectState = true;  /* 标记重连中，IsSockComError 会等待 */
+
         // 使用TCPClient的重连参数进行重连
         int maxRetries = 100;  // 默认重试次数
         int retryInterval = 200;  // 默认重试间隔(ms)
@@ -572,6 +582,7 @@ public class FRCNDEClient {
                     byte[] startData = CNDEFrameHandle.toByteArray(startFrame);
                     rtClient.Send(startData);
                 }
+                reconnectState = false;  /* 重连完成 */
                 return true;
             } else {
                 System.out.println("[CNDE] Reconnect attempt " + (i + 1) + "/" + maxRetries + " failed");
@@ -580,11 +591,20 @@ public class FRCNDEClient {
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     isConnected = false;
+                    robotStateRunFlag = false;  /* 中断：清运行标志 */
+                    reconnectState = false;
                     return false;
                 }
             }
         }
         isConnected = false;
+        robotStateRunFlag = false;  /* 重试耗尽：清运行标志，isRunning() 返回 false */
+        reconnectState = false;
         return false;
+    }
+
+    /** 重连状态：true=正在重连（与 C# GetReconnectState 一致） */
+    public boolean GetReconnectState() {
+        return reconnectState;
     }
 }

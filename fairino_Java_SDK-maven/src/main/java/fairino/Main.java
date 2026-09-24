@@ -9,41 +9,39 @@ import java.io.Console;
 import java.util.ArrayList;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
-<<<<<<< HEAD
-=======
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
->>>>>>> 3.9.9
-
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 public class Main {
     public static void main(String[] args) throws InterruptedException {
 
         Robot robot = new Robot();
         robot.SetReconnectParam(true, 1000, 50);//设置重连次数、间隔
-        robot.LoggerInit(FrLogType.DIRECT, FrLogLevel.INFO, "D://log", 10, 10);
-//
-<<<<<<< HEAD
-//        int rtn = robot.RPC("192.168.58.2");
-//        if (rtn == 0) {
-//            System.out.println("rpc连接 success");
-//        } else {
-//            System.out.println("rpc连接 fail");
-//            return;
-//        }
-//        robot.Sleep(1000);
-
-
-=======
-        int rtn = robot.RPC("192.168.58.2");
+        robot.LoggerInit(FrLogType.DIRECT, FrLogLevel.ERROR, "D://log", 10, 10);
+        robot.enableMtls = true;//开启TLS加密总开关
+        int rtn = robot.RPC("192.168.56.2");
         if (rtn == 0) {
             System.out.println("rpc连接 success");
         } else {
-            System.out.println("rpc连接 fail");
+            System.out.println("rpc连接 fail, rtn is: " + rtn);
             return;
         }
         robot.Sleep(1000);
-        testSetAndGetRobotTime(robot);
+//        TestMoveJSpeedLoop(robot);
+//        TestMoveLSpeedLoop(robot);
+//        TestMoveCSpeedLoop(robot);
+//        TestServoJTcp(robot);
+//        TestSendModeTcp(robot);
+
+             TestServoJ(robot);
+            // TestSetPhySpeed(robot);
+
+//            TestTCFToAllJoint(robot);
+
+//         testSetAndGetRobotTime(robot);
 //        TestSafetyIOConfig(robot);
 
 
@@ -51,7 +49,6 @@ public class Main {
 // TestLaserReproduceNormalWeave(robot);
 // TestFTStrategy(robot);
         // TestGripperWaitMotionDone(robot);
->>>>>>> 3.9.9
 //        TestSetWeldParam(robot);//焊接参数配置
 //        TestExtDIConfig(robot);//设置扩展IO焊接信号
 //        TestCoord(robot);
@@ -128,11 +125,7 @@ public class Main {
 //        TestSetTrajectoryJSpeed(robot);//测试示例1
 
 
-<<<<<<< HEAD
-
-=======
 //TestSafetyParamsCheckSum(robot);
->>>>>>> 3.9.9
 
 
 
@@ -162,11 +155,7 @@ public class Main {
     //    TestSetTrajectoryJSpeed(robot);
 
         // 测试新增CNDE状态配置
-<<<<<<< HEAD
-       TestCNDEStarte(robot);
-=======
 //       TestCNDEStarte(robot);
->>>>>>> 3.9.9
 
         // 测试读取默认的状态值
 //        TestReadBasicStates(robot);
@@ -174,11 +163,7 @@ public class Main {
         // 测试参数异常
 //        TestCNDEParamError(robot);
         // 测试默认值打印
-<<<<<<< HEAD
-//          TestDefault(robot);
-=======
         //   TestDefault(robot);
->>>>>>> 3.9.9
         // 验证SDK配置和获取机器人关节位置、笛卡尔位置、关节力矩等机器人本体相关状态数据正常生效
         // TestExtendedStates(robot);
         // TestExtendedStates2(robot);
@@ -693,11 +678,7 @@ public class Main {
         ROBOT_STATE_PKG pkg=robot.GetRobotRealTimeState();
         int toolnum = pkg.tool;
         int workPcsNum = pkg.user;
-<<<<<<< HEAD
-        robot.GetInverseKinExaxis(0, desc, exaxis, toolnum, workPcsNum, jointPos);
-=======
         robot.GetInverseKinExaxis(0, desc, exaxis, toolnum, workPcsNum, jointPos, 0);
->>>>>>> 3.9.9
         System.out.printf("GetInverseKinExaxis joint is %f, %f, %f, %f, %f, %f\n", jointPos.J1, jointPos.J2, jointPos.J3, jointPos.J4, jointPos.J5, jointPos.J6);
 
         robot.ExtAxisMove(exaxis, 100, -1);
@@ -3330,7 +3311,7 @@ public class Main {
 
         double vel = 0.0;
         double acc = 0.0;
-        double cmdT = 0.016;
+        double cmdT = 0.02;
         double filterT = 0.0;
         double gain = 0.0;
         int flag = 0;
@@ -3338,41 +3319,56 @@ public class Main {
         double dt = 0.1;
         int cmdID = 0;
         int comType = 1;
+        DescPose offset_pos=new DescPose(0, 0, 0, 0, 0, 0);
+
+        int tool = 0;
+        int user = 0;
+        double ovl = 100.0;
+        double blendT = -1.0;
+
         int ret = robot.GetActualJointPosDegree(j);
+        JointPos j1=new JointPos(0, -90, 90, 0, 0, 0);
         if (ret == 0)
         {
-            robot.ServoMoveStart(comType);
-            count = 300;
-            while (count>0)
-            {
-                robot.ServoJ(j, epos, acc, vel, cmdT, filterT, gain, cmdID, comType);
-                j.J1 += dt;
-                j.J2 += dt;
-                j.J4 += dt;
-                j.J5 += dt;
-                j.J6 += dt;
-                epos.axis1 += dt;
-                count -= 1;
-                robot.Sleep(10);
-            }
-            robot.ServoMoveEnd(comType);
+            while(true) {
+                int err1 = robot.MoveJ(j1, tool, user, vel, acc, ovl, epos, blendT, flag, offset_pos);
+                System.out.println("movej errcode:"+ err1);
+                ret = robot.GetActualJointPosDegree(j);
+                robot.ServoMoveStart(comType);
+                count = 300;
+                while (count>0)
+                {
+                    robot.ServoJ(j, epos, acc, vel, cmdT, filterT, gain, cmdID, comType);
+                    j.J1 += dt;
+                    j.J2 += dt;
+                    j.J4 += dt;
+                    j.J5 += dt;
+                    j.J6 += dt;
+                    epos.axis1 += dt;
+                    count -= 1;
+                    robot.Sleep(20);
+                }
+                robot.ServoMoveEnd(comType);
 
-            robot.Sleep(1000);
-            robot.ServoMoveStart(comType);
-            count = 300;
-            while (count>0)
-            {
-                robot.ServoJ(j, epos, acc, vel, cmdT, filterT, gain, cmdID, comType);
-                j.J1 -= dt;
-                j.J2 -= dt;
-                j.J4 -= dt;
-                j.J5 -= dt;
-                j.J6 -= dt;
-                epos.axis1 -= dt;
-                count -= 1;
-                robot.Sleep(10);
+                robot.Sleep(1000);
+                robot.ServoMoveStart(comType);
+                count = 300;
+                while (count>0)
+                {
+                    robot.ServoJ(j, epos, acc, vel, cmdT, filterT, gain, cmdID, comType);
+                    j.J1 -= dt;
+                    j.J2 -= dt;
+                    j.J4 -= dt;
+                    j.J5 -= dt;
+                    j.J6 -= dt;
+                    epos.axis1 -= dt;
+                    count -= 1;
+                    robot.Sleep(20);
+                }
+                robot.ServoMoveEnd(comType);
+                robot.Sleep(1000);
+
             }
-            robot.ServoMoveEnd(comType);
         }
         else
         {
@@ -12855,8 +12851,6 @@ public static void TestRobotUDP (Robot robot) {
         return 0;
     }
 
-<<<<<<< HEAD
-=======
     public static void TestSafetyParamsCheckSum(Robot robot)
     {
         int[] status = new int[1];
@@ -13364,6 +13358,514 @@ public static void TestRobotUDP (Robot robot) {
         }
     }
 
+    public static void TestMoveJSpeedLoop(Robot robot)
+    {
+        // Lua 往返运动 + 速度递增测试:
+        //   SetSpeed(20)
+        //   MoveJ(点1)  →  while(1): MoveJ(点2)/SetSpeed(30)/MoveJ(点1)/SetSpeed(40)
+        JointPos pos1 = new JointPos(23.424, -76.529, 114.134, -113.992, 46.783, -69.413);
+        // Lua 点1 笛卡尔: -416.922,-366.417,371.091,-37.336,27.024,-139.857
+        DescPose pose1 = new DescPose(-416.922, -366.417, 371.091, -37.336, 27.024, -139.857);
+        // Lua 点2(循环内) 关节: 仅 j5 不同 = -153.191
+        JointPos pos2 = new JointPos(23.424, -76.529, 114.134, -113.992, -153.191, -69.413);
+        // Lua 点2(循环内) 笛卡尔: -454.146,-210.648,256.427,116.099,-4.858,-165.734
+        DescPose pose2 = new DescPose(-454.146, -210.648, 256.427, 116.099, -4.858, -165.734);
+        DescPose offdese = new DescPose(0, 0, 0, 0, 0, 0);
+        // Lua 扩展轴: 0.000,0.000,0.000,0.000
+        ExaxisPos epos = new ExaxisPos(0, 0, 0, 0);
+        int rtn = 0;
 
->>>>>>> 3.9.9
+        // SetSpeed(20)
+        rtn = robot.SetSpeed(20);
+        System.out.println("SetSpeed(20): " + rtn);
+
+        // 初始 MoveJ 到点1 (tool=8, user=0, vel/acc/ovl=100, blendT=-1 运动到位, 无偏移)
+        rtn = robot.MoveJ(pos1, pose1, 8, 0, 100, 100, 100, epos, -1, 0, offdese);
+        System.out.println("MoveJ pos1: " + rtn);
+
+        // while(1) do ... end —— 死循环往返运动，速度递增 20→30→40
+        while (true)
+        {
+            // MoveJ 到点2
+            rtn = robot.MoveJ(pos2, pose2, 8, 0, 100, 100, 100, epos, -1, 0, offdese);
+            System.out.println("MoveJ pos2: " + rtn);
+
+            // SetSpeed(30)
+            rtn = robot.SetSpeed(30);
+            System.out.println("SetSpeed(30): " + rtn);
+
+            // MoveJ 回点1
+            rtn = robot.MoveJ(pos1, pose1, 8, 0, 100, 100, 100, epos, -1, 0, offdese);
+            System.out.println("MoveJ pos1: " + rtn);
+
+            // SetSpeed(40)
+            rtn = robot.SetSpeed(40);
+            System.out.println("SetSpeed(40): " + rtn);
+        }
+    }
+
+
+    public static void TestMoveLSpeedLoop(Robot robot)
+    {
+        // 点1 关节: 52.055,-53.917,83.053,-119.137,-90.000,-40.315
+        JointPos pos1 = new JointPos(52.055, -53.917, 83.053, -119.137, -90.000, -40.315);
+        // 点1 笛卡尔: -348.348,-612.635,203.147,-180.000,-0.000,-177.630
+        DescPose pose1 = new DescPose(-348.348, -612.635, 203.147, -180.000, -0.000, -177.630);
+        // 点2 关节: -51.966,-68.141,106.161,-128.021,-90.000,-144.338
+        JointPos pos2 = new JointPos(-51.966, -68.141, 106.161, -128.021, -90.000, -144.338);
+        // 点2 笛卡尔: -432.405,387.234,203.149,179.999,-0.000,-177.628
+        DescPose pose2 = new DescPose(-432.405, 387.234, 203.149, 179.999, -0.000, -177.628);
+        DescPose offdese = new DescPose(0, 0, 0, 0, 0, 0);
+        // 扩展轴全 0
+        ExaxisPos epos = new ExaxisPos(0, 0, 0, 0);
+        int rtn = 0;
+
+        // SetSpeed(20)
+        rtn = robot.SetSpeed(20);
+        System.out.println("SetSpeed(20): " + rtn);
+
+        // 初始 MoveJ 到点1 (tool=8, user=0, vel/acc/ovl=100, blendT=-1 运动到位, 无偏移)
+        rtn = robot.MoveJ(pos1, pose1, 8, 0, 100, 100, 100, epos, -1, 0, offdese);
+        System.out.println("MoveJ pos1: " + rtn);
+
+        // while True: MoveL 往返, 速度递增 20->30->40
+        // 注: Python config=-1(参考当前关节逆解), C# 16参数 MoveL 重载无 config 参数
+        while (true)
+        {
+            // MoveL 到点2 (blendR=-1 运动到位, blendMode=0, search=0, 无偏移, oacc=100)
+            rtn = robot.MoveL(pos2, pose2, 8, 0, 100, 100, 100, -1, 0, epos, 0, 0, offdese, 100, 0, 0, 10);
+            System.out.println("MoveL pos2: " + rtn);
+
+            // SetSpeed(30)
+            rtn = robot.SetSpeed(30);
+            System.out.println("SetSpeed(30): " + rtn);
+
+            // MoveL 回点1
+            rtn = robot.MoveL(pos1, pose1, 8, 0, 100, 100, 100, -1, 0, epos, 0, 0, offdese, 100, 0, 0, 10);
+            System.out.println("MoveL pos1: " + rtn);
+
+            // SetSpeed(40)
+            rtn = robot.SetSpeed(40);
+            System.out.println("SetSpeed(40): " + rtn);
+        }
+    }
+
+    // Python test_moveC_speed_loop: MoveC 往返运动, 速度 20->30->40 递增
+    public static void TestMoveCSpeedLoop(Robot robot)
+    {
+        // 起点/end1 关节与笛卡尔: -90.489,-84.415,127.849,-133.531,-90.000,-74.001 / -98.324,431.220,203.588,-179.974,-0.093,73.512
+        JointPos posStart = new JointPos(-90.489, -84.415, 127.849, -133.531, -90.000, -74.001);
+        DescPose poseStart = new DescPose(-98.324, 431.220, 203.588, -179.974, -0.093, 73.512);
+        // 中间点: -108.333,-61.555,95.797,-124.336,-89.971,-91.845 / 101.649,631.196,203.595,-179.974,-0.094,73.512
+        JointPos posMid = new JointPos(-108.333, -61.555, 95.797, -124.336, -89.971, -91.845);
+        DescPose poseMid = new DescPose(101.649, 631.196, 203.595, -179.974, -0.094, 73.512);
+        // end2: -90.253,-35.630,49.719,-104.188,-90.001,-73.765 / -98.326,831.170,203.600,-179.973,-0.094,73.512
+        JointPos posEnd2 = new JointPos(-90.253, -35.630, 49.719, -104.188, -90.001, -73.765);
+        DescPose poseEnd2 = new DescPose(-98.326, 831.170, 203.600, -179.973, -0.094, 73.512);
+        DescPose offdese = new DescPose(0, 0, 0, 0, 0, 0);
+        ExaxisPos epos = new ExaxisPos(0, 0, 0, 0);
+        int rtn = 0;
+
+        // SetSpeed(20)
+        rtn = robot.SetSpeed(20);
+        System.out.println("SetSpeed(20): " + rtn);
+
+        // 初始 MoveJ 到起点
+        rtn = robot.MoveJ(posStart, poseStart, 8, 0, 100, 100, 100, epos, -1, 0, offdese);
+        System.out.println("MoveJ start: " + rtn);
+
+        // while True: MoveC 往返(mid->end2 / mid->start), 速度递增
+        // 注: Python config=-1, C# 22参数 MoveC 重载无 config 参数
+        while (true)
+        {
+            // 第一轮: MoveC mid -> end2 (ovl=100, blendR=-1, oacc=100, 无偏移)
+            rtn = robot.MoveC(posMid, poseMid, 8, 0, 100, 100, epos, 0, offdese, posEnd2, poseEnd2, 8, 0, 100, 100, epos, 0, offdese, 100, -1, 100, 0);
+            System.out.println("MoveC mid->end2: " + rtn);
+
+            // SetSpeed(30)
+            rtn = robot.SetSpeed(30);
+            System.out.println("SetSpeed(30): " + rtn);
+
+            // 第二轮: MoveC mid -> start(=end1, 回到起点)
+            rtn = robot.MoveC(posMid, poseMid, 8, 0, 100, 100, epos, 0, offdese, posStart, poseStart, 8, 0, 100, 100, epos, 0, offdese, 100, -1, 100, 0);
+            System.out.println("MoveC mid->start: " + rtn);
+
+            // SetSpeed(40)
+            rtn = robot.SetSpeed(40);
+            System.out.println("SetSpeed(40): " + rtn);
+        }
+    }
+
+    // Python test_circle_speed_loop: Circle 运动, 速度 30/40 递增
+    public static void TestCircleSpeedLoop(Robot robot)
+    {
+        // 起点: -90.489,-84.415,127.849,-133.531,-90.000,-74.001 / -98.324,431.220,203.588,-179.974,-0.093,73.512
+        JointPos posStart = new JointPos(-90.489, -84.415, 127.849, -133.531, -90.000, -74.001);
+        DescPose poseStart = new DescPose(-98.324, 431.220, 203.588, -179.974, -0.093, 73.512);
+        // 中间点: -108.333,-61.555,95.797,-124.336,-89.971,-91.845 / 101.649,631.196,203.595,-179.974,-0.094,73.512
+        JointPos posMid = new JointPos(-108.333, -61.555, 95.797, -124.336, -89.971, -91.845);
+        DescPose poseMid = new DescPose(101.649, 631.196, 203.595, -179.974, -0.094, 73.512);
+        // 终点: -90.253,-35.630,49.719,-104.188,-90.001,-73.765 / -98.326,831.170,203.600,-179.973,-0.094,73.512
+        JointPos posEnd = new JointPos(-90.253, -35.630, 49.719, -104.188, -90.001, -73.765);
+        DescPose poseEnd = new DescPose(-98.326, 831.170, 203.600, -179.973, -0.094, 73.512);
+        DescPose offdese = new DescPose(0, 0, 0, 0, 0, 0);
+        ExaxisPos epos = new ExaxisPos(0, 0, 0, 0);
+        int rtn = 0;
+
+        // SetSpeed(20)
+        rtn = robot.SetSpeed(20);
+        System.out.println("SetSpeed(20): " + rtn);
+
+        // 初始 MoveJ 到起点
+        rtn = robot.MoveJ(posStart, poseStart, 8, 0, 100, 100, 100, epos, -1, 0, offdese);
+        System.out.println("MoveJ start: " + rtn);
+
+        // while True: Circle(mid->end), 速度 30/40 交替
+        // 注: Python config=-1, C# 20参数 Circle 重载无 config 参数
+        while (true)
+        {
+            // SetSpeed(30)
+            rtn = robot.SetSpeed(30);
+            System.out.println("SetSpeed(30): " + rtn);
+
+            // Circle mid -> end (ovl=100, blendR=-1, oacc=100, 无偏移)
+            rtn = robot.Circle(posMid, poseMid, 8, 0, 100, 100, epos, posEnd, poseEnd, 8, 0, 100, 100, epos, 100, 0, offdese, 100, -1, 0);
+            System.out.println("Circle mid->end: " + rtn);
+
+            // SetSpeed(40)
+            rtn = robot.SetSpeed(40);
+            System.out.println("SetSpeed(40): " + rtn);
+        }
+    }
+
+
+
+    /**
+    * @brief TCP 8080 版 ServoJ 指令下发测试。
+    *        组包与 ServoJ(comType=1) 的 UDP 组包完全一致
+    *        （ServoMoveStart cmdID=689 / ServoJ cmdID=376 / ServoMoveEnd cmdID=690），
+    *        仅发送通道从 UDP 20007 换成 TCP 8080（robot.SendTCPFrame）。
+    * 用途：验证 mTLS 加密下 TCP 通道的伺服指令闭环。
+    */
+    public static void TestServoJTcp(Robot robot)
+    {
+        /* 订阅回调：打印 TCP 回复的完整数据帧（解密后的原协议帧） */
+        final int[] tcpRcvCnt = {0};
+        robot.SetTcpFrameListener(frame -> {
+            tcpRcvCnt[0]++;
+            System.out.println("[TCP 回复 #" + tcpRcvCnt[0] + "] "
+                    + new java.text.SimpleDateFormat("HH:mm:ss.SSS").format(new java.util.Date()) + " " + frame);
+        });
+
+        double vel = 0.0;
+        double acc = 0.0;
+        double cmdT = 0.008;
+        double filterT = 0.0;
+        double gain = 0.0;
+        int count = 500;
+        double dt = 0.1;
+        int cmdID = 0;
+        final int[] frameCount = {0};   /* 帧计数自增 */
+
+        while (true)
+        {
+            JointPos j = new JointPos(0, -90, 90, 0, 0, 0);
+            ExaxisPos epos = new ExaxisPos(0, 0, 0, 0);
+            DescPose offset_pos = new DescPose(0, -90, 90, 0, 0, 0);
+            robot.MoveJ(j, 0, 0, 100, 100, 100, epos, -1, 0, offset_pos);
+            int ret = robot.GetActualJointPosDegree(j);
+            if (ret == 0)
+            {
+                count = 300;
+                cmdID += 1;
+
+                /* ---------- TCP 版 ServoMoveStart（cmdID=689） ---------- */
+                {
+                    String s = "ServoMoveStart()";
+                    Frame f = new Frame(frameCount[0]++, 689, s);
+                    robot.SendTCPFrame(FrameHandle.packFrame(f));
+                }
+
+                while (count > 0)
+                {
+                    /* ---------- TCP 版 ServoJ（cmdID=376，组包同 comType=1） ---------- */
+                    {
+                        String jointStr = fmtJoint(j);
+                        String axisStr = fmtArr(new double[]{epos.axis1, epos.axis2, epos.axis3, epos.axis4});
+                        String s = String.format("ServoJ(%s,%s,%.3f,%.3f,%.3f,%.3f,%.3f,%d)",
+                                jointStr, axisStr, acc, vel, cmdT, filterT, gain, cmdID);
+                        Frame f = new Frame(frameCount[0]++, 376, s);
+                        robot.SendTCPFrame(FrameHandle.packFrame(f));
+                    }
+
+                    j.J1 += dt;
+                    j.J4 += dt;
+                    j.J5 += dt;
+                    j.J6 += dt;
+                    epos.axis1 += dt;
+                    count -= 1;
+                    robot.Sleep(1);
+                    ROBOT_STATE_PKG pkg = robot.GetRobotRealTimeState();
+                    System.out.println("Servoj命令数量: " + pkg.servoJCmdNum);
+                    System.out.println("Servoj Count " + pkg.servoJCmdNum + "; last pos is "
+                            + pkg.lastServoTarget[0] + " " + pkg.lastServoTarget[1] + " "
+                            + pkg.lastServoTarget[2] + " " + pkg.lastServoTarget[3] + " "
+                            + pkg.lastServoTarget[4] + " " + pkg.lastServoTarget[5]);
+                }
+
+                /* ---------- TCP 版 ServoMoveEnd（cmdID=690） ---------- */
+                {
+                    String s = "ServoMoveEnd()";
+                    Frame f = new Frame(frameCount[0]++, 690, s);
+                    robot.SendTCPFrame(FrameHandle.packFrame(f));
+                }
+
+                robot.Sleep(1000);
+            }
+        }
+    }
+
+    /** @brief 关节位置数组格式化（保留 3 位小数） */
+    private static String fmtJoint(JointPos j)
+    {
+        return fmtArr(new double[]{j.J1, j.J2, j.J3, j.J4, j.J5, j.J6});
+    }
+
+    /** @brief 本地数组格式化（与 SDK 内 FormatDoubleArray 等价，保留 3 位小数） */
+    private static String fmtArr(double[] a)
+    {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < a.length; i++)
+        {
+            if (i > 0)
+            {
+                sb.append(",");
+            }
+            sb.append(String.format("%.3f", a[i]));
+        }
+        return sb.toString();
+    }
+
+    /**
+     * @brief 仅 TCP 8080 通道验证
+     */
+    public static void TestSendModeTcp(Robot robot)
+    {
+        String program_name = "mtls.lua";
+        String[] loaded_name = {""};
+        int[] state = {0};
+        int[] line = {0};
+
+        System.out.println("========== Mode 指令 TCP 8080 通道验证 ==========");
+        System.out.println(robot.IsEncryptEnabled() ? "[状态] mTLS 已启用" : "[状态] 明文模式（对照）");
+
+        robot.SetTcpFrameListener(frame ->
+                System.out.println("[TCP 应答] " + frame));
+
+        String mode0 = "/f/bIII52III236III7IIIMode(0)III/b/f";
+        String mode1 = "/f/bIII52III236III7IIIMode(1)III/b/f";
+
+        System.out.println("[发送] " + mode0);
+        robot.SendTCPFrame(mode0);
+        robot.Sleep(1000);
+        System.out.println("[发送] " + mode1);
+        robot.SendTCPFrame(mode1);
+        robot.Sleep(1000);
+        System.out.println("[发送] " + mode0);
+        robot.SendTCPFrame(mode0);
+
+        robot.Mode(0);
+        robot.LoadDefaultProgConfig(0, program_name);
+        robot.ProgramLoad(program_name);
+
+        robot.SetSpeedInstant(50);
+
+        robot.ProgramRun();
+        robot.Sleep(5000);
+        robot.PauseMotion();
+        robot.GetProgramState(state);
+        System.out.println("program state:" + state[0]);
+        java.util.List<Integer> lineRtn = robot.GetCurrentLine();
+        System.out.println("current line:" + lineRtn.get(1));
+        robot.GetLoadedProgram(loaded_name);
+        System.out.println("program name:" + loaded_name[0]);
+
+        robot.ResumeMotion();
+        robot.Sleep(2000);
+        robot.PauseMotion();
+        robot.Sleep(2000);
+
+        System.out.println("========== TCP 验证结束（应答见上方打印） ==========");
+    }
+
+
+    static class RobotThread implements Runnable {
+        private final Robot robot;
+        private volatile boolean running = true;
+
+        public RobotThread(Robot robot) {
+            this.robot = robot;
+        }
+
+        public void stop() {
+            running = false;
+        }
+
+        @Override
+        public void run() {
+            BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+
+            while (running) {
+                try {
+                    System.out.print("Please input speed value (0~100, q to quit): ");
+                    System.out.flush();
+
+                    String line = reader.readLine();
+
+                    // 1. 流结束（Ctrl+D / Ctrl+Z / 管道关闭）
+                    if (line == null) {
+                        System.out.println("\nInput stream closed, exit speed input thread.");
+                        break;
+                    }
+
+                    // 2. 去掉首尾空白
+                    line = line.trim();
+
+                    // 3. 空行：跳过，不打印任何东西
+                    if (line.isEmpty()) {
+                        continue;
+                    }
+
+                    // 4. 退出指令
+                    if ("q".equalsIgnoreCase(line)) {
+                        System.out.println("Quit speed input thread.");
+                        break;
+                    }
+
+                    // 5. 解析数字
+                    int speed;
+                    try {
+                        speed = Integer.parseInt(line);
+                    } catch (NumberFormatException e) {
+                        System.out.println("Invalid number: [" + line + "]");
+                        continue;
+                    }
+
+                    // 7. 下发速度
+                    robot.SetPhySpeedInstant(speed);
+                    System.out.println("SetSpeed -> " + speed + "%");
+
+                } catch (IOException e) {
+                    System.out.println("Input error: " + e.getMessage());
+                    break;
+                }
+            }
+        }
+    }
+
+    // ============================================================
+    // 测试函数：循环 MoveL，期间可实时输入速度
+    // ============================================================
+    public static int TestSetPhySpeed(Robot robot) {
+        // 1. 切到位置模式（和 Python robot.Mode(0) 等价）
+        robot.Mode(0);
+
+        // 2. 上电使能（和 Python robot.RobotEnable(1) 等价）
+        robot.RobotEnable(1);
+
+        // 3. 两个目标点位
+        JointPos j1 = new JointPos(-60.206, -49.449, 79.476, -124.322, -88.416, -45.209);
+        DescPose d1 = new DescPose(-412.929, 510.912, 94.557, -175.850, -1.933, 74.992);
+        JointPos j2 = new JointPos(-141.282, -40.962, 62.359, -110.496, -85.512, -126.379);
+        DescPose d2 = new DescPose(586.847, 510.915, 94.560, -175.851, -1.934, 74.991);
+
+        ExaxisPos ex = new ExaxisPos(0.0, 0.0, 0.0, 0.0);
+        DescPose zeroOff = new DescPose(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+
+        // 4. 启动输入线程（守护线程）
+        RobotThread speedInput = new RobotThread(robot);
+        Thread th = new Thread(speedInput, "SpeedInputThread");
+        th.setDaemon(true);
+        th.start();
+
+        // 5. 循环 MoveL，期间可实时输入速度
+        try {
+            while (true) {
+                int rtn = robot.MoveL(j1, d1, 1, 0, 100, 100, 100,
+                        -1, 0, ex, 0, 0, zeroOff, 100, 0, 0, 10);
+                if (rtn != 0) {
+                    System.out.println("MoveL j1->d1 failed, rtn=" + rtn);
+                    break;
+                }
+
+                rtn = robot.MoveL(j2, d2, 1, 0, 100, 100, 100,
+                        -1, 0, ex, 0, 0, zeroOff, 100, 0, 0, 10);
+                if (rtn != 0) {
+                    System.out.println("MoveL j2->d2 failed, rtn=" + rtn);
+                    break;
+                }
+
+                // 让出 CPU，避免主循环把输入线程饿死
+                Thread.sleep(10);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } finally {
+            speedInput.stop();
+        }
+
+        return 0;
+    }
+
+    public static int TestTCFToAllJoint(Robot robot)
+    {
+        // 获取当前 TCP 位姿
+        DescPose curTcp = new DescPose(0, 0, 0, 0, 0, 0);
+        int rtn = robot.GetActualTCPPose(curTcp);
+        if (rtn != 0)
+        {
+            return rtn;
+        }
+        System.out.printf("当前TCP位姿: x=%.3f, y=%.3f, z=%.3f, a=%.3f, b=%.3f, c=%.3f\n",
+                curTcp.tran.x, curTcp.tran.y, curTcp.tran.z,
+                curTcp.rpy.rx, curTcp.rpy.ry, curTcp.rpy.rz);
+
+        // 扩展轴位置，此处全 0
+        ExaxisPos exPos = new ExaxisPos(0, 0, 0, 0);
+
+        // 8 组逆解结果
+        JointPos[] allJoints = new JointPos[8];
+
+        // 调用 TCFToAllJoint 求 8 组逆解，tool=0，workpiece=0
+        rtn = robot.TCFToAllJoint(curTcp, 0, 0, exPos, allJoints);
+        if (rtn != 0)
+        {
+            return rtn;
+        }
+
+        // 逐组正解验证
+        for (int i = 0; i < 8; i++)
+        {
+            JointPos joint = allJoints[i];
+
+            System.out.printf("JOINT%d: j1=%.3f, j2=%.3f, j3=%.3f, j4=%.3f, j5=%.3f, j6=%.3f\n",
+                    i + 1, joint.J1, joint.J2, joint.J3, joint.J4, joint.J5, joint.J6);
+
+            // 第 i 组逆解对应的笛卡尔位姿
+            DescPose pos = new DescPose(0, 0, 0, 0, 0, 0);
+            rtn = robot.GetForwardKin(joint, pos);
+            if (rtn != 0)
+            {
+                // 某组正解失败不影响其他组
+                continue;
+            }
+
+            System.out.printf("POS%d: x=%.3f, y=%.3f, z=%.3f, a=%.3f, b=%.3f, c=%.3f\n",
+                    i + 1, pos.tran.x, pos.tran.y, pos.tran.z,
+                    pos.rpy.rx, pos.rpy.ry, pos.rpy.rz);
+        }
+
+        return 0;
+    }
+
 }

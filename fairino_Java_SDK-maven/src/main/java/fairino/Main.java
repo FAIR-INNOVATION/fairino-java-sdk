@@ -21,8 +21,8 @@ public class Main {
         Robot robot = new Robot();
         robot.SetReconnectParam(true, 1000, 50);//设置重连次数、间隔
         robot.LoggerInit(FrLogType.DIRECT, FrLogLevel.ERROR, "D://log", 10, 10);
-        robot.enableMtls = true;//开启TLS加密总开关
-        int rtn = robot.RPC("192.168.56.2");
+        robot.enableMtls = false;//开启TLS加密总开关
+        int rtn = robot.RPC("192.168.58.2");
         if (rtn == 0) {
             System.out.println("rpc连接 success");
         } else {
@@ -30,13 +30,18 @@ public class Main {
             return;
         }
         robot.Sleep(1000);
+        TestDataPackageUpgrade(robot);
+//        TestJointAllParamUpgrade(robot);
+//        TestServoJWithFiltertime(robot);
+//        TestServoCartWithFiltertime(robot);
+//        TestGetGripperMotionDone(robot);
 //        TestMoveJSpeedLoop(robot);
 //        TestMoveLSpeedLoop(robot);
 //        TestMoveCSpeedLoop(robot);
-//        TestServoJTcp(robot);
+//         TestServoJTcp(robot);
 //        TestSendModeTcp(robot);
 
-             TestServoJ(robot);
+//             TestServoJ(robot);
             // TestSetPhySpeed(robot);
 
 //            TestTCFToAllJoint(robot);
@@ -1245,7 +1250,8 @@ public class Main {
         if (ret == 0)
         {
             cmdID += 1;
-            robot.ServoMoveStart(1);
+//            double[] gainPara = {-1.0, -1.0, -1.0, -1.0, -1.0, -1.0};
+//            robot.ServoMoveStart(1,1,gainPara);
             while (count>0)
             {
                 robot.ServoJ(j, epos, acc, vel, cmdT, filterT, gain, cmdID,1);
@@ -3351,7 +3357,7 @@ public class Main {
                 robot.ServoMoveEnd(comType);
 
                 robot.Sleep(1000);
-                robot.ServoMoveStart(comType);
+//                robot.ServoMoveStart(comType);
                 count = 300;
                 while (count>0)
                 {
@@ -11571,7 +11577,7 @@ public static void TestRobotUDP (Robot robot) {
         if (ret == 0)
         {
             cmdID += 1;
-            robot.ServoMoveStart(comType);
+//            robot.ServoMoveStart(comType);
             while (count > 0)
             {
                 robot.ServoJ(j, epos, acc, vel, cmdT, filterT, gain, cmdID, comType);
@@ -13866,6 +13872,259 @@ public static void TestRobotUDP (Robot robot) {
         }
 
         return 0;
+    }
+
+/**
+     * 对应 C++ TestServoJWithFiltertime()
+     * 从文件读取 ServoJ 路径点，带滤波时间参数执行伺服运动
+     */
+    public static int TestServoJWithFiltertime(Robot robot) {
+        int rtn = 0;
+
+        // 注意：C++ 中是 SetCmdRpyCallback(UDPFrameCallBack)，
+        // Java 中对应为 SetUDPCmdRpyCallback
+        int[] udpRcvCnt = {0};
+        robot.udpCmdClient.SetUDPCmdRpyCallback((srcType, count, cmdID, dataLen, content) -> {
+            udpRcvCnt[0]++;
+            System.out.println("[UDP 回复 #" + udpRcvCnt[0] + "] comType=" + srcType);
+            System.out.println("  完整帧: /f/bIII" + count + "III" + cmdID + "III" + dataLen + "III" + content + "III/b/f");
+            System.out.println("  字段: count=" + count + ", cmdID=" + cmdID + ", contentLen=" + dataLen + ", content=" + content);
+            return 0;
+        });
+
+
+        // ---- 移动到起始关节位置 ----
+        JointPos j = new JointPos(70.000000, -49.000000, -109.000000, -81.000000, 76.000000, 93.000000);
+        ExaxisPos epos = new ExaxisPos(0, 0, 0, 0);
+        DescPose offset_pos = new DescPose(0, 0, 0, 0, 0, 0);
+
+        robot.MoveJ(j, 1, 0, 100, 100, 100, epos, -1, 0, offset_pos);
+
+        // ---- 伺服参数 ----
+        float vel = 0.0f;
+        float acc = 0.0f;
+        float cmdT = 0.008f;
+        float filterT = 0.0f;
+        float gain = 0.0f;
+        int flag = 0;
+        float dt = 0.1f;
+        int cmdID = 0;
+        int comType = 0;
+        int count = 300;
+        int filtertime = 0;
+
+        // ---- 获取当前关节位置 ----
+        int ret = robot.GetActualJointPosDegree(j);
+        if (ret != 0) {
+            System.out.println("GetActualJointPosDegree errcode:" + ret);
+        }
+
+        // ---- ServoMoveStart 参数 ----
+        // C++: std::vector<double> ServoGain = { 22.0, ... };
+        double[] ServoGain = { 22.0, 22.0, 22.0, 22.0, 22.0, 22.0 };
+
+        rtn = robot.ServoMoveStart(comType, filtertime, ServoGain);
+        System.out.println("ServoMoveStart rtn is " + rtn);
+
+        // ---- 从文件读取路径点并逐点下发 ServoJ ----
+        BufferedReader reader = null;
+        try {
+            reader = new BufferedReader(new FileReader("D://zUP/6RPTPpath.txt"));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                JointPos p = new JointPos();
+
+                // 解析格式: ServoJ(x1,x2,x3,x4,x5,x6,...
+                String prefix = "ServoJ(";
+                if (line.startsWith(prefix)) {
+                    String body = line.substring(prefix.length());
+                    String[] parts = body.split(",");
+                    if (parts.length >= 6) {
+                        p.J1 = Double.parseDouble(parts[0].trim());
+                        p.J2 = Double.parseDouble(parts[1].trim());
+                        p.J3 = Double.parseDouble(parts[2].trim());
+                        p.J4 = Double.parseDouble(parts[3].trim());
+                        p.J5 = Double.parseDouble(parts[4].trim());
+                        p.J6 = Double.parseDouble(parts[5].trim());
+                    }
+                }
+
+                rtn = robot.ServoJ(p, epos, acc, vel, cmdT, filterT, gain, cmdID, comType);
+                // robot.Sleep(8);
+            }
+        } catch (IOException e) {
+            System.out.println("读取文件失败: " + e.getMessage());
+        } finally {
+            if (reader != null) {
+                try { reader.close(); } catch (IOException ignored) {}
+            }
+        }
+
+        // ---- 结束伺服 ----
+        robot.ServoMoveEnd(comType);
+        System.out.println("ServoMoveEnd rtn is " + rtn);
+
+        robot.Sleep(4000);
+        robot.CloseRPC();
+        return 0;
+    }
+
+
+    /**
+     * 对应 C++ TestServoCartWithFiltertime()
+     * 从文件读取 ServoCart 路径点，带滤波时间参数执行笛卡尔伺服运动
+     */
+    public static int TestServoCartWithFiltertime(Robot robot) {
+        // ---- 目标笛卡尔位姿 ----
+        DescPose desc_pos_dt = new DescPose(542.1690, 34.7990, 114.4800, 169.808000, -3.600000, -133.152000);
+        ExaxisPos exaxis = new ExaxisPos(0.0, 0.0, 0.0, 0.0);
+
+        double[] pos_gain = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+
+        int mode = 0;
+        float vel = 0.0f;
+        float acc = 0.0f;
+        float cmdT = 0.008f;
+        float filterT = 0.0f;
+        float gain = 0.0f;
+        int count = 5000;
+        int rtn = 0;
+
+        robot.SetSpeed(20);
+
+        DescPose offset_pos = new DescPose(0, 0, 0, 0, 0, 0);
+        robot.MoveL(desc_pos_dt, 1, 0, 100, 100, 100, -1, 0, exaxis, 0, 0, offset_pos, -1, 0,0,0);
+
+        // ---- ServoMoveStart 参数 ----
+        int filtertime = 0;
+        double[] ServoGain = { 20.0, 20.0, 20.0, 20.0, 20.0, 20.0 };
+
+        rtn = robot.ServoMoveStart(0, filtertime, ServoGain);
+        System.out.println("ServoMoveStart rtn is " + rtn);
+
+        // ---- 从文件读取笛卡尔路径点并逐点下发 ServoCart ----
+        BufferedReader reader = null;
+        try {
+            reader = new BufferedReader(new FileReader("D://zUP/6RCARpath.txt"));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                // 解析格式: ServoCart(0,x,y,z,rx,ry,rz,...
+                String prefix = "ServoCart(0,";
+                if (line.startsWith(prefix)) {
+                    String body = line.substring(prefix.length());
+                    String[] parts = body.split(",");
+                    if (parts.length >= 6) {
+                        desc_pos_dt.tran.x = Float.parseFloat(parts[0].trim());
+                        desc_pos_dt.tran.y = Float.parseFloat(parts[1].trim());
+                        desc_pos_dt.tran.z = Float.parseFloat(parts[2].trim());
+                        desc_pos_dt.rpy.rx = Float.parseFloat(parts[3].trim());
+                        desc_pos_dt.rpy.ry = Float.parseFloat(parts[4].trim());
+                        desc_pos_dt.rpy.rz = Float.parseFloat(parts[5].trim());
+                    }
+                }
+
+                rtn = robot.ServoCart(mode, desc_pos_dt, exaxis, pos_gain, acc, vel, cmdT, filterT, gain);
+                System.out.println("ServoCart rtn is " + rtn);
+                // robot.Sleep(8);
+            }
+        } catch (IOException e) {
+            System.out.println("读取文件失败: " + e.getMessage());
+        } finally {
+            if (reader != null) {
+                try { reader.close(); } catch (IOException ignored) {}
+            }
+        }
+
+        // ---- 结束伺服 ----
+        robot.ServoMoveEnd(0);
+
+        return 0;
+    }
+
+
+    public void TestGetGripperMotionDone()
+    {
+        int rtn;
+        int status = 0;
+        int fault = 0;
+        ROBOT_STATE_PKG pkg = new ROBOT_STATE_PKG();
+
+
+        // 夹爪张开
+        rtn = robot.MoveGripper(2, 50, 50, 100, 30000, 0, 0, 0, 0, 0);
+        System.out.println("MoveGripper(张开) ret=" + rtn);
+        robot.Sleep(2000);
+        pkg = robot.GetRobotRealTimeState();
+        System.out.println(" gripper_motiondone " + pkg.gripper_motiondone);
+        // 夹爪闭合
+        rtn = robot.MoveGripper(2, 90, 100, 100, 30000, 0, 0, 0, 0, 0);
+        System.out.println("MoveGripper(闭合) ret=" + rtn);
+        robot.Sleep(2000);
+        pkg = robot.GetRobotRealTimeState();
+        System.out.println(" gripper_motiondone " + pkg.gripper_motiondone);
+        // 等待运动完成未检测到物体，超时5s，停止报错
+        rtn = robot.GripperWaitMotionDone(2, 5000, 0, 0);
+        System.out.println("GripperWaitMotionDone(等待完成未检测到物体) ret=" + rtn);
+
+        while (true)
+        {
+            List<Integer> result = robot.GetGripperMotionDone();
+            fault = result.get(1);
+            status = result.get(2);
+            System.out.println("motion status:" + fault + "," + status);
+            pkg = robot.GetRobotRealTimeState();
+            System.out.println(" error code " + pkg.main_code + "," + pkg.sub_code);
+            robot.Sleep(500);
+        }
+    }
+
+
+    // ============================================================
+    // 示例：数据备份包升级（对应第一个 main）
+    // ============================================================
+public static void TestDataPackageUpgrade(Robot robot)
+{
+    ROBOT_STATE_PKG pkg = new ROBOT_STATE_PKG();
+    int rtn = 0;
+    robot.Sleep(200);
+
+    rtn = robot.DataPackageUpgrade("D://zUP/upgrade/FR3WMS/fr_user_data.tar.gz");
+    System.out.println("robot DataPackageUpgrade rtn is " + rtn);
+
+    int upgradeProgress = 0;
+    while (upgradeProgress < 100)
+    {
+        List<Integer> state = robot.GetDataPackageUpgradeProgress();
+        upgradeProgress = state.get(1);
+        System.out.println("robot data package upgrade progress : " + upgradeProgress);
+        robot.Sleep(200);
+    }
+
+}
+
+
+    // ============================================================
+    // 示例：关节全参数升级（对应第二个 main）
+    // ============================================================
+    public static void TestJointAllParamUpgrade(Robot robot)
+    {
+        ROBOT_STATE_PKG pkg = new ROBOT_STATE_PKG();
+        int rtn = 0;
+
+        robot.RobotEnable(0);
+        robot.Sleep(200);
+
+        rtn = robot.JointAllParamUpgrade("D://zUP/upgrade/FR3WMS/jointallparameters.db");
+        System.out.println("robot JointAllParamUpgrade rtn is " + rtn);
+
+        int upgradeProgress = 0;
+        while (upgradeProgress < 100)
+        {
+            List<Integer> state = robot.GetJointAllParamUpgradeProgress();
+            upgradeProgress = state.get(1);
+            System.out.println("robot joint all param upgrade progress : " + upgradeProgress);
+            robot.Sleep(200);
+        }
     }
 
 }

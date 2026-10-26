@@ -22,7 +22,7 @@ import org.apache.xmlrpc.client.XmlRpcClientConfigImpl;
 
 public class Robot
 {
-    String SDK_VERSION = "JavaSDK V1.1.9  WebApp V3.9.9";
+    String SDK_VERSION = "JavaSDK V1.2.1  WebApp V4.0.1";
     private String robotIp = "192.168.58.2";//机器人ip
     int ROBOT_CMD_PORT = 8080;
     int ROBOT_CMD_UDP_PORT = 20007;
@@ -1805,7 +1805,6 @@ public class Robot
         }
     }
 
-
     /**
      * @brief 伺服运动开始，配合ServoJ、ServoCart指令使用
      * @return  错误码
@@ -1849,6 +1848,64 @@ public class Robot
             if(e.getMessage().contains("Connection timed out") || e.getMessage().contains("connect timed out"))
             {
                 ServoMoveStart(comType);
+            }
+            else if (log != null)
+            {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+    * @brief 伺服运动开始，配合ServoJ、ServoCart指令使用
+    * @param[in] comType 指令下发类型；0-xmlrpc；1-UDP(对应机器人20007端口)
+    * @param[in] filtertime 滤波时间，单位ms，默认0
+    * @param[in] gain位置环增益数组，长度应为6，依次对应J1~J6关节位置环增益；传null时使用默认值{ -1.0, -1.0, -1.0, -1.0, -1.0, -1.0 }
+    * @return  错误码
+    */
+    public int ServoMoveStart(int comType, int filtertime, double[] gain)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+        if(GetSafetyCode()!=0){
+            return GetSafetyCode();
+        }
+        try
+        {
+            if (comType == 0) {
+                Object[] params = new Object[] {filtertime, gain[0], gain[1], gain[2], gain[3], gain[4], gain[5]};
+                int rtn = (int)client.execute("ServoMoveStart" , params);
+                System.out.println("rtn: " + rtn);
+                if (log != null)
+                {
+                    log.LogInfo("ServoMoveStart(" + rtn);
+                }
+                return rtn;
+            } else if (comType == 1) {
+                String cmdStr = String.format(
+                        "ServoMoveStart(%s, %s, %s, %s, %s, %s, %s)",
+                        filtertime, gain[0], gain[1], gain[2], gain[3], gain[4], gain[5]);
+                Frame frame = new Frame(cmdFrameCnt, 689, cmdStr);
+                int rtn = udpCmdClient.sendFrame(frameHandle.packFrame(frame));
+                if (rtn != 0) {
+                    return RobotError.ERR_SOCKET_SEND_FAILED;
+                }
+                cmdFrameCnt++;
+                return rtn;
+            } else {
+                return RobotError.ERR_PARAM_VALUE;
+            }
+
+
+        }
+        catch (Throwable e)
+        {
+            if(e.getMessage().contains("Connection timed out") || e.getMessage().contains("connect timed out"))
+            {
+//                ServoMoveStart(comType, filtertime, gain);
             }
             else if (log != null)
             {
@@ -7474,15 +7531,17 @@ public class Robot
     }
 
     /**
-     * @brief  获取夹爪运动状态
-     * @return  List[0]:错误码; List[1] : fault  0-无错误，1-有错误; List[2]: staus  0-运动未完成，1-运动完成
+     * @brief  获取夹爪运动状态（401版本起，末端协议与已适配设备夹爪运动状态反馈定义统一）
+     * @param  [out] fault  0-无错误，其他-有错误
+     * @param  [out] staus  0-运动未完成，1-运动完成未检测到物体 2-运动完成检测到物体 3-运动完成检测到物体掉落
+     * @return  错误码
      */
     public List<Integer> GetGripperMotionDone()
     {
-        List<Integer> rtnArray = new ArrayList<Integer>() {};
+        List<Integer> rtnArray = new ArrayList<>();
         rtnArray.add(0);
         rtnArray.add(1);
-        rtnArray.add(1);
+        rtnArray.add(2);
 
         if (IsSockComError())
         {
@@ -7494,12 +7553,11 @@ public class Robot
         {
             Object[] params = new Object[] {};
             Object[] result = (Object[])client.execute("GetGripperMotionDone" , params);
+            System.out.println(Arrays.toString(result));
             rtnArray.set(0, (int)result[0]);
-            if ((int)result[0] == 0)
-            {
-                rtnArray.set(1, (int)result[1]);
-                rtnArray.set(2, (int)result[2]);
-            }
+            rtnArray.set(1, (int)result[1]);
+            rtnArray.set(2, (int)result[2]);
+
             if (log != null)
             {
                 log.LogInfo("GetGripperMotionDone( " + (int)result[1] + ", " + (int)result[2] + ") : " + (int)result[0]);
@@ -25041,13 +25099,13 @@ public int SendUDPFrame(String frame) {
     }
 
     /**
-     * @brief  等待夹爪运动状态
-     * @param  [in]  staus  0-运动未完成，1-运动完成未检测到物体 2-运动完成检测到物体
+     * @brief  等待夹爪运动状态（401版本起，末端协议与已适配设备夹爪运动状态反馈定义统一）
+     * @param  [in]  staus  0-运动未完成，1-运动完成未检测到物体 2-运动完成检测到物体 3-运动完成检测到物体掉落
      * @param  [in] timeout 超时时间（ms） -1永久等待
      * @param  [in] strategy  0-停止报错，1-继续运行
      * @param  [in] type  0-平行夹爪，1-旋转夹爪
      * @return  错误码
-     */
+    */
     public int GripperWaitMotionDone(int staus, int timeout, int strategy, int type)
     {
         if (IsSockComError())
@@ -25332,6 +25390,164 @@ public int SendUDPFrame(String frame) {
                 log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
             }
             return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 数据备份包上传升级
+     * @param filePath 上传数据备份包文件路径；D://zUP/fr_user_data.tar.gz
+     * @return 错误码
+     */
+    public int DataPackageUpgrade(String filePath)
+    {
+        try
+        {
+            File fileInfo = new File(filePath);
+            if (!fileInfo.exists())
+            {
+                return (int)RobotError.ERR_UPLOAD_FILE_NOT_FOUND;
+            }
+
+            int rtn = FileUpLoad(7, filePath);
+            if (rtn == 0)
+            {
+                Object[] params = new Object[] {};
+                rtn = (int)client.execute("DataPackageUpgrade", params);
+
+                if (rtn != 0)
+                {
+                    if (log != null)
+                    {
+                        log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                                Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                                "DataPackageUpgrade fail, error code is: " + rtn);
+                    }
+                }
+
+                if (log != null)
+                {
+                    log.LogInfo("DataPackageUpgrade(" + filePath + ") : " + rtn);
+                }
+                return rtn;
+            }
+            else
+            {
+                if (log != null)
+                {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "DataPackageUpgrade upload file fail(" + filePath + ") : " + rtn);
+                }
+                return rtn;
+            }
+        }
+        catch (Throwable e)
+        {
+            return RobotError.ERR_OTHER;
+        }
+    }
+
+
+    /**
+     * @brief 获取数据备份包升级进度百分比
+     * @return List[0]:错误码; List[1]:升级进度百分比[0-100], -1:升级失败
+     */
+    public List<Integer> GetDataPackageUpgradeProgress()
+    {
+        List<Integer> rtnArr = new ArrayList<Integer>(){};
+        rtnArr.add(-1);
+        rtnArr.add(-1);
+
+        if (IsSockComError())
+        {
+            rtnArr.set(0, sockErr);
+            return rtnArr;
+        }
+
+        try
+        {
+            Object[] params = new Object[] {};
+            Object[] result = (Object[]) client.execute("GetDataPackageUpgradeProgress", params);
+
+            int errcode = (int) result[0];
+            rtnArr.set(0, errcode);
+            if (errcode == 0)
+            {
+                rtnArr.set(1, (int) result[1]);
+            }
+            else
+            {
+                if (log != null)
+                {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "execute GetDataPackageUpgradeProgress fail " + errcode);
+                }
+            }
+            return rtnArr;
+        }
+        catch (Throwable e)
+        {
+            if (log != null)
+            {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            rtnArr.set(0, RobotError.ERR_RPC_ERROR);
+            return rtnArr;
+        }
+    }
+
+
+    /**
+     * @brief 获取关节全参数升级进度百分比
+     * @return List[0]:错误码; List[1]:升级进度百分比[0-100], -1:升级失败
+     */
+    public List<Integer> GetJointAllParamUpgradeProgress()
+    {
+        List<Integer> rtnArr = new ArrayList<Integer>(){};
+        rtnArr.add(-1);
+        rtnArr.add(-1);
+
+        if (IsSockComError())
+        {
+            rtnArr.set(0, sockErr);
+            return rtnArr;
+        }
+
+        try
+        {
+            Object[] params = new Object[] {};
+            Object[] result = (Object[]) client.execute("GetJointAllParamUpgradeProgress", params);
+
+            int errcode = (int) result[0];
+            rtnArr.set(0, errcode);
+            if (errcode == 0)
+            {
+                rtnArr.set(1, (int) result[1]);
+            }
+            else
+            {
+                if (log != null)
+                {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "execute GetJointAllParamUpgradeProgress fail " + errcode);
+                }
+            }
+            return rtnArr;
+        }
+        catch (Throwable e)
+        {
+            if (log != null)
+            {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            rtnArr.set(0, RobotError.ERR_RPC_ERROR);
+            return rtnArr;
         }
     }
 

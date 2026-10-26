@@ -14042,7 +14042,7 @@ public static void TestRobotUDP (Robot robot) {
     }
 
 
-    public void TestGetGripperMotionDone()
+    public void TestGetGripperMotionDone(Robot robot)
     {
         int rtn;
         int status = 0;

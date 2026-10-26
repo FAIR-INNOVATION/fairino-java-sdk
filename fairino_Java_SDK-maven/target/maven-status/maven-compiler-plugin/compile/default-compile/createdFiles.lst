@@ -64,6 +64,7 @@ fairino\UDPClient$UDPCallback.class
 fairino\Robot$4.class
 fairino\Main.class
 fairino\Robot$18.class
+fairino\Robot$28.class
 fairino\RobotInstCmdSendRoutineThread.class
 fairino\Robot$1.class
 fairino\Robot$20.class

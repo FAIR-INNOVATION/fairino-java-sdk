@@ -22,7 +22,7 @@ import org.apache.xmlrpc.client.XmlRpcClientConfigImpl;
 
 public class Robot
 {
-    String SDK_VERSION = "JavaSDK V1.2.1  WebApp V4.0.1";
+    String SDK_VERSION = "JavaSDK V1.2.2  WebApp V4.0.2";
     private String robotIp = "192.168.58.2";//机器人ip
     int ROBOT_CMD_PORT = 8080;
     int ROBOT_CMD_UDP_PORT = 20007;
@@ -915,7 +915,7 @@ public class Robot
             Object[] params1 = new Object[]{params};
 
             rtn = (int)client.execute("MoveL" , params1);
-            System.out.println(rtn);
+//            System.out.println(rtn);
             if (log != null)
             {
                 log.LogInfo("MoveL(" + joint_pos.J1 + "," + joint_pos.J2 + "," + joint_pos.J3 + "," + joint_pos.J4 + "," + joint_pos.J5 + "," + joint_pos.J6 + "," + desc_pos.tran.x + "," + desc_pos.tran.y + "," + desc_pos.tran.z + "," + desc_pos.rpy.rx + "," + desc_pos.rpy.ry + "," + desc_pos.rpy.rz + "," + tool + "," + user + "," + vel + "," + acc + "," + ovl + "," + blendR +
@@ -10118,6 +10118,53 @@ public class Robot
         }
     }
 
+/**
+     * @brief 设置摆动参数
+     * @param weaveNum 摆焊参数配置编号
+     * @param weaveType 摆动类型 0-平面三角波摆动；1-垂直L型三角波摆动；2-顺时针圆形摆动；3-逆时针圆形摆动；4-平面正弦波摆动；5-垂直L型正弦波摆动；6-垂直三角波摆动；7-垂直正弦波摆动
+     * @param weaveFrequency 摆动频率(Hz)
+     * @param weaveIncStayTime 等待模式 0-周期不包含等待时间；1-周期包含等待时间
+     * @param weaveRange 摆动幅度(mm)
+     * @param weaveLeftRange 垂直三角摆动左弦长度(mm)
+     * @param weaveRightRange 垂直三角摆动右弦长度(mm)
+     * @param additionalStayTime 垂直三角摆动垂三角点停留时间(mm)
+     * @param weaveLeftStayTime 摆动左停留时间(ms)
+     * @param weaveRightStayTime 摆动右停留时间(ms)
+     * @param weaveCircleRadio 圆形摆动-回调比率(0-100%)
+     * @param weaveStationary 摆动位置等待，0-等待时间内位置继续移动；1-等待时间内位置静止
+     * @param weaveYawAngle 摆动方向方位角(绕摆动Z轴旋转)，单位°
+     * @param weaveRotAngle 摆动方向方位角(绕摆动X轴旋转)，单位°
+     * @param weavePendulumLength 摇枪摆动的摆长，单位mm 
+     * @param weavePendulumAngle 摇枪摆动的摆角，单位°
+     * @return 错误码
+     */
+    public int WeaveSetPara(int weaveNum, int weaveType, double weaveFrequency, int weaveIncStayTime, double weaveRange, double weaveLeftRange, double weaveRightRange, int additionalStayTime, int weaveLeftStayTime, int weaveRightStayTime, int weaveCircleRadio, int weaveStationary, double weaveYawAngle,double weaveRotAngle, double weavePendulumLength, double weavePendulumAngle)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+
+        try
+        {
+            Object[] params = new Object[] {weaveNum, weaveType, weaveFrequency, weaveIncStayTime, weaveRange, weaveLeftRange, weaveRightRange, additionalStayTime, weaveLeftStayTime, weaveRightStayTime, weaveCircleRadio, weaveStationary, weaveYawAngle,weaveRotAngle, weavePendulumLength, weavePendulumAngle};
+            int rtn = (int)client.execute("WeaveSetPara" , params);
+            if (log != null)
+            {
+                log.LogInfo("WeaveSetPara(" + weaveNum + "," + weaveType + "," + weaveFrequency + "," + weaveIncStayTime + "," + weaveRange + "," + weaveLeftRange + ", " + weaveRightRange + ", " + additionalStayTime + "," + weaveLeftStayTime + "," + weaveRightStayTime + "," + weaveCircleRadio + "," + weaveStationary + "," + weaveYawAngle + ","+weaveRotAngle+","+weavePendulumLength+","+weavePendulumAngle+") : " + rtn );
+            }
+            return rtn;
+        }
+        catch (Throwable e)
+        {
+            if (log != null)
+            {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
     /**
      * @brief 设置摆动参数
      * @param weaveNum 摆焊参数配置编号
@@ -10138,29 +10185,9 @@ public class Robot
      */
     public int WeaveSetPara(int weaveNum, int weaveType, double weaveFrequency, int weaveIncStayTime, double weaveRange, double weaveLeftRange, double weaveRightRange, int additionalStayTime, int weaveLeftStayTime, int weaveRightStayTime, int weaveCircleRadio, int weaveStationary, double weaveYawAngle,double weaveRotAngle)
     {
-        if (IsSockComError())
-        {
-            return sockErr;
-        }
+        int errcode = WeaveSetPara(weaveNum, weaveType, weaveFrequency, weaveIncStayTime, weaveRange, weaveLeftRange, weaveRightRange, additionalStayTime, weaveLeftStayTime, weaveRightStayTime, weaveCircleRadio, weaveStationary, weaveYawAngle, weaveRotAngle, 0, 0);
 
-        try
-        {
-            Object[] params = new Object[] {weaveNum, weaveType, weaveFrequency, weaveIncStayTime, weaveRange, weaveLeftRange, weaveRightRange, additionalStayTime, weaveLeftStayTime, weaveRightStayTime, weaveCircleRadio, weaveStationary, weaveYawAngle,weaveRotAngle};
-            int rtn = (int)client.execute("WeaveSetPara" , params);
-            if (log != null)
-            {
-                log.LogInfo("WeaveSetPara(" + weaveNum + "," + weaveType + "," + weaveFrequency + "," + weaveIncStayTime + "," + weaveRange + "," + weaveLeftRange + ", " + weaveRightRange + ", " + additionalStayTime + "," + weaveLeftStayTime + "," + weaveRightStayTime + "," + weaveCircleRadio + "," + weaveStationary + "," + weaveYawAngle + ","+weaveRotAngle+ ") : " + rtn );
-            }
-            return rtn;
-        }
-        catch (Throwable e)
-        {
-            if (log != null)
-            {
-                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(), Thread.currentThread().getStackTrace()[1].getLineNumber(), "RPC exception " + e.getMessage());
-            }
-            return RobotError.ERR_RPC_ERROR;
-        }
+        return errcode;
     }
 
     /**
@@ -25396,9 +25423,11 @@ public int SendUDPFrame(String frame) {
     /**
      * @brief 数据备份包上传升级
      * @param filePath 上传数据备份包文件路径；D://zUP/fr_user_data.tar.gz
+     * @param isSafetyParamUpgrade 是否升级安全配置参数
+     * @param pwd 安全密码
      * @return 错误码
      */
-    public int DataPackageUpgrade(String filePath)
+    public int DataPackageUpgrade(String filePath, boolean isSafetyParamUpgrade, String pwd)
     {
         try
         {
@@ -25411,7 +25440,7 @@ public int SendUDPFrame(String frame) {
             int rtn = FileUpLoad(7, filePath);
             if (rtn == 0)
             {
-                Object[] params = new Object[] {};
+                Object[] params = new Object[] { isSafetyParamUpgrade ? 1 : 0, pwd };
                 rtn = (int)client.execute("DataPackageUpgrade", params);
 
                 if (rtn != 0)
@@ -25426,7 +25455,7 @@ public int SendUDPFrame(String frame) {
 
                 if (log != null)
                 {
-                    log.LogInfo("DataPackageUpgrade(" + filePath + ") : " + rtn);
+                    log.LogInfo("DataPackageUpgrade(" + filePath + ", " + isSafetyParamUpgrade + ", " + pwd + ") : " + rtn);
                 }
                 return rtn;
             }
@@ -25446,7 +25475,6 @@ public int SendUDPFrame(String frame) {
             return RobotError.ERR_OTHER;
         }
     }
-
 
     /**
      * @brief 获取数据备份包升级进度百分比
@@ -25548,6 +25576,1045 @@ public int SendUDPFrame(String frame) {
             }
             rtnArr.set(0, RobotError.ERR_RPC_ERROR);
             return rtnArr;
+        }
+    }
+
+    /**
+     * @brief 设置运动实时偏移
+     * @param [in] mode 摆动坐标系；0-工件坐标系；1-基坐标系；2-工具坐标系；3-摆动坐标系
+     * @param [in] offset 实时偏移量[mm，°]
+     * @return 错误码
+     */
+    public int SetCartOffsetRT(int mode, DescPose offset)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+
+        int errcode = 0;
+
+        String paramStr = String.format("%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f",
+            mode, offset.tran.x, offset.tran.y, offset.tran.z, offset.rpy.rx, offset.rpy.ry, offset.rpy.rz);
+
+        String cmdStr = "SetCartOffsetRT(" + paramStr + ")";
+        Frame frame = new Frame(cmdFrameCnt++, 1368, cmdStr);
+        int rtn = SendTCPFrame(FrameHandle.packFrame(frame));
+
+        if (log != null)
+        {
+            log.LogInfo("SetCartOffsetRT(" + paramStr + ").");
+        }
+
+        return rtn;
+    }
+
+    /**
+     * @brief 设置焊接类型
+     * @param type 0-电弧焊；1-激光焊
+     * @return 错误码
+     */
+    public int SetWeldType(int type) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{type};
+            int errcode = (int) client.execute("SetWeldType", params);
+            if (log != null) {
+                log.LogInfo("SetWeldType(" + type + ") : " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (IsSockComError()) {
+                if (log != null) {
+                    log.LogError("RPC exception");
+                }
+                return sockErr;
+            }
+            if (log != null) {
+                log.LogError("RPC exception: " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 设置焊机厂商
+     * @param value 101-麦格米特；102-OTC；103-松下；104-米勒；1001-everlast激光焊
+     * @return 错误码
+     */
+    public int SetWeldCompany(int value) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{value};
+            int errcode = (int) client.execute("SetWeldCompany", params);
+            if (log != null) {
+                log.LogInfo("SetWeldCompany(" + value + ") : " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (IsSockComError()) {
+                if (log != null) {
+                    log.LogError("RPC exception");
+                }
+                return sockErr;
+            }
+            if (log != null) {
+                log.LogError("RPC exception: " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 设置送丝速度
+     * @param io_type 0-IO；1-UDP；2-modbusTCP
+     * @param status 送丝速度值
+     * @return 错误码
+     */
+    public int SetWeldWFS(int io_type, double status) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{io_type, status};
+            int errcode = (int) client.execute("SetWeldWFS", params);
+            if (log != null) {
+                log.LogInfo("SetWeldWFS(" + io_type + "," + status + ") : " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (IsSockComError()) {
+                if (log != null) {
+                    log.LogError("RPC exception");
+                }
+                return sockErr;
+            }
+            if (log != null) {
+                log.LogError("RPC exception: " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 设置焊接弧长
+     * @param io_type 0-IO；1-UDP；2-modbusTCP
+     * @param status 弧长
+     * @return 错误码
+     */
+    public int SetWeldArcLen(int io_type, int status) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{io_type, status};
+            int errcode = (int) client.execute("SetWeldArcLen", params);
+            if (log != null) {
+                log.LogInfo("SetWeldArcLen(" + io_type + "," + status + ") : " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (IsSockComError()) {
+                if (log != null) {
+                    log.LogError("RPC exception");
+                }
+                return sockErr;
+            }
+            if (log != null) {
+                log.LogError("RPC exception: " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 设置电弧控制值
+     * @param io_type 0-IO；1-UDP；2-modbusTCP
+     * @param status 电弧控制值
+     * @return 错误码
+     */
+    public int SetWeldArcCtrl(int io_type, int status) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{io_type, status};
+            int errcode = (int) client.execute("SetWeldArcCtrl", params);
+            if (log != null) {
+                log.LogInfo("SetWeldArcCtrl(" + io_type + "," + status + ") : " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (IsSockComError()) {
+                if (log != null) {
+                    log.LogError("RPC exception");
+                }
+                return sockErr;
+            }
+            if (log != null) {
+                log.LogError("RPC exception: " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 设置程序槽号
+     * @param io_type 0-IO；1-UDP；2-modbusTCP
+     * @param status 程序槽号值
+     * @return 错误码
+     */
+    public int SetWeldSlot(int io_type, int status) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{io_type, status};
+            int errcode = (int) client.execute("SetWeldSlot", params);
+            if (log != null) {
+                log.LogInfo("SetWeldSlot(" + io_type + "," + status + ") : " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (IsSockComError()) {
+                if (log != null) {
+                    log.LogError("RPC exception");
+                }
+                return sockErr;
+            }
+            if (log != null) {
+                log.LogError("RPC exception: " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 设置"禁止焊接"DO
+     * @param io_type 0-IO；1-UDP；2-modbusTCP
+     * @param status 0-关闭"禁止焊接"；1-开启"禁止焊接"
+     * @return 错误码
+     */
+    public int SetWeldDisable(int io_type, int status) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{io_type, status};
+            int errcode = (int) client.execute("SetWeldDisable", params);
+            if (log != null) {
+                log.LogInfo("SetWeldDisable(" + io_type + "," + status + ") : " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (IsSockComError()) {
+                if (log != null) {
+                    log.LogError("RPC exception");
+                }
+                return sockErr;
+            }
+            if (log != null) {
+                log.LogError("RPC exception: " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 设置送丝速度UDP自定义控制字序号
+     * @param udpNum UDP自定义控制字序号，默认44
+     * @return 错误码
+     */
+    public int SetweldWFSUdpNum(int udpNum) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{udpNum};
+            int errcode = (int) client.execute("SetweldWFSUdpNum", params);
+            if (log != null) {
+                log.LogInfo("SetweldWFSUdpNum(" + udpNum + ") : " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (IsSockComError()) {
+                if (log != null) {
+                    log.LogError("RPC exception");
+                }
+                return sockErr;
+            }
+            if (log != null) {
+                log.LogError("RPC exception: " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 设置弧长UDP自定义控制字序号
+     * @param udpNum UDP自定义控制字序号，默认45
+     * @return 错误码
+     */
+    public int SetWeldArcLenUdpNum(int udpNum) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{udpNum};
+            int errcode = (int) client.execute("SetWeldArcLenUdpNum", params);
+            if (log != null) {
+                log.LogInfo("SetWeldArcLenUdpNum(" + udpNum + ") : " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (IsSockComError()) {
+                if (log != null) {
+                    log.LogError("RPC exception");
+                }
+                return sockErr;
+            }
+            if (log != null) {
+                log.LogError("RPC exception: " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 设置电弧控制UDP自定义控制字序号
+     * @param udpNum UDP自定义控制字序号，默认46
+     * @return 错误码
+     */
+    public int SetWeldArcCtrlUdpNum(int udpNum) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{udpNum};
+            int errcode = (int) client.execute("SetWeldArcCtrlUdpNum", params);
+            if (log != null) {
+                log.LogInfo("SetWeldArcCtrlUdpNum(" + udpNum + ") : " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (IsSockComError()) {
+                if (log != null) {
+                    log.LogError("RPC exception");
+                }
+                return sockErr;
+            }
+            if (log != null) {
+                log.LogError("RPC exception: " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 设置程序槽号UDP自定义控制字序号
+     * @param udpNum UDP自定义控制字序号，默认47
+     * @return 错误码
+     */
+    public int SetWeldSlotUdpNum(int udpNum) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{udpNum};
+            int errcode = (int) client.execute("SetWeldSlotUdpNum", params);
+            if (log != null) {
+                log.LogInfo("SetWeldSlotUdpNum(" + udpNum + ") : " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (IsSockComError()) {
+                if (log != null) {
+                    log.LogError("RPC exception");
+                }
+                return sockErr;
+            }
+            if (log != null) {
+                log.LogError("RPC exception: " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 设置"禁止焊接"UDP扩展DO序号
+     * @param DONum UDP扩展DO序号，默认18
+     * @return 错误码
+     */
+    public int SetWeldDisableExtDoNum(int DONum) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{DONum};
+            int errcode = (int) client.execute("SetWeldDisableExtDoNum", params);
+            if (log != null) {
+                log.LogInfo("SetWeldDisableExtDoNum(" + DONum + ") : " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (IsSockComError()) {
+                if (log != null) {
+                    log.LogError("RPC exception");
+                }
+                return sockErr;
+            }
+            if (log != null) {
+                log.LogError("RPC exception: " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 设置"协同状态"UDP扩展DI序号
+     * @param DINum UDP扩展DI序号，默认-1不启用
+     * @return 错误码
+     */
+    public int SetWeldSynStateExtDINum(int DINum) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{DINum};
+            int errcode = (int) client.execute("SetWeldSynStateExtDINum", params);
+            if (log != null) {
+                log.LogInfo("SetWeldSynStateExtDINum(" + DINum + ") : " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (IsSockComError()) {
+                if (log != null) {
+                    log.LogError("RPC exception");
+                }
+                return sockErr;
+            }
+            if (log != null) {
+                log.LogError("RPC exception: " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取"协同状态"
+     * @param io_type 0-IO；1-UDP；2-modbusTCP
+     * @param synState 输出参数，0-非协同；1-协同（通过 int[] 单元素数组返回）
+     * @return 错误码
+     */
+    public int GetWeldSynState(int io_type, int[] synState) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{io_type};
+            Object[] result = (Object[]) client.execute("GetWeldSynState", params);
+            int errcode = (int) result[0];
+            if (errcode != 0) {
+                if (log != null) {
+                    log.LogError("Execute GetWeldSynState fail: " + errcode);
+                }
+                return errcode;
+            }
+            synState[0] = (int) result[1];
+            if (log != null) {
+                log.LogInfo("GetWeldSynState(" + io_type + ") : " + synState[0]);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError("RPC exception in GetWeldSynState: " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 设置"送丝速度"UDP自定义状态字序号
+     * @param udpNum UDP自定义状态字序号，默认47
+     * @return 错误码
+     */
+    public int SetWeldWfsFeedbackUdpNum(int udpNum) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{udpNum};
+            int errcode = (int) client.execute("SetWeldWfsFeedbackUdpNum", params);
+            if (log != null) {
+                log.LogInfo("SetWeldWfsFeedbackUdpNum(" + udpNum + ") : " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (IsSockComError()) {
+                if (log != null) {
+                    log.LogError("RPC exception");
+                }
+                return sockErr;
+            }
+            if (log != null) {
+                log.LogError("RPC exception: " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取"送丝速度"当前值
+     * @param io_type 0-IO；1-UDP；2-modbusTCP
+     * @param weldWfsFdbk 输出参数，当前送丝速度（通过 double[] 单元素数组返回）
+     * @return 错误码
+     */
+    public int GetWeldWfsFeedback(int io_type, double[] weldWfsFdbk) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{io_type};
+            Object[] result = (Object[]) client.execute("GetWeldWfsFeedback", params);
+            int errcode = 0;
+            // 服务端返回 [errcode, value] 时按两段解析；仅返回数值时按成功处理
+            if (result.length >= 2) {
+                errcode = ((Number) result[0]).intValue();
+                if (errcode == 0) {
+                    weldWfsFdbk[0] = ((Number) result[1]).doubleValue();
+                }
+            } else if (result.length == 1) {
+                weldWfsFdbk[0] = ((Number) result[0]).doubleValue();
+            }
+            if (log != null) {
+                log.LogInfo("GetWeldWfsFeedback(" + io_type + ", " + weldWfsFdbk[0] + ") : " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (log != null) {
+                log.LogError("RPC exception in GetWeldWfsFeedback: " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+    /**
+     * @brief 设置启用末端吸盘动作控制功能码
+     * @param id 站号
+     * @param func 功能码数组，长度16，下标0~15对应Bit0~Bit15：
+     * 0-吸盘初始化；1-设置通道一最大真空度；2-设置通道一最小真空度；
+     * 3-设置通道二最大真空度；4-设置通道二最小真空度；5-读通道一状态；6-读通道二状态；
+     * 7-读初始化状态；8-读故障码；9-读通道一实际真空度；10-读通道二实际真空度；
+     * 11-通道一控制使能；12-通道二控制使能；
+     * 每项 0-不启用；1-启用
+     * @return 错误码
+     */
+    public int SetAxleSuckerFunc(int id, int[] func) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        if (func == null || func.length == 0 || func.length > 16) {
+            if (log != null) {
+                log.LogError("SetAxleSuckerFunc invalid func array, length must be 1~16");
+            }
+            return RobotError.ERR_PARAM_NUM;
+        }
+        try {
+            // 数组展开为 Object[]，作为 params 的一个元素
+            Object[] funcParam = new Object[]{
+                    func[0], func[1], func[2], func[3], func[4], func[5], func[6], func[7],
+                    func[8], func[9], func[10], func[11], func[12], func[13], func[14], func[15]
+            };
+            Object[] params = new Object[]{id, funcParam};
+            int rtn = (int) client.execute("SetAxleSuckerFunc", params);
+            System.out.println("SetAxleSuckerFunc(" + id + ", func[16]) : " + rtn);
+            if (log != null) {
+                log.LogInfo("SetAxleSuckerFunc(" + id + ", func[16]) : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (IsSockComError()) {
+                if (log != null) {
+                    log.LogError("RPC exception");
+                }
+                return sockErr;
+            }
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取末端吸盘动作控制功能码
+     * @param id 站号
+     * @param func 功能码数组，长度16，下标0~15对应Bit0~Bit15，含义同 SetAxleSuckerFunc
+     * @return 错误码
+     */
+    public int GetAxleSuckerFunc(int id, int[] func) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        if (func == null || func.length < 16) {
+            if (log != null) {
+                log.LogError("GetAxleSuckerFunc invalid func array, length must be at least 16");
+            }
+            return RobotError.ERR_PARAM_NUM;
+        }
+        try {
+            Object[] params = new Object[]{id};
+            Object[] result = (Object[]) client.execute("GetAxleSuckerFunc", params);
+            int errcode = (int) result[0];
+            if (errcode == 0) {
+                String resultStr = (String) result[1];
+                String[] items = resultStr.split(",");
+                if (items.length != 16) {
+                    if (log != null) {
+                        log.LogError("GetAxleSuckerFunc size fail: " + items.length);
+                    }
+                    return -1;
+                }
+                for (int i = 0; i < 16; i++) {
+                    func[i] = Integer.parseInt(items[i].trim());
+                }
+            }
+            if (log != null) {
+                log.LogInfo("GetAxleSuckerFunc(" + id + ", ref func[16]) : " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (IsSockComError()) {
+                if (log != null) {
+                    log.LogError("RPC exception");
+                }
+                return sockErr;
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+
+    /**
+     * @brief 设置末端吸盘控制参数
+     * @param id 站号
+     * @param channel 通道使能，长度4：channel[0]=1-使能，0-不使能（下标0-3对应通道1-通道4）
+     * @param minPress 最小真空度，长度4
+     * @param maxPress 最大真空度（吸盘错误码），长度4
+     * @param time 超时时间(ms)
+     * @return 错误码
+     */
+    public int SetAxleSuckerCtrl(int id, int[] channel, int[] minPress, int[] maxPress, int time) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        if (channel == null || minPress == null || maxPress == null
+                || channel.length < 4 || minPress.length < 4 || maxPress.length < 4) {
+            if (log != null) {
+                log.LogError("SetAxleSuckerCtrl invalid array, each array length must be at least 4");
+            }
+            return RobotError.ERR_PARAM_NUM;
+        }
+        try {
+            // 每个数组展开为 Object[]，再作为 params 的一个元素
+            Object[] channelParam = new Object[]{channel[0], channel[1], channel[2], channel[3]};
+            Object[] minPressParam = new Object[]{minPress[0], minPress[1], minPress[2], minPress[3]};
+            Object[] maxPressParam = new Object[]{maxPress[0], maxPress[1], maxPress[2], maxPress[3]};
+
+            Object[] params = new Object[]{id, channelParam, minPressParam, maxPressParam, time};
+            int rtn = (int) client.execute("SetAxleSuckerCtrl", params);
+            System.out.println("SetAxleSuckerCtrl(" + id + ",...," + time + ") : " + rtn);
+            if (log != null) {
+                log.LogInfo("SetAxleSuckerCtrl(" + id + ",...," + time + ") : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (IsSockComError()) {
+                if (log != null) {
+                    log.LogError("RPC exception");
+                }
+                return sockErr;
+            }
+            if (log != null) {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "RPC exception " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 激活/复位吸盘
+     * @param id 站号
+     * @param act 1-激活；0-复位
+     * @return 错误码
+     */
+    public int SetAxleSuckerAct(int id, int act) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{id, act};
+            int rtn = (int) client.execute("SetAxleSuckerAct", params);
+            if (log != null) {
+                log.LogInfo("SetAxleSuckerAct(" + id + "," + act + ") : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (IsSockComError()) {
+                if (log != null) {
+                    log.LogError("RPC exception");
+                }
+                return sockErr;
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取末端吸盘状态
+     * @param channel 吸盘通道；0-3（对应通道1-通道4）
+     * @param enable 输出：激活状态（int[] 单元素）
+     * @param done 输出：吸附完成状态（int[] 单元素）
+     * @param vacuumValue 输出：真空度（int[] 单元素）
+     * @param error 输出：吸盘错误码（int[] 单元素）
+     * @return 错误码
+     */
+    public int GetAxleSuckerState(int channel, int[] enable, int[] done, int[] vacuumValue, int[] error) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{channel};
+            Object[] result = (Object[]) client.execute("GetAxleSuckerState", params);
+            int errcode = (int) result[0];
+            if (errcode == 0) {
+                enable[0] = (int) result[1];
+                done[0] = (int) result[2];
+                vacuumValue[0] = (int) result[3];
+                error[0] = (int) result[4];
+            }
+            if (log != null) {
+                log.LogInfo("GetAxleSuckerState(" + channel + ", ref " + enable[0] + ", ref " + done[0]
+                        + ", ref " + vacuumValue[0] + ", ref " + error[0] + ") : " + errcode);
+            }
+            return errcode;
+        } catch (Throwable e) {
+            if (IsSockComError()) {
+                if (log != null) {
+                    log.LogError("RPC exception");
+                }
+                return sockErr;
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 等待末端吸盘吸附完成信号
+     * @param channel 吸盘通道；0-3（对应通道1-通道4）
+     * @param timeout 超时时间(ms)，-1 表示永远等待
+     * @param state 状态：0-未吸附物体；1-吸附物体；2-物体脱落
+     * @param strategy 超时策略：0-报错停止；1-继续运行
+     * @return 错误码
+     */
+    public int WaitAxleSuckerState(int channel, int timeout, int state, int strategy) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{channel, timeout, state, strategy};
+            int rtn = (int) client.execute("WaitAxleSuckerState", params);
+            if (log != null) {
+                log.LogInfo("WaitAxleSuckerState(" + channel + "," + timeout + "," + state + "," + strategy + ") : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (IsSockComError()) {
+                if (log != null) {
+                    log.LogError("RPC exception");
+                }
+                return sockErr;
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    // ==================== 末端设备使能（含吸盘） ====================
+
+    /**
+     * @brief 设置末端LUA末端设备启用类型
+     * @param forceSensorEnable 力传感器启用状态，0-不启用；1-启用
+     * @param gripperEnable 夹爪启用状态，0-不启用；1-启用
+     * @param IOEnable IO设备启用状态，0-不启用；1-启用
+     * @param dexhandEnable 灵巧手设备启用状态，0-不启用；1-启用
+     * @param suckerEnable 末端吸盘设备启用状态，0-不启用；1-启用；
+     * 默认-1：不传或传-1时按原四参数下发，兼容未升级控制器
+     * @return 错误码
+     */
+    public int SetAxleLuaEnableDeviceType(int forceSensorEnable, int gripperEnable, int IOEnable,
+                                        int dexhandEnable, int suckerEnable) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            int rtn;
+            if (suckerEnable < 0) {
+                Object[] params = new Object[]{forceSensorEnable, gripperEnable, IOEnable, dexhandEnable};
+                rtn = (int) client.execute("SetAxleLuaEnableDeviceType", params);
+            } else {
+                Object[] params = new Object[]{forceSensorEnable, gripperEnable, IOEnable, dexhandEnable, suckerEnable};
+                rtn = (int) client.execute("SetAxleLuaEnableDeviceType", params);
+            }
+            if (log != null) {
+                log.LogInfo("SetAxleLuaEnableDeviceType(" + forceSensorEnable + "," + gripperEnable + ", "
+                        + IOEnable + ", " + dexhandEnable + ", " + suckerEnable + ") : " + rtn);
+            }
+            return rtn;
+        } catch (Throwable e) {
+            if (IsSockComError()) {
+                if (log != null) {
+                    log.LogError("RPC exception: " + e.getMessage());
+                }
+                return sockErr;
+            }
+            if (log != null) {
+                log.LogWarn("RPC non-communication exception: " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取末端LUA末端设备启用类型（含末端吸盘）
+     * @param forceSensorEnable 输出：力传感器启用状态（int[] 单元素）
+     * @param gripperEnable 输出：夹爪启用状态（int[] 单元素）
+     * @param IOEnable 输出：IO设备启用状态（int[] 单元素）
+     * @param dexhandEnable 输出：灵巧手设备启用状态（int[] 单元素）
+     * @param suckerEnable 输出：末端吸盘设备启用状态（int[] 单元素）
+     * @return 错误码
+     */
+    public int GetAxleLuaEnableDeviceType(int[] forceSensorEnable, int[] gripperEnable, int[] IOEnable,
+                                        int[] dexhandEnable, int[] suckerEnable) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        try {
+            Object[] params = new Object[]{};
+            Object[] result = (Object[]) client.execute("GetAxleLuaEnableDeviceType", params);
+            if ((int) result[0] == 0) {
+                forceSensorEnable[0] = (int) result[1];
+                gripperEnable[0] = (int) result[2];
+                IOEnable[0] = (int) result[3];
+                dexhandEnable[0] = (int) result[4];
+                if (result.length > 5) {
+                    suckerEnable[0] = (int) result[5];
+                }
+            }
+            if (log != null) {
+                log.LogInfo("GetAxleLuaEnableDeviceType(ref " + forceSensorEnable[0] + ", ref " + gripperEnable[0]
+                        + ", ref " + IOEnable[0] + ", ref " + dexhandEnable[0] + ", ref " + suckerEnable[0]
+                        + ") : " + (int) result[0]);
+            }
+            return (int) result[0];
+        } catch (Throwable e) {
+            if (IsSockComError()) {
+                if (log != null) {
+                    log.LogError("RPC exception: " + e.getMessage());
+                }
+                return sockErr;
+            }
+            if (log != null) {
+                log.LogWarn("RPC non-communication exception: " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取当前配置的末端设备（含末端吸盘）
+     * @param forceSensorEnable 输出：力传感器启用设备编号 0-未启用；1-启用
+     * @param gripperEnable 输出：夹爪启用设备编号，0-不启用；1-启用
+     * @param IODeviceEnable 输出：IO设备启用设备编号，0-不启用；1-启用
+     * @param decHandEnable 输出：灵巧手启用设备编号，0-不启用；1-启用
+     * @param suckerEnable 输出：末端吸盘启用设备编号，0-不启用；1-启用（逗号串第40~47项）
+     * @return 错误码
+     */
+    public int GetAxleLuaEnableDevice(int[] forceSensorEnable, int[] gripperEnable, int[] IODeviceEnable,
+                                    int[] decHandEnable, int[] suckerEnable) {
+        if (IsSockComError()) {
+            return sockErr;
+        }
+        if (forceSensorEnable == null || gripperEnable == null || IODeviceEnable == null
+                || decHandEnable == null || suckerEnable == null
+                || forceSensorEnable.length < 8 || gripperEnable.length < 8 || IODeviceEnable.length < 8
+                || decHandEnable.length < 8 || suckerEnable.length < 8) {
+            if (log != null) {
+                log.LogError("GetAxleLuaEnableDevice invalid array, each array length must be at least 8");
+            }
+            return RobotError.ERR_PARAM_NUM;
+        }
+        try {
+            String resultStr = "";
+            Object[] params = new Object[]{};
+            Object[] result = (Object[]) client.execute("GetAxleLuaEnableDevice", params);
+            if ((int) result[0] == 0) {
+                resultStr = (String) result[1];
+                String[] parS = resultStr.split(",");
+                if (parS.length != 48) {
+                    if (log != null) {
+                        log.LogError("GetAxleLuaEnableDevice fail, " + parS.length);
+                    }
+                    return -1;
+                }
+                for (int i = 0; i < 8; i++) {
+                    forceSensorEnable[i] = Integer.parseInt(parS[i].trim());
+                    gripperEnable[i] = Integer.parseInt(parS[i + 8].trim());
+                    IODeviceEnable[i] = Integer.parseInt(parS[i + 16].trim());
+                    decHandEnable[i] = Integer.parseInt(parS[i + 24].trim());
+                    suckerEnable[i] = Integer.parseInt(parS[i + 40].trim());
+                }
+                return (int) result[0];
+            }
+            if (log != null) {
+                log.LogInfo("GetAxleLuaEnableDevice(ref " + resultStr + ") : " + (int) result[0]);
+            }
+            return (int) result[0];
+        } catch (Throwable e) {
+            if (IsSockComError()) {
+                if (log != null) {
+                    log.LogError("RPC exception: " + e.getMessage());
+                }
+                return sockErr;
+            }
+            if (log != null) {
+                log.LogWarn("RPC non-communication exception: " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取机器人DH补偿模型
+     * @param mode 输出参数，0-DH1.0；1-DH2.0（通过 int[] 单元素数组返回）
+     * @return 错误码
+     */
+    public int GetDHCompenMode(int[] mode)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+        try
+        {
+            Object[] params = new Object[]{};
+            Object[] result = (Object[]) client.execute("GetDHCompenMode", params);
+            int errcode = ((Number) result[0]).intValue();
+            if (errcode == 0)
+            {
+                mode[0] = ((Number) result[1]).intValue();
+            }
+            else
+            {
+                if (log != null)
+                {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "execute GetDHCompenMode fail " + errcode);
+                }
+            }
+            return errcode;
+        }
+        catch (Throwable e)
+        {
+            if (log != null)
+            {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "execute GetDHCompenMode fail: " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
+        }
+    }
+
+    /**
+     * @brief 获取机器人DH2.0参数
+     * @param d 输出：连杆偏距(mm)（double[6]）
+     * @param a 输出：连杆长度(mm)（double[6]）
+     * @param alpha 输出：连杆扭角(°)（double[6]）
+     * @param beta 输出：连杆偏角(°)（double[6]）
+     * @param theta 输出：关节零位(°)（double[6]）
+     * @return 错误码
+     */
+    public int GetDHAllParam(double[] d, double[] a, double[] alpha, double[] beta, double[] theta)
+    {
+        if (IsSockComError())
+        {
+            return sockErr;
+        }
+        if (d == null || a == null || alpha == null || beta == null || theta == null
+                || d.length < 6 || a.length < 6 || alpha.length < 6 || beta.length < 6 || theta.length < 6)
+        {
+            if (log != null)
+            {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "GetDHAllParam invalid array, each array length must be at least 6");
+            }
+            return RobotError.ERR_PARAM_NUM;
+        }
+        try
+        {
+            Object[] params = new Object[]{};
+            Object[] result = (Object[]) client.execute("GetDHAllParam", params);
+            int errcode = ((Number) result[0]).intValue();
+            if (errcode == 0)
+            {
+                String paramStr = (String) result[1];
+                String[] parS = paramStr.split(",");
+                if (parS.length != 30)
+                {
+                    if (log != null)
+                    {
+                        log.LogError("get all param size fail");
+                    }
+                    return -1;
+                }
+                for (int i = 0; i < 6; i++)
+                {
+                    d[i] = Double.parseDouble(parS[i].trim());
+                    a[i] = Double.parseDouble(parS[i + 6].trim());
+                    alpha[i] = Double.parseDouble(parS[i + 12].trim());
+                    beta[i] = Double.parseDouble(parS[i + 18].trim());
+                    theta[i] = Double.parseDouble(parS[i + 24].trim());
+                }
+            }
+            else
+            {
+                if (log != null)
+                {
+                    log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                            Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                            "execute GetDHAllParam fail " + errcode);
+                }
+            }
+            return errcode;
+        }
+        catch (Throwable e)
+        {
+            if (log != null)
+            {
+                log.LogError(Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        Thread.currentThread().getStackTrace()[1].getLineNumber(),
+                        "execute GetDHAllParam fail: " + e.getMessage());
+            }
+            return RobotError.ERR_RPC_ERROR;
         }
     }
 

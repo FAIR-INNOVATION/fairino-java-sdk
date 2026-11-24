@@ -22,6 +22,11 @@ public class Main {
         robot.SetReconnectParam(true, 1000, 50);//设置重连次数、间隔
         robot.LoggerInit(FrLogType.DIRECT, FrLogLevel.ERROR, "D://log", 10, 10);
         robot.enableMtls = false;//开启TLS加密总开关
+
+//        List<RobotState> state = new ArrayList<>();
+
+//        robot.AddRobotRealtimeState(RobotState.WeldVoltage);
+//        robot.AddRobotRealtimeState(RobotState.WeldCurrent);
         int rtn = robot.RPC("192.168.58.2");
         if (rtn == 0) {
             System.out.println("rpc连接 success");
@@ -30,7 +35,12 @@ public class Main {
             return;
         }
         robot.Sleep(1000);
-        TestDataPackageUpgrade(robot);
+        TestAxleSucker(robot);
+//        TestWeldSetParam(robot);
+        // TestWeldFeedback(robot);
+//        TestWeaveWithSwing(robot);
+//        TestSetCartOffsetRT(robot);
+//        TestDataPackageUpgrade(robot);
 //        TestJointAllParamUpgrade(robot);
 //        TestServoJWithFiltertime(robot);
 //        TestServoCartWithFiltertime(robot);
@@ -13435,7 +13445,6 @@ public static void TestRobotUDP (Robot robot) {
         System.out.println("MoveJ pos1: " + rtn);
 
         // while True: MoveL 往返, 速度递增 20->30->40
-        // 注: Python config=-1(参考当前关节逆解), C# 16参数 MoveL 重载无 config 参数
         while (true)
         {
             // MoveL 到点2 (blendR=-1 运动到位, blendMode=0, search=0, 无偏移, oacc=100)
@@ -13481,7 +13490,6 @@ public static void TestRobotUDP (Robot robot) {
         System.out.println("MoveJ start: " + rtn);
 
         // while True: MoveC 往返(mid->end2 / mid->start), 速度递增
-        // 注: Python config=-1, C# 22参数 MoveC 重载无 config 参数
         while (true)
         {
             // 第一轮: MoveC mid -> end2 (ovl=100, blendR=-1, oacc=100, 无偏移)
@@ -13527,7 +13535,6 @@ public static void TestRobotUDP (Robot robot) {
         System.out.println("MoveJ start: " + rtn);
 
         // while True: Circle(mid->end), 速度 30/40 交替
-        // 注: Python config=-1, C# 20参数 Circle 重载无 config 参数
         while (true)
         {
             // SetSpeed(30)
@@ -14088,7 +14095,7 @@ public static void TestDataPackageUpgrade(Robot robot)
     int rtn = 0;
     robot.Sleep(200);
 
-    rtn = robot.DataPackageUpgrade("D://zUP/upgrade/FR3WMS/fr_user_data.tar.gz");
+    rtn = robot.DataPackageUpgrade("D://zUP/upgrade/FR3WMS/fr_user_data.tar.gz", true, "12345678");
     System.out.println("robot DataPackageUpgrade rtn is " + rtn);
 
     int upgradeProgress = 0;
@@ -14126,5 +14133,392 @@ public static void TestDataPackageUpgrade(Robot robot)
             robot.Sleep(200);
         }
     }
+
+    public static int TestWeaveWithSwing(Robot robot)
+    {
+        int rtn = 0;
+        JointPos j1 = new JointPos(-72.561, -38.933, 92.047, -143.101, -90.000, 17.439);
+        JointPos j2 = new JointPos(-100.211, -44.358, 105.565, -151.192, -90.007, -10.211);
+
+        DescPose desc_pos1 = new DescPose(-300.008, 599.999, -199.999, -0.013, -0.004, 0.000);
+        DescPose desc_pos2 = new DescPose(-0.004, 599.977, -200.038, -0.017, -0.004, 0.000);
+
+        DescPose offset_pos = new DescPose(0, 0, 0, 0, 0, 0);
+        ExaxisPos epos = new ExaxisPos(0, 0, 0, 0);
+        int tool = 1;
+        int user = 0;
+        double vel = 100.0;
+        double acc = 100.0;
+        double ovl = 100.0;
+        double oacc = 100.0;
+        double blendT = -1.0;
+        double blendR = -1.0;
+        int flag = 0;
+        int search = 0;
+        int blendMode = 0;
+        int velAccMode = 0;
+        robot.SetSpeed(5);
+
+        rtn = robot.WeaveSetPara(0, 10, 1.000000, 0, 2.000000, 0.000000, 0.000000, 0, 50, 80, 0, 1, 0.000000, 0.000000, 20, 15);
+        System.out.println("rtn is: " + rtn);
+        rtn = robot.MoveJ(j1, desc_pos1, tool, user, vel, acc, ovl, epos, blendT, flag, offset_pos);
+        System.out.printf("movej errcode:%d\n", rtn);
+        robot.WeaveStart(0);
+        rtn = robot.MoveL(j2, desc_pos2, tool, user, vel, acc, ovl, blendR, blendMode, epos, search, flag, offset_pos, oacc, velAccMode, 0, 10);
+        System.out.printf("movel errcode:%d\n", rtn);
+        robot.WeaveEnd(0);
+
+        robot.Sleep(1000);
+        robot.CloseRPC();
+        robot.Sleep(1000);
+        return 0;
+    }
+
+    public static void cartOffsetPos(Robot robot)
+    {
+        java.util.Scanner scanner = new java.util.Scanner(System.in);
+        while (true)
+        {
+            System.out.print("Please input offset y value: ");
+            try
+            {
+                double inputVal = scanner.nextDouble();
+                DescPose offsetPos = new DescPose();
+                offsetPos.tran.y = inputVal;
+                robot.SetCartOffsetRT(2, offsetPos);
+            }
+            catch (java.util.InputMismatchException e)
+            {
+                // 输入错误，清空输入状态
+                scanner.nextLine();
+                System.out.println("Invalid number!");
+            }
+        }
+    }
+
+    public static int TestSetCartOffsetRT(Robot robot)
+    {
+        int rtn = 0;
+        Thread th = new Thread(() -> cartOffsetPos(robot));
+        th.start();
+
+        JointPos j1 = new JointPos(-72.561, -38.933, 92.047, -143.101, -90.000, 17.439);
+        JointPos j2 = new JointPos(-100.211, -44.358, 105.565, -151.192, -90.007, -10.211);
+        DescPose d1 = new DescPose(-300.008, 599.999, -199.999, -0.013, -0.004, 0.000);
+        DescPose d2 = new DescPose(-0.004, 599.977, -200.038, -0.017, -0.004, 0.000);
+
+        ExaxisPos ex = new ExaxisPos(0.0, 0.0, 0.0, 0.0);
+        DescPose zeroOff = new DescPose(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        while (true)
+        {
+            rtn = robot.MoveL(j1, d1, 1, 0, 100, 100, 100, -1, 0, ex, 0, 0, zeroOff, 100, 0, 0, 10);
+            rtn = robot.MoveL(j2, d2, 1, 0, 100, 100, 100, -1, 0, ex, 0, 0, zeroOff, 100, 0, 0, 10);
+        }
+
+    //        return 0;
+    }
+
+// ==================== 4.0.2 焊接测试函数 ====================
+
+    /**
+     * 4.0.2 焊机设置测试（配合 PLC 观测 D242~D249、D257.2）：
+     * 1) 选电弧焊 + 米勒焊机（后的 io_type=1 即走 UDP 链路）
+     * 2) 默认控制字 44~47 → PLC D242~D245，看送丝速度/弧长/电弧控制/程序槽号是否实时更新
+     * 3) 自定义控制字改为 48~51 → PLC D246~D249
+     * 4) 同一组控制字(48~51)连续写10个循环，4个值每轮+1、间隔2秒，观察 D246~D249（槽号在1~8内循环）
+     * 5) 禁止焊接：扩展 DO 默认 18 → D257.2，置 1 后 PLC 该位应为 1
+     */
+public static void TestWeldSetParam(Robot robot)
+{
+    JointPos j1 = new JointPos(-115.844, -49.503, 92.747, -133.077, -89.998, -25.868);
+    JointPos j2 = new JointPos(-149.585, -45.684, 82.489, -126.665, -90.092, -59.608);
+    DescPose d1 = new DescPose(198.357, 643.556, 103.910, 179.851, 0.075, 0.023);
+    DescPose d2 = new DescPose(565.183, 449.906, 118.825, 179.849, 0.074, 0.023);
+    ExaxisPos ex = new ExaxisPos(0.0, 0.0, 0.0, 0.0);
+    DescPose zeroOff = new DescPose(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+
+    int rtn;
+    // 1) 选择电弧焊、米勒焊机；之后 io_type=1 即按 UDP 链路下发
+    rtn = robot.SetWeldType(0);                 // 0-电弧焊；1-激光焊
+    System.out.println("SetWeldType(电弧焊): " + rtn);
+    rtn = robot.SetWeldCompany(104);            // 104-米勒
+    System.out.println("SetWeldCompany(米勒): " + rtn);
+    rtn = robot.ExtDevLoadUDPDriver();          // 建立机器人 UDP 外设通信
+    System.out.println("ExtDevLoadUDPDriver: " + rtn);
+    robot.Sleep(2000);
+
+    rtn = robot.MoveL(j1, d1, 0, 0, 100, 100, 100, -1, 0, ex, 0, 0, zeroOff, 100, 0, 0, 10);
+    System.out.println("moveL errcode:" + rtn);
+
+    // 2) 默认控制字 44~47 → D242~D245
+    rtn = robot.SetweldWFSUdpNum(44);
+    System.out.println("SetweldWFSUdpNum(44): " + rtn);
+    rtn = robot.SetWeldArcLenUdpNum(45);
+    System.out.println("SetWeldArcLenUdpNum(45): " + rtn);
+    rtn = robot.SetWeldArcCtrlUdpNum(46);
+    System.out.println("SetWeldArcCtrlUdpNum(46): " + rtn);
+    rtn = robot.SetWeldSlotUdpNum(47);
+    System.out.println("SetWeldSlotUdpNum(47): " + rtn);
+    robot.Sleep(3000);
+
+    rtn = robot.SetWeldWFS(1, 300.0);           // 送丝速度 300（double）
+    System.out.println("SetWeldWFS(300): " + rtn);
+    rtn = robot.SetWeldArcLen(1, 0);            // 弧长 0（500 为中值）
+    System.out.println("SetWeldArcLen(0): " + rtn);
+    rtn = robot.SetWeldArcCtrl(1, 25);          // 电弧控制 25（默认值）
+    System.out.println("SetWeldArcCtrl(25): " + rtn);
+    rtn = robot.SetWeldSlot(1, 1);              // 程序槽号 1
+    System.out.println("SetWeldSlot(1): " + rtn);
+    System.out.println(">>> 请确认 PLC D242~D245 已更新为 300/0/25/1");
+    robot.Sleep(3000);
+
+    rtn = robot.MoveL(j2, d2, 0, 0, 100, 100, 100, -1, 0, ex, 0, 0, zeroOff, 100, 0, 0, 10);
+    System.out.println("moveL errcode:" + rtn);
+
+    // 3) 自定义控制字改为 48~51 → D246~D249
+    rtn = robot.SetweldWFSUdpNum(48);
+    System.out.println("SetweldWFSUdpNum(48): " + rtn);
+    rtn = robot.SetWeldArcLenUdpNum(49);
+    System.out.println("SetWeldArcLenUdpNum(49): " + rtn);
+    rtn = robot.SetWeldArcCtrlUdpNum(50);
+    System.out.println("SetWeldArcCtrlUdpNum(50): " + rtn);
+    rtn = robot.SetWeldSlotUdpNum(51);
+    System.out.println("SetWeldSlotUdpNum(51): " + rtn);
+    robot.Sleep(3000);
+
+    // 4) 连续10个循环写入同一组控制字(48~51)：4个值每轮+1，间隔2秒，便于PLC观察D246~D249
+    for (int i = 1; i <= 10; i++)
+    {
+        double wfs = 350.0 + i;
+        int arcLen = 10 + i;
+        int arcCtrl = 30 + i;
+        int slot = 1 + (i - 1) % 8;             // 槽号范围 1~8，超出后回绕
+
+        rtn = robot.SetWeldWFS(1, wfs);
+        rtn = robot.SetWeldArcLen(1, arcLen);
+        rtn = robot.SetWeldArcCtrl(1, arcCtrl);
+        rtn = robot.SetWeldSlot(1, slot);
+
+        System.out.println(">>> [" + i + "/10] D246~D249 应更新为 " + wfs + "/" + arcLen + "/" + arcCtrl + "/" + slot);
+        robot.Sleep(500);
+    }
+
+    rtn = robot.MoveL(j1, d1, 0, 0, 100, 100, 100, -1, 0, ex, 0, 0, zeroOff, 100, 0, 0, 10);
+    System.out.println("moveL errcode:" + rtn);
+
+    // 5) 禁止焊接：扩展DO序号默认18，对应 D257 的 bit2
+    rtn = robot.SetWeldDisableExtDoNum(18);
+    System.out.println("SetWeldDisableExtDoNum(18): " + rtn);
+    rtn = robot.SetWeldDisable(1, 1);
+    System.out.println("SetWeldDisable(1): " + rtn);
+    System.out.println(">>> 请确认 PLC D257.2 已置 1，5 秒后自动恢复为 0");
+    robot.Sleep(1500);
+    rtn = robot.SetWeldDisable(1, 0);
+    System.out.println("SetWeldDisable(0): " + rtn);
+    rtn = robot.MoveL(j2, d2, 0, 0, 100, 100, 100, -1, 0, ex, 0, 0, zeroOff, 100, 0, 0, 10);
+    System.out.println("moveL errcode:" + rtn);
+}
+
+    /**
+     * 4.0.2 焊机反馈打印测试：
+     * 1) 选电弧焊 + 米勒焊机，建立 UDP 外设通信
+     * 2) 循环读取电压/电流(机器人实时状态)、实际送丝速度、协同状态，在 PLC 端修改数值观察打印
+     * 3) 同一循环打印主/子故障码，PLC 同步故障码后观察打印
+     */
+    public static void TestWeldFeedback(Robot robot)
+    {
+        int rtn;
+
+        rtn = robot.SetWeldType(0);                 // 0-电弧焊；1-激光焊
+        System.out.println("SetWeldType(电弧焊): " + rtn);
+        rtn = robot.SetWeldCompany(104);            // 104-米勒
+        System.out.println("SetWeldCompany(米勒): " + rtn);
+        rtn = robot.ExtDevLoadUDPDriver();          // 建立机器人 UDP 外设通信
+        System.out.println("ExtDevLoadUDPDriver: " + rtn);
+        rtn = robot.SetWeldSynStateExtDINum(0);     // 设置协同状态的DI
+        System.out.println("SetWeldSynStateExtDINum: " + rtn);
+        rtn = robot.SetWeldWfsFeedbackUdpNum(47);   // 设置送丝速度反馈的UDP状态字序号
+        System.out.println("SetWeldWfsFeedbackUdpNum(47): " + rtn);
+        robot.Sleep(3000);
+
+        ROBOT_STATE_PKG pkg = new ROBOT_STATE_PKG();
+        int count = 1800;
+        for (int i = 0; i < count; i++)
+        {
+            pkg = robot.GetRobotRealTimeState();
+
+            double[] wfs = new double[]{0};
+            int wfsRtn = robot.GetWeldWfsFeedback(1, wfs);      // io_type=1 UDP
+
+            int[] synState = new int[]{-1};
+            int synRtn = robot.GetWeldSynState(1, synState);    // io_type=1 UDP
+
+            int[] maincode=new int[1];
+            int[] subcode=new int[1];
+            robot.GetRobotErrorCode(maincode, subcode);
+
+            System.out.printf("[%d] 电压=%.2fV 电流=%.2fA 送丝速度=%.2f(rtn=%d) 协同=%d(rtn=%d) 主故障=%d 子故障=%d %n",
+                    i, pkg.weldVoltage, pkg.weldCurrent,
+                    wfs[0], wfsRtn,
+                    synState[0], synRtn,
+                    maincode[0], subcode[0]
+                    );
+
+            robot.Sleep(500);
+        }
+    }
+
+    /**
+     * 4.0.2 末端吸盘接口测试：末端设备使能、16项功能码设置/读取（含Bit11/Bit12通道控制使能）、
+     * 控制参数、激活、状态查询、等待吸附完成
+     * 注意：channel 0~3 对应通道1~通道4；minPress/maxPress 为实际真空度阈值，示例用 0，联调时按吸盘参数修改
+     */
+    public static void TestAxleSucker(Robot robot)
+    {
+        JointPos j1 = new JointPos(168.610, -49.414, 19.171, -59.520, -90.466, -9.516);
+        JointPos j2 = new JointPos(168.610, -53.606, 31.351, -67.508, -90.466, -9.516);
+        DescPose d1 = new DescPose(725.139, -42.866, 573.293, 179.690, -0.420, -91.872);
+        DescPose d2 = new DescPose(725.147, -42.866, 543.279, 179.689, -0.421, -91.872);
+        ExaxisPos ex = new ExaxisPos(0.0, 0.0, 0.0, 0.0);
+        DescPose zeroOff = new DescPose(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+
+        int rtn;
+        int id = 1;                                 // 站号
+
+        // 末端设备使能：使能末端吸盘，并回读确认（不传吸盘参数时仍按原四参数下发）
+        int[] forceEn = new int[]{0};
+        int[] gripEn = new int[]{0};
+        int[] ioEn = new int[]{0};
+        int[] dexEn = new int[]{0};
+        int[] suckEn = new int[]{0};
+        rtn = robot.GetAxleLuaEnableDeviceType(forceEn, gripEn, ioEn, dexEn, suckEn);
+        System.out.println("GetAxleLuaEnableDeviceType rtn=" + rtn + ", force=" + forceEn[0]
+                + ", gripper=" + gripEn[0] + ", io=" + ioEn[0]
+                + ", dexhand=" + dexEn[0] + ", sucker=" + suckEn[0]);
+
+        rtn = robot.SetAxleLuaEnableDeviceType(forceEn[0], gripEn[0], ioEn[0], dexEn[0], 1);
+        System.out.println("SetAxleLuaEnableDeviceType(sucker=1): " + rtn);
+
+        rtn = robot.GetAxleLuaEnableDeviceType(forceEn, gripEn, ioEn, dexEn, suckEn);
+        System.out.println("GetAxleLuaEnableDeviceType(after set) rtn=" + rtn + ", sucker=" + suckEn[0]);
+
+        int[] forceArr = new int[8];
+        int[] gripperArr = new int[8];
+        int[] ioArr = new int[8];
+        int[] dexArr = new int[8];
+        int[] suckArr = new int[8];
+        rtn = robot.GetAxleLuaEnableDevice(forceArr, gripperArr, ioArr, dexArr, suckArr);
+        System.out.println("GetAxleLuaEnableDevice rtn=" + rtn + ", sucker=" + Arrays.toString(suckArr));
+
+        // 功能码数组 func[0]~func[12] 对应 Bit0~Bit12，全部启用
+        // 其中 func[11]=Bit11-通道一控制使能，func[12]=Bit12-通道二控制使能
+        int[] suckerFunc = new int[16];
+        for (int i = 0; i <= 12; i++)
+        {
+            suckerFunc[i] = 1;
+        }
+        rtn = robot.SetAxleSuckerFunc(id, suckerFunc);
+        System.out.println("SetAxleSuckerFunc: " + rtn);
+
+        // 读回16项功能码：func[11]/func[12] 为通道一/通道二控制使能
+        int[] funcValue = new int[16];
+        rtn = robot.GetAxleSuckerFunc(id, funcValue);
+        System.out.println("GetAxleSuckerFunc rtn=" + rtn + ", value=" + Arrays.toString(funcValue));
+
+        rtn = robot.SetAxleSuckerAct(id, 0);        // 0-复位
+        System.out.println("SetAxleSuckerAct(0): " + rtn);
+
+        rtn = robot.SetAxleSuckerAct(id, 1);        // 1-激活
+        System.out.println("SetAxleSuckerAct(1): " + rtn);
+
+        robot.Sleep(2000);
+        rtn = robot.MoveL(j2, d2, 0, 0, 100, 100, 100, -1, 0, ex, 0, 0, zeroOff, 100, 0, 0, 10);
+        System.out.println("moveL errcode:" + rtn);
+
+        int[] channel = new int[]{1, 1, 0, 0};       // 1-使能；0-不使能
+        int[] minPress = new int[]{60, 60, 0, 0};    // 最小真空度
+        int[] maxPress = new int[]{70, 70, 0, 0};    // 最大真空度
+        rtn = robot.SetAxleSuckerCtrl(id, channel, minPress, maxPress, 6000);
+        System.out.println("SetAxleSuckerCtrl: " + rtn);
+
+        // 等待通道1(channel=0)吸附物体：
+        rtn = robot.WaitAxleSuckerState(0, 6000, 1, 0);
+        // 等待通道2(channel=1)吸附物体：
+        rtn = robot.WaitAxleSuckerState(1, 6000, 1, 0);
+        System.out.println("WaitAxleSuckerState: " + rtn);
+
+        int count = 10;
+        for (int i = 0; i < count; i++)
+        {
+            // channel 0~3 依次对应通道1~通道4，这里打印前两个通道的数据
+            for (int ch = 0; ch < 2; ch++)
+            {
+                int[] enable = new int[]{0};
+                int[] done = new int[]{0};
+                int[] vacuumValue = new int[]{0};
+                int[] error = new int[]{0};
+                rtn = robot.GetAxleSuckerState(ch, enable, done, vacuumValue, error);
+                System.out.println("[" + (i + 1) + "/" + count + "] 通道" + (ch + 1)
+                        + "(channel=" + ch + ") rtn=" + rtn
+                        + ", enable=" + enable[0] + ", done=" + done[0]
+                        + ", vacuumValue=" + vacuumValue[0] + ", error=" + error[0]);
+            }
+            robot.Sleep(500);
+            System.out.println("00000: " + rtn);
+        }
+        System.out.println("11111111: " + rtn);
+        rtn = robot.MoveL(j1, d1, 0, 0, 100, 100, 100, -1, 0, ex, 0, 0, zeroOff, 100, 0, 0, 10);
+        System.out.println("moveL errcode:" + rtn);
+
+        // 等待结束后关闭通道：channel 原值为 {1,1,0,0}(使能)，必须重新赋值为全关
+        channel = new int[]{0, 0, 0, 0};
+        rtn = robot.SetAxleSuckerCtrl(id, channel, minPress, maxPress, 8000);
+        System.out.println("SetAxleSuckerCtrl(等待后关闭通道): " + rtn);
+
+        // 等待通道1(channel=0)释放物体：
+        rtn = robot.WaitAxleSuckerState(0, 6000, 0, 0);
+        // 等待通道2(channel=1)释放物体：
+        rtn = robot.WaitAxleSuckerState(1, 6000, 0, 0);
+        System.out.println("WaitAxleSuckerState: " + rtn);
+    }
+
+public static int TestGetRobotDHParam(Robot robot)
+{
+    int[] compenMode = new int[]{0};
+    robot.GetDHCompenMode(compenMode);
+    System.out.printf("GetDHCompenMode %d%n", compenMode[0]);
+    if (compenMode[0] == 0)
+    {
+        Object[] dh = new Object[6];
+        int retval = 0;
+        retval = robot.GetDHCompensation(dh);
+        System.out.println("retval is: " + retval);
+        System.out.println("dh is: " + dh[0] + " " + dh[1] + " " + dh[2] + " "
+                + dh[3] + " " + dh[4] + " " + dh[5]);
+    }
+    else if (compenMode[0] == 1)
+    {
+        double[] d = new double[6];
+        double[] a = new double[6];
+        double[] alpha = new double[6];
+        double[] beta = new double[6];
+        double[] theta = new double[6];
+        robot.GetDHAllParam(d, a, alpha, beta, theta);
+        System.out.printf("GetDHAllParam d   %f %f %f %f %f %f%n",
+                d[0], d[1], d[2], d[3], d[4], d[5]);
+        System.out.printf("GetDHAllParam a   %f %f %f %f %f %f%n",
+                a[0], a[1], a[2], a[3], a[4], a[5]);
+        System.out.printf("GetDHAllParam alpha   %f %f %f %f %f %f%n",
+                alpha[0], alpha[1], alpha[2], alpha[3], alpha[4], alpha[5]);
+        System.out.printf("GetDHAllParam beta   %f %f %f %f %f %f%n",
+                beta[0], beta[1], beta[2], beta[3], beta[4], beta[5]);
+        System.out.printf("GetDHAllParam theta   %f %f %f %f %f %f%n",
+                theta[0], theta[1], theta[2], theta[3], theta[4], theta[5]);
+    }
+
+    robot.Sleep(1000);
+    
+    return 0;
+}
 
 }
